@@ -6,9 +6,7 @@ Jellyfin plugin that builds per-user movie and TV recommendation libraries from 
 
 Integrates with **[Jellyseerr](https://github.com/Fallenbagel/jellyseerr)** for request management: favouriting a recommendation stub immediately submits a download request to Jellyseerr on the user's behalf.
 
-Requires Jellyfin **10.11+** (use plugin **v1.0.1** if you are on **10.10.x**).
-
-> If status shows **NotSupported**, your Jellyfin version does not match the plugin build. Check **Dashboard → Help** for your server version, then install the matching plugin version from the catalog.
+Requires Jellyfin **10.11.9**.
 
 ## Plugin catalog
 
