@@ -8,6 +8,14 @@
     "category": "General",
     "versions": [
       {
+        "version": "1.0.20.0",
+        "changelog": "Release 1.0.20",
+        "targetAbi": "10.11.9.0",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.20/Jellyfin.Plugin.AIRecommendations.zip",
+        "checksum": "038ebce6e1843c565011fb94d9a3fd41",
+        "timestamp": "2026-06-18T19:14:49Z"
+      },
+      {
         "version": "1.0.19.0",
         "changelog": "Release 1.0.19",
         "targetAbi": "10.11.9.0",
