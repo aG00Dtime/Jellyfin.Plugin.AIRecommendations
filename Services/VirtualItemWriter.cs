@@ -51,7 +51,8 @@ public class VirtualItemWriter
         var folder = Path.Combine(moviesPath, folderName);
         Directory.CreateDirectory(folder);
 
-        var strmPath = Path.Combine(folder, "movie.strm");
+        // Filename matches folder name so Jellyfin's metadata matcher picks up title+year+tmdbid
+        var strmPath = Path.Combine(folder, $"{folderName}.strm");
         File.WriteAllText(strmPath, "https://example.invalid/ai-recommendations/not-playable", Encoding.UTF8);
 
         var reasonPath = Path.Combine(folder, ".ai-reason.txt");
