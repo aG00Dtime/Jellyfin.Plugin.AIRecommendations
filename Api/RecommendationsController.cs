@@ -73,6 +73,78 @@ public class RecommendationsController : ControllerBase
     }
 
     /// <summary>
+    /// Clears recommendation stubs and persisted state for all users or a specific user.
+    /// </summary>
+    [HttpPost("Clear")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public IActionResult ClearAll()
+    {
+        ClearUserLibraries(null);
+        return NoContent();
+    }
+
+    [HttpPost("Clear/{userId:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public IActionResult ClearUser([FromRoute] Guid userId)
+    {
+        var user = _userManager.GetUserById(userId);
+        if (user is null) return NotFound();
+        ClearUserLibraries(userId);
+        return NoContent();
+    }
+
+    private static void ClearUserLibraries(Guid? userId)
+    {
+        var config = Plugin.Instance!.Configuration;
+        var targets = userId.HasValue
+            ? config.UserLibraries.Where(r => r.UserId == userId.Value.ToString("N")).ToList()
+            : config.UserLibraries.ToList();
+
+        foreach (var reg in targets)
+        {
+            if (Directory.Exists(reg.MoviePath))
+            {
+                Directory.Delete(reg.MoviePath, recursive: true);
+            }
+
+            if (Directory.Exists(reg.ShowPath))
+            {
+                Directory.Delete(reg.ShowPath, recursive: true);
+            }
+
+            reg.RequestedTmdbIds.Clear();
+            reg.RejectedTmdbIds.Clear();
+        }
+
+        Plugin.Instance!.SaveConfiguration();
+    }
+
+    /// <summary>
+    /// Returns registered users and their library state for the admin UI.
+    /// </summary>
+    [HttpGet("Users")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public ActionResult<IEnumerable<object>> GetUsers()
+    {
+        var config = Plugin.Instance!.Configuration;
+        var result = config.UserLibraries.Select(r =>
+        {
+            var user = _userManager.GetUserById(Guid.Parse(r.UserId));
+            return new
+            {
+                UserId = r.UserId,
+                Username = user?.Username ?? r.UserId,
+                r.MovieLibraryName,
+                r.ShowLibraryName,
+                RequestedCount = r.RequestedTmdbIds.Count,
+                RejectedCount = r.RejectedTmdbIds.Count
+            };
+        });
+        return Ok(result);
+    }
+
+    /// <summary>
     /// Tests connectivity for a given provider using supplied credentials.
     /// </summary>
     [HttpPost("TestProvider")]
@@ -98,6 +170,19 @@ public class RecommendationsController : ControllerBase
 
         switch (req.Provider)
         {
+            case "Jellyseerr":
+            {
+                var baseUrl = req.BaseUrl.TrimEnd('/');
+                using var pingReq = new HttpRequestMessage(HttpMethod.Get, $"{baseUrl}/api/v1/auth/me");
+                pingReq.Headers.Add("X-Api-Key", req.ApiKey);
+                using var pingResp = await client.SendAsync(pingReq, cancellationToken).ConfigureAwait(false);
+                pingResp.EnsureSuccessStatusCode();
+                var body = await pingResp.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+                using var doc = System.Text.Json.JsonDocument.Parse(body);
+                var displayName = doc.RootElement.TryGetProperty("displayName", out var dn) ? dn.GetString() : null;
+                return $"Connected to Jellyseerr{(displayName is not null ? $" as {displayName}" : string.Empty)}";
+            }
+
             case "Ollama":
             {
                 var isCloud = req.OllamaDeployment.Equals("Cloud", StringComparison.OrdinalIgnoreCase);
