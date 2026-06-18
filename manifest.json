@@ -9,11 +9,11 @@
     "versions": [
       {
         "version": "1.0.33.0",
-        "changelog": "Build 1.0.33",
+        "changelog": "Release 1.0.33",
         "targetAbi": "10.11.9.0",
         "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.33/Jellyfin.Plugin.AIRecommendations.zip",
-        "checksum": "",
-        "timestamp": "2026-06-18T21:46:58Z"
+        "checksum": "f946dbb70daf882bbd1937103ee5e0d1",
+        "timestamp": "2026-06-18T21:47:10Z"
       },
       {
         "version": "1.0.32.0",
