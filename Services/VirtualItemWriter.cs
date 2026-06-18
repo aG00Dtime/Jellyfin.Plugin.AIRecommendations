@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Security;
 using System.Text;
+using System.Text.RegularExpressions;
 using Jellyfin.Plugin.AIRecommendations.Models;
 using Microsoft.Extensions.Logging;
 
@@ -8,9 +9,15 @@ namespace Jellyfin.Plugin.AIRecommendations.Services;
 
 /// <summary>
 /// Writes TMDB-identified stub files for Jellyfin library scanning.
+/// Stubs accumulate up to MaxStubsPerType; only stubs whose TMDB ID is in
+/// removeByTmdbId are deleted. Returns the full set of TMDB IDs now on disk.
 /// </summary>
 public class VirtualItemWriter
 {
+    private const int MaxStubsPerType = 50;
+
+    private static readonly Regex TmdbIdPattern = new(@"\[tmdbid-(\d+)\]", RegexOptions.Compiled);
+
     private readonly ILogger<VirtualItemWriter> _logger;
 
     public VirtualItemWriter(ILogger<VirtualItemWriter> logger)
@@ -18,32 +25,101 @@ public class VirtualItemWriter
         _logger = logger;
     }
 
-    public void SyncRecommendations(
+    public IReadOnlyList<int> SyncRecommendations(
         string moviesPath,
         string showsPath,
-        IReadOnlyList<ResolvedRecommendation> recommendations,
+        IReadOnlyList<ResolvedRecommendation> newRecommendations,
+        HashSet<int> removeByTmdbId,
         bool limitShowsToSeasonOne)
     {
         Directory.CreateDirectory(moviesPath);
         Directory.CreateDirectory(showsPath);
 
-        var movies = recommendations.Where(r => !r.IsSeries).ToList();
-        var shows = recommendations.Where(r => r.IsSeries).ToList();
+        // Remove stubs for rejected / requested / owned items
+        RemoveStaleStubs(moviesPath, removeByTmdbId);
+        RemoveStaleStubs(showsPath, removeByTmdbId);
 
-        CleanDirectory(moviesPath, movies.Select(m => GetMovieFolderName(m)).ToHashSet(StringComparer.OrdinalIgnoreCase));
-        CleanDirectory(showsPath, shows.Select(s => GetShowFolderName(s)).ToHashSet(StringComparer.OrdinalIgnoreCase));
+        // Count what remains
+        var existingMovieIds = ScanTmdbIds(moviesPath);
+        var existingShowIds = ScanTmdbIds(showsPath);
 
-        foreach (var movie in movies)
+        var movies = newRecommendations.Where(r => !r.IsSeries).ToList();
+        var shows = newRecommendations.Where(r => r.IsSeries).ToList();
+
+        // Add new stubs only up to the per-type cap
+        var moviesSlots = Math.Max(0, MaxStubsPerType - existingMovieIds.Count);
+        var showsSlots = Math.Max(0, MaxStubsPerType - existingShowIds.Count);
+
+        var moviesToAdd = movies.Where(m => !existingMovieIds.Contains(m.TmdbId)).Take(moviesSlots).ToList();
+        var showsToAdd = shows.Where(s => !existingShowIds.Contains(s.TmdbId)).Take(showsSlots).ToList();
+
+        foreach (var movie in moviesToAdd)
         {
             WriteMovie(moviesPath, movie);
         }
 
-        foreach (var show in shows)
+        foreach (var show in showsToAdd)
         {
             WriteShow(showsPath, show, limitShowsToSeasonOne);
         }
 
-        _logger.LogInformation("Wrote {MovieCount} movies and {ShowCount} shows to virtual libraries", movies.Count, shows.Count);
+        _logger.LogInformation(
+            "Added {MovieCount} movies and {ShowCount} shows to virtual libraries (totals: {TotalMovies}/{Cap} movies, {TotalShows}/{Cap} shows)",
+            moviesToAdd.Count, showsToAdd.Count,
+            existingMovieIds.Count + moviesToAdd.Count, MaxStubsPerType,
+            existingShowIds.Count + showsToAdd.Count, MaxStubsPerType);
+
+        // Return everything on disk so the sync service can track placed IDs
+        var placed = new List<int>();
+        placed.AddRange(ScanTmdbIds(moviesPath));
+        placed.AddRange(ScanTmdbIds(showsPath));
+        return placed;
+    }
+
+    /// <summary>
+    /// Scans a directory and returns the TMDB IDs of all stub folders found.
+    /// </summary>
+    public static HashSet<int> ScanTmdbIds(string path)
+    {
+        if (!Directory.Exists(path))
+        {
+            return new HashSet<int>();
+        }
+
+        var ids = new HashSet<int>();
+        foreach (var dir in Directory.GetDirectories(path))
+        {
+            var id = ParseTmdbId(Path.GetFileName(dir));
+            if (id.HasValue)
+            {
+                ids.Add(id.Value);
+            }
+        }
+
+        return ids;
+    }
+
+    public static int? ParseTmdbId(string folderName)
+    {
+        var m = TmdbIdPattern.Match(folderName);
+        return m.Success && int.TryParse(m.Groups[1].Value, out var id) ? id : null;
+    }
+
+    private static void RemoveStaleStubs(string root, HashSet<int> removeByTmdbId)
+    {
+        if (!Directory.Exists(root))
+        {
+            return;
+        }
+
+        foreach (var dir in Directory.GetDirectories(root))
+        {
+            var id = ParseTmdbId(Path.GetFileName(dir));
+            if (id.HasValue && removeByTmdbId.Contains(id.Value))
+            {
+                Directory.Delete(dir, recursive: true);
+            }
+        }
     }
 
     private static void WriteMovie(string moviesPath, ResolvedRecommendation movie)
@@ -52,12 +128,9 @@ public class VirtualItemWriter
         var folder = Path.Combine(moviesPath, folderName);
         Directory.CreateDirectory(folder);
 
-        // STRM → JustWatch so clicking Play gives the user somewhere to go
         var strmPath = Path.Combine(folder, $"{folderName}.strm");
         File.WriteAllText(strmPath, JustWatchUrl(movie.Title), Encoding.UTF8);
 
-        // NFO sidecar: locks tagline + tag so Jellyfin shows "AI Recommendation"
-        // even after TMDB refreshes the poster and other metadata.
         var nfoPath = Path.Combine(folder, $"{folderName}.nfo");
         File.WriteAllText(nfoPath, BuildMovieNfo(movie), Encoding.UTF8);
     }
@@ -73,7 +146,6 @@ public class VirtualItemWriter
         var strmPath = Path.Combine(seasonFolder, episodeName);
         File.WriteAllText(strmPath, JustWatchUrl(show.Title), Encoding.UTF8);
 
-        // tvshow.nfo in show root — Jellyfin picks this up for series metadata
         var nfoPath = Path.Combine(showFolder, "tvshow.nfo");
         File.WriteAllText(nfoPath, BuildShowNfo(show), Encoding.UTF8);
 
@@ -96,7 +168,7 @@ public class VirtualItemWriter
               <title>{X(movie.Title)}</title>
               <year>{movie.Year?.ToString(CultureInfo.InvariantCulture) ?? string.Empty}</year>
               <uniqueid type="tmdb" default="true">{tmdbId}</uniqueid>
-              <tagline>AI Pick — ❤️ to request via Jellyseerr · 👎 to dismiss</tagline>
+              <tagline>AI Pick — ❤️ to request via Jellyseerr · 🗑️ Delete to dismiss forever</tagline>
               <plot>{X(plot)}</plot>
               <tag>AI Recommendation</tag>
               <lockdata>false</lockdata>
@@ -115,7 +187,7 @@ public class VirtualItemWriter
               <title>{X(show.Title)}</title>
               <year>{show.Year?.ToString(CultureInfo.InvariantCulture) ?? string.Empty}</year>
               <uniqueid type="tmdb" default="true">{tmdbId}</uniqueid>
-              <tagline>AI Pick — ❤️ to request via Jellyseerr · 👎 to dismiss</tagline>
+              <tagline>AI Pick — ❤️ to request via Jellyseerr · 🗑️ Delete to dismiss forever</tagline>
               <plot>{X(plot)}</plot>
               <tag>AI Recommendation</tag>
               <lockdata>false</lockdata>
@@ -131,26 +203,8 @@ public class VirtualItemWriter
         return string.IsNullOrWhiteSpace(overview) ? reason : $"{reason}\n\n{overview}";
     }
 
-    // XML-safe encoding for NFO text content
     private static string X(string? value)
         => SecurityElement.Escape(value ?? string.Empty) ?? string.Empty;
-
-    private static void CleanDirectory(string root, HashSet<string> desiredFolderNames)
-    {
-        if (!Directory.Exists(root))
-        {
-            return;
-        }
-
-        foreach (var dir in Directory.GetDirectories(root))
-        {
-            var name = Path.GetFileName(dir);
-            if (!desiredFolderNames.Contains(name))
-            {
-                Directory.Delete(dir, recursive: true);
-            }
-        }
-    }
 
     private static string GetMovieFolderName(ResolvedRecommendation movie)
     {

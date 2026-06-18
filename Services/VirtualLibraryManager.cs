@@ -146,8 +146,12 @@ public class VirtualLibraryManager
         Directory.CreateDirectory(moviePath);
         Directory.CreateDirectory(showPath);
 
-        var movieName = $"{user.Username}'s AI Movie Picks";
-        var showName = $"{user.Username}'s AI Show Picks";
+        var displayName = string.IsNullOrEmpty(user.Username)
+            ? "User"
+            : char.ToUpperInvariant(user.Username[0]) + user.Username[1..];
+
+        var movieName = $"{displayName}'s AI Movie Picks";
+        var showName = $"{displayName}'s AI Show Picks";
 
         await EnsureVirtualFolderAsync(movieName, CollectionTypeOptions.movies, moviePath, cancellationToken)
             .ConfigureAwait(false);

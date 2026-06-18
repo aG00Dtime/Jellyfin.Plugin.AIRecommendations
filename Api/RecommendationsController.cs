@@ -137,11 +137,86 @@ public class RecommendationsController : ControllerBase
                 Username = user?.Username ?? r.UserId,
                 r.MovieLibraryName,
                 r.ShowLibraryName,
+                StubCount = r.PlacedTmdbIds.Count,
                 RequestedCount = r.RequestedTmdbIds.Count,
                 RejectedCount = r.RejectedTmdbIds.Count
             };
         });
         return Ok(result);
+    }
+
+    /// <summary>
+    /// Returns the TMDB IDs and titles of stubs currently on disk for a user.
+    /// </summary>
+    [HttpGet("Recommendations/{userId:guid}")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public ActionResult<IEnumerable<object>> GetRecommendations([FromRoute] Guid userId)
+    {
+        var config = Plugin.Instance!.Configuration;
+        var reg = config.UserLibraries.FirstOrDefault(r => r.UserId == userId.ToString("N"));
+        if (reg is null) return NotFound();
+
+        var result = new List<object>();
+        result.AddRange(ScanStubFolder(reg.MoviePath, "movie"));
+        result.AddRange(ScanStubFolder(reg.ShowPath, "series"));
+        return Ok(result);
+    }
+
+    private static IEnumerable<object> ScanStubFolder(string path, string type)
+    {
+        if (!Directory.Exists(path)) yield break;
+        foreach (var dir in Directory.GetDirectories(path))
+        {
+            var name = System.IO.Path.GetFileName(dir);
+            var tmdbId = Services.VirtualItemWriter.ParseTmdbId(name);
+            if (tmdbId is null) continue;
+            // Strip tmdbid suffix and year for display
+            var title = System.Text.RegularExpressions.Regex.Replace(name, @"\s*\(\d{4}\)\s*\[tmdbid-\d+\]|\s*\[tmdbid-\d+\]", "").Trim();
+            yield return new { tmdbId, title, type };
+        }
+    }
+
+    /// <summary>
+    /// Permanently dismisses a recommendation for a user (adds to reject list and removes stub).
+    /// </summary>
+    [HttpPost("Dismiss/{userId:guid}/{tmdbId:int}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public IActionResult DismissRecommendation([FromRoute] Guid userId, [FromRoute] int tmdbId)
+    {
+        var config = Plugin.Instance!.Configuration;
+        var reg = config.UserLibraries.FirstOrDefault(r => r.UserId == userId.ToString("N"));
+        if (reg is null) return NotFound();
+
+        if (!reg.RejectedTmdbIds.Contains(tmdbId))
+        {
+            reg.RejectedTmdbIds.Add(tmdbId);
+        }
+
+        // Remove matching stub folder immediately
+        DeleteStubFolder(reg.MoviePath, tmdbId);
+        DeleteStubFolder(reg.ShowPath, tmdbId);
+
+        // Remove from placed tracking
+        reg.PlacedTmdbIds.Remove(tmdbId);
+
+        Plugin.Instance!.SaveConfiguration();
+        return NoContent();
+    }
+
+    private static void DeleteStubFolder(string path, int tmdbId)
+    {
+        if (!Directory.Exists(path)) return;
+        foreach (var dir in Directory.GetDirectories(path))
+        {
+            var id = Services.VirtualItemWriter.ParseTmdbId(System.IO.Path.GetFileName(dir));
+            if (id == tmdbId)
+            {
+                Directory.Delete(dir, recursive: true);
+                return;
+            }
+        }
     }
 
     /// <summary>

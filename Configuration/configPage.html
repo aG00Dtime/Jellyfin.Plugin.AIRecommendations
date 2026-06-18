@@ -14,6 +14,12 @@
         .status-box .msg { word-break: break-all; white-space: pre-wrap; }
         .status-ok { color: #7edb7e; }
         .status-err { color: #db7e7e; }
+        .stub-list { margin-top: 8px; background: #111; border: 1px solid #2a2a2a; border-radius: 4px; padding: 8px; max-height: 260px; overflow-y: auto; }
+        .stub-row { display: flex; align-items: center; justify-content: space-between; padding: 4px 6px; border-bottom: 1px solid #1e1e1e; font-size: .82em; }
+        .stub-row:last-child { border-bottom: none; }
+        .stub-type { color: #888; margin-left: 6px; font-size: .85em; }
+        .btn-dismiss { padding: 1px 8px; font-size: .78em; background: #3a1a1a; color: #db7e7e; border: 1px solid #5a2a2a; border-radius: 3px; cursor: pointer; }
+        .btn-dismiss:hover { background: #5a2a2a; }
     </style>
 </head>
 <body>
@@ -31,11 +37,16 @@
 
                 <!-- Users panel -->
                 <div id="usersPanel" style="display:none;margin-bottom:16px">
-                    <h3 style="margin-bottom:8px">Users</h3>
+                    <h3 style="margin-bottom:4px">Users</h3>
+                    <p style="font-size:.82em;color:#888;margin:0 0 10px">
+                        To dismiss a recommendation: open the user's AI library in Jellyfin, select the item, and delete it.
+                        It will be permanently rejected and never recommended again.
+                    </p>
                     <table style="width:100%;border-collapse:collapse;font-size:.85em" id="usersTable">
                         <thead>
                             <tr style="color:#888;text-align:left">
                                 <th style="padding:4px 8px">User</th>
+                                <th style="padding:4px 8px">Stubs</th>
                                 <th style="padding:4px 8px">Requested</th>
                                 <th style="padding:4px 8px">Rejected</th>
                                 <th style="padding:4px 8px"></th>
@@ -43,6 +54,13 @@
                         </thead>
                         <tbody id="usersBody"></tbody>
                     </table>
+                    <div id="stubViewerPanel" style="display:none;margin-top:12px">
+                        <div style="display:flex;align-items:center;justify-content:space-between">
+                            <span id="stubViewerTitle" style="font-weight:bold;font-size:.9em"></span>
+                            <button type="button" id="btn-close-stubs" style="background:none;border:none;color:#888;cursor:pointer;font-size:1.1em">✕</button>
+                        </div>
+                        <div class="stub-list" id="stubList"></div>
+                    </div>
                     <button is="emby-button" type="button" id="btn-clear-all" class="raised button-cancel" style="margin-top:10px">Clear All Users</button>
                 </div>
 
@@ -128,8 +146,9 @@
                     <!-- Jellyseerr -->
                     <h3>Jellyseerr <span style="font-weight:normal;font-size:.8em;color:#888">(optional)</span></h3>
                     <p style="font-size:.85em;color:#aaa;margin:0 0 10px">
-                        When configured, ❤️ favouriting a recommendation stub submits a Jellyseerr request on the next sync.
-                        👎 Disliking a stub removes it permanently. Get your API key from your Jellyseerr profile page.
+                        When configured, ❤️ <strong>favouriting</strong> a recommendation stub submits a Jellyseerr request on the next sync.
+                        To dismiss a recommendation permanently, simply <strong>delete</strong> it from your AI library in Jellyfin — it will never be suggested again.
+                        Get your API key from your Jellyseerr profile page.
                     </p>
                     <div class="inputContainer">
                         <input is="emby-input" type="text" id="jellyseerrBaseUrl" label="Jellyseerr URL" />
@@ -270,9 +289,13 @@
                         var tr = document.createElement('tr');
                         tr.innerHTML =
                             '<td style="padding:4px 8px">' + (u.Username || u.UserId) + '</td>' +
+                            '<td style="padding:4px 8px;color:#aaa">' + (u.StubCount || 0) + '</td>' +
                             '<td style="padding:4px 8px;color:#7edb7e">' + u.RequestedCount + '</td>' +
                             '<td style="padding:4px 8px;color:#db7e7e">' + u.RejectedCount + '</td>' +
-                            '<td style="padding:4px 8px"><button is="emby-button" type="button" class="raised button-cancel btn-clear-user" data-id="' + u.UserId + '" style="padding:2px 10px;font-size:.8em">Clear</button></td>';
+                            '<td style="padding:4px 8px;white-space:nowrap">' +
+                              '<button type="button" class="btn-view-stubs" data-id="' + u.UserId + '" data-name="' + (u.Username || u.UserId) + '" style="background:#1a2a3a;border:1px solid #2a4a6a;color:#7eb4db;border-radius:3px;padding:2px 8px;font-size:.78em;cursor:pointer;margin-right:4px">View stubs</button>' +
+                              '<button is="emby-button" type="button" class="raised button-cancel btn-clear-user" data-id="' + u.UserId + '" style="padding:2px 10px;font-size:.8em">Clear</button>' +
+                            '</td>';
                         tbody.appendChild(tr);
                     });
                     document.getElementById('usersPanel').style.display = 'block';
@@ -280,11 +303,67 @@
                         btn.addEventListener('click', function () {
                             if (!confirm('Clear recommendations for this user?')) return;
                             apiPost('AIRecommendations/Clear/' + btn.dataset.id, {}).then(function () {
+                                document.getElementById('stubViewerPanel').style.display = 'none';
                                 loadUsers();
                             });
                         });
                     });
+                    tbody.querySelectorAll('.btn-view-stubs').forEach(function (btn) {
+                        btn.addEventListener('click', function () {
+                            loadRecommendations(btn.dataset.id, btn.dataset.name);
+                        });
+                    });
                 }).catch(function () {});
+            }
+
+            function loadRecommendations(userId, username) {
+                var panel = document.getElementById('stubViewerPanel');
+                var list = document.getElementById('stubList');
+                var title = document.getElementById('stubViewerTitle');
+                title.textContent = (username || userId) + '\'s current stubs';
+                list.innerHTML = '<div style="color:#888;padding:6px">Loading…</div>';
+                panel.style.display = 'block';
+
+                apiGet('AIRecommendations/Recommendations/' + userId).then(function (stubs) {
+                    if (!stubs || !stubs.length) {
+                        list.innerHTML = '<div style="color:#888;padding:6px">No stubs on disk.</div>';
+                        return;
+                    }
+                    list.innerHTML = '';
+                    stubs.forEach(function (s) {
+                        var row = document.createElement('div');
+                        row.className = 'stub-row';
+                        row.innerHTML =
+                            '<span>' + s.title + '<span class="stub-type">' + s.type + '</span></span>' +
+                            '<button class="btn-dismiss" data-tmdb="' + s.tmdbId + '">Dismiss</button>';
+                        row.querySelector('.btn-dismiss').addEventListener('click', function (e) {
+                            dismissRecommendation(userId, s.tmdbId, e.target, row);
+                        });
+                        list.appendChild(row);
+                    });
+                }).catch(function () {
+                    list.innerHTML = '<div style="color:#db7e7e;padding:6px">Failed to load stubs.</div>';
+                });
+            }
+
+            function dismissRecommendation(userId, tmdbId, btn, row) {
+                btn.disabled = true;
+                btn.textContent = '…';
+                var token = ApiClient.accessToken();
+                fetch(ApiClient.getUrl('AIRecommendations/Dismiss/' + userId + '/' + tmdbId), {
+                    method: 'POST',
+                    headers: { 'X-Emby-Token': token, 'X-MediaBrowser-Token': token }
+                }).then(function (r) {
+                    if (r.ok) {
+                        row.style.opacity = '0.4';
+                        row.style.textDecoration = 'line-through';
+                        btn.textContent = 'Done';
+                        loadUsers();
+                    } else {
+                        btn.disabled = false;
+                        btn.textContent = 'Dismiss';
+                    }
+                }).catch(function () { btn.disabled = false; btn.textContent = 'Dismiss'; });
             }
 
             function loadLogs() {
@@ -358,6 +437,10 @@
                 });
 
                 document.getElementById('btn-refresh-logs').addEventListener('click', loadLogs);
+
+                document.getElementById('btn-close-stubs').addEventListener('click', function () {
+                    document.getElementById('stubViewerPanel').style.display = 'none';
+                });
             });
 
             document.querySelector('.configForm').addEventListener('submit', function (e) {

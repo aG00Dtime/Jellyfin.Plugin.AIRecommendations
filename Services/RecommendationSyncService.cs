@@ -80,7 +80,6 @@ public class RecommendationSyncService
 
         UpdateStatus($"Synced {completed} user(s) at {DateTime.UtcNow:u}");
 
-        // Scan library so new stubs and any removals surface immediately
         _logger.LogInformation("Triggering library scan to surface new AI recommendations...");
         await _libraryManager.ValidateMediaLibrary(new Progress<double>(), cancellationToken)
             .ConfigureAwait(false);
@@ -92,11 +91,14 @@ public class RecommendationSyncService
         var registration = await _virtualLibraryManager.EnsureUserLibrariesAsync(user, cancellationToken)
             .ConfigureAwait(false);
 
-        // Process any ❤️ / 👎 feedback the user left on existing stubs
+        // Detect stubs the user deleted via Jellyfin's native delete — permanently reject them
+        DetectAndRejectDeletedStubs(user, registration);
+
+        // Process ❤️ / 👎 feedback the user left on existing stubs
         await ProcessUserFeedbackAsync(user, registration, cancellationToken).ConfigureAwait(false);
         Plugin.Instance!.SaveConfiguration();
 
-        // Exclude rejected TMDB IDs and already-requested IDs from new recommendations
+        // Exclude rejected + already-requested IDs from new recommendations
         var extraExcludeIds = registration.RejectedTmdbIds
             .Concat(registration.RequestedTmdbIds)
             .ToHashSet();
@@ -104,23 +106,29 @@ public class RecommendationSyncService
         var all = await _engine.GenerateForUserAsync(user, extraExcludeIds, cancellationToken)
             .ConfigureAwait(false);
 
-        // Don't write stubs for items already accepted and in Jellyseerr
+        // Remove stubs for anything the user has rejected or already requested via Jellyseerr
+        var removeIds = new HashSet<int>(registration.RejectedTmdbIds.Concat(registration.RequestedTmdbIds));
+
         var pending = all
             .Where(r => !registration.RequestedTmdbIds.Contains(r.TmdbId))
             .ToList();
 
-        var movies = pending.Where(r => !r.IsSeries).Take(config.MaxRecommendationsPerType).ToList();
-        var shows = pending.Where(r => r.IsSeries).Take(config.MaxRecommendationsPerType).ToList();
-
-        _itemWriter.SyncRecommendations(
+        var placedIds = _itemWriter.SyncRecommendations(
             registration.MoviePath,
             registration.ShowPath,
-            movies.Concat(shows).ToList(),
+            pending,
+            removeIds,
             config.LimitShowsToSeasonOne);
 
+        registration.PlacedTmdbIds = placedIds.ToList();
+        Plugin.Instance!.SaveConfiguration();
+
         _logger.LogInformation(
-            "Synced {Movies} movies and {Shows} shows for {User}",
-            movies.Count, shows.Count, user.Username);
+            "Synced {Total} stubs for {User} ({Movies} movies, {Shows} shows)",
+            placedIds.Count,
+            user.Username,
+            VirtualItemWriter.ScanTmdbIds(registration.MoviePath).Count,
+            VirtualItemWriter.ScanTmdbIds(registration.ShowPath).Count);
     }
 
     public PluginStatusDto GetStatus()
@@ -133,6 +141,43 @@ public class RecommendationSyncService
             LastSyncMessage = config.LastSyncMessage,
             RegisteredUsers = config.UserLibraries.Count
         };
+    }
+
+    /// <summary>
+    /// Compares PlacedTmdbIds against stubs currently on disk.
+    /// Anything that was placed but has since been deleted by the user is added
+    /// to the permanent reject list so it never appears again.
+    /// </summary>
+    private void DetectAndRejectDeletedStubs(User user, Configuration.UserLibraryRegistration registration)
+    {
+        if (registration.PlacedTmdbIds.Count == 0)
+        {
+            return;
+        }
+
+        var onDisk = VirtualItemWriter.ScanTmdbIds(registration.MoviePath);
+        onDisk.UnionWith(VirtualItemWriter.ScanTmdbIds(registration.ShowPath));
+
+        var knownRemoved = new HashSet<int>(
+            registration.RejectedTmdbIds.Concat(registration.RequestedTmdbIds));
+
+        var deletedByUser = registration.PlacedTmdbIds
+            .Where(id => !onDisk.Contains(id) && !knownRemoved.Contains(id))
+            .ToList();
+
+        if (deletedByUser.Count == 0)
+        {
+            return;
+        }
+
+        _logger.LogInformation(
+            "{User} deleted {Count} stub(s) via Jellyfin — adding to permanent reject list",
+            user.Username, deletedByUser.Count);
+
+        foreach (var id in deletedByUser)
+        {
+            registration.RejectedTmdbIds.Add(id);
+        }
     }
 
     /// <summary>

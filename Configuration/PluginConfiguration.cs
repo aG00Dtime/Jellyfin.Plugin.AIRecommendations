@@ -96,4 +96,10 @@ public class UserLibraryRegistration
 
     /// <summary>TMDB IDs already submitted to Jellyseerr — skip until actually owned.</summary>
     public List<int> RequestedTmdbIds { get; set; } = new();
+
+    /// <summary>
+    /// TMDB IDs of stubs currently written to disk. Compared on next sync to detect
+    /// stubs the user deleted via Jellyfin's native UI, which are then auto-rejected.
+    /// </summary>
+    public List<int> PlacedTmdbIds { get; set; } = new();
 }
