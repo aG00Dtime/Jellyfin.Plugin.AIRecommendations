@@ -21,15 +21,18 @@ public class RecommendationsController : ControllerBase
 {
     private readonly RecommendationSyncService _syncService;
     private readonly IUserManager _userManager;
+    private readonly ILibraryManager _libraryManager;
     private readonly IHttpClientFactory _httpClientFactory;
 
     public RecommendationsController(
         RecommendationSyncService syncService,
         IUserManager userManager,
+        ILibraryManager libraryManager,
         IHttpClientFactory httpClientFactory)
     {
         _syncService = syncService;
         _userManager = userManager;
+        _libraryManager = libraryManager;
         _httpClientFactory = httpClientFactory;
     }
 
@@ -73,24 +76,29 @@ public class RecommendationsController : ControllerBase
     }
 
     /// <summary>
-    /// Clears recommendation stubs and persisted state for all users or a specific user.
+    /// Clears recommendation stubs and persisted state for all users or a specific user,
+    /// then triggers a library scan so Jellyfin removes the deleted items from its database.
     /// </summary>
     [HttpPost("Clear")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
-    public IActionResult ClearAll()
+    public async Task<IActionResult> ClearAll(CancellationToken cancellationToken)
     {
         ClearUserLibraries(null);
+        await _libraryManager.ValidateMediaLibrary(new Progress<double>(), cancellationToken)
+            .ConfigureAwait(false);
         return NoContent();
     }
 
     [HttpPost("Clear/{userId:guid}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public IActionResult ClearUser([FromRoute] Guid userId)
+    public async Task<IActionResult> ClearUser([FromRoute] Guid userId, CancellationToken cancellationToken)
     {
         var user = _userManager.GetUserById(userId);
         if (user is null) return NotFound();
         ClearUserLibraries(userId);
+        await _libraryManager.ValidateMediaLibrary(new Progress<double>(), cancellationToken)
+            .ConfigureAwait(false);
         return NoContent();
     }
 
@@ -115,6 +123,7 @@ public class RecommendationsController : ControllerBase
 
             reg.RequestedTmdbIds.Clear();
             reg.RejectedTmdbIds.Clear();
+            reg.PlacedTmdbIds.Clear();
         }
 
         Plugin.Instance!.SaveConfiguration();
