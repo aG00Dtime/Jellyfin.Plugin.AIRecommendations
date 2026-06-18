@@ -43,7 +43,7 @@ public class PluginConfiguration : BasePluginConfiguration
 
     public bool LimitShowsToSeasonOne { get; set; } = true;
 
-    public Dictionary<string, UserLibraryRegistration> UserLibraries { get; set; } = new();
+    public List<UserLibraryRegistration> UserLibraries { get; set; } = new();
 
     public DateTime? LastSyncUtc { get; set; }
 
@@ -55,6 +55,8 @@ public class PluginConfiguration : BasePluginConfiguration
 /// </summary>
 public class UserLibraryRegistration
 {
+    public string UserId { get; set; } = string.Empty;
+
     public Guid MovieLibraryId { get; set; }
 
     public Guid ShowLibraryId { get; set; }

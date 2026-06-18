@@ -97,7 +97,8 @@ public class VirtualLibraryManager
         var config = Plugin.Instance!.Configuration;
         var userKey = user.Id.ToString("N");
 
-        if (config.UserLibraries.TryGetValue(userKey, out var existing)
+        var existing = config.UserLibraries.FirstOrDefault(r => r.UserId == userKey);
+        if (existing is not null
             && Directory.Exists(existing.MoviePath)
             && Directory.Exists(existing.ShowPath))
         {
@@ -123,6 +124,7 @@ public class VirtualLibraryManager
 
         var registration = new UserLibraryRegistration
         {
+            UserId = userKey,
             MovieLibraryName = movieName,
             ShowLibraryName = showName,
             MoviePath = moviePath,
@@ -131,7 +133,8 @@ public class VirtualLibraryManager
             ShowLibraryId = showId
         };
 
-        config.UserLibraries[userKey] = registration;
+        config.UserLibraries.RemoveAll(r => r.UserId == userKey);
+        config.UserLibraries.Add(registration);
         Plugin.Instance!.SaveConfiguration();
 
         if (movieId != Guid.Empty && showId != Guid.Empty)
