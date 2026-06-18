@@ -18,39 +18,41 @@ public static class LlmProviderHelpers
     };
 
     public static string BuildPrompt(
-        IReadOnlyList<WatchedItemSummary> watchedItems,
+        UserTasteProfile profile,
         IReadOnlyList<string> excludeTitles,
         int count,
         IReadOnlyList<string>? notFoundTitles = null)
     {
-        var topGenres = watchedItems
-            .SelectMany(w => w.Genres)
-            .GroupBy(g => g, StringComparer.OrdinalIgnoreCase)
-            .OrderByDescending(g => g.Count())
-            .Take(5)
-            .Select(g => g.Key);
+        var genres = profile.TopGenres.Count > 0
+            ? string.Join(", ", profile.TopGenres.Select(g => $"{g.Genre} ({g.Count})"))
+            : "varied";
 
-        // Compact watch history: "Title (Year, movie)" per line
-        var watched = string.Join(", ", watchedItems.Take(25).Select(w =>
-            $"{w.Title} ({w.Year?.ToString() ?? "?"}, {w.TypeLabel()})"));
+        var mix = $"{profile.MoviePercent}% movies, {100 - profile.MoviePercent}% series";
+        var samples = string.Join(", ", profile.SampleTitles);
 
-        // Compact exclude list: comma-separated, capped to keep tokens low
+        var favSection = profile.FavoriteTitles.Count > 0
+            ? $"\nFavourites: {string.Join(", ", profile.FavoriteTitles)}"
+            : string.Empty;
+
         var exclude = string.Join(", ", excludeTitles.Take(100));
 
         var notFoundSection = notFoundTitles is { Count: > 0 }
-            ? $"\nDo NOT suggest these (TMDB lookup failed): {string.Join(", ", notFoundTitles)}"
+            ? $"\nDo NOT suggest (TMDB lookup failed previously): {string.Join(", ", notFoundTitles)}"
             : string.Empty;
 
         return $$"""
-            Suggest exactly {{count}} movies/shows this user would enjoy. Return ONLY valid JSON — no prose.
+            Suggest exactly {{count}} movies/shows for this user. Return ONLY valid JSON — no prose.
 
-            Genres: {{string.Join(", ", topGenres)}}
-            Watched: {{watched}}
-            Skip (already owned): {{exclude}}{{notFoundSection}}
+            TASTE PROFILE:
+            Genres: {{genres}}
+            Era preference: {{profile.EraPreference}}
+            Content mix: {{mix}}
+            Enjoys: {{samples}}{{favSection}}
 
-            Rules: real titles only (must exist on TMDB), mix movies+series, vary eras, be specific with year.
+            Skip (already watched or owned): {{exclude}}{{notFoundSection}}
 
-            JSON format: {"recommendations":[{"title":"Name","year":2020,"type":"movie","reason":"one line why"}]}
+            Rules: real titles only (must exist on TMDB), mix movies+series, vary eras.
+            {"recommendations":[{"title":"Name","year":2020,"type":"movie","reason":"one line why"}]}
             type must be "movie" or "series".
             """;
     }
@@ -87,9 +89,6 @@ public static class LlmProviderHelpers
         return content;
     }
 
-    private static string TypeLabel(this WatchedItemSummary item)
-        => item.IsSeries ? "series" : "movie";
-
     private sealed class LlmResponse
     {
         [JsonPropertyName("recommendations")]
@@ -116,7 +115,7 @@ public class OpenAiProvider : ILlmProvider
 
     /// <inheritdoc />
     public async Task<IReadOnlyList<LlmRecommendationItem>> GetRecommendationsAsync(
-        IReadOnlyList<WatchedItemSummary> watchedItems,
+        UserTasteProfile profile,
         IReadOnlyList<string> excludeTitles,
         int count,
         CancellationToken cancellationToken,
@@ -130,7 +129,7 @@ public class OpenAiProvider : ILlmProvider
             throw new InvalidOperationException("OpenAI API key is not configured.");
         }
 
-        var prompt = LlmProviderHelpers.BuildPrompt(watchedItems, excludeTitles, count, notFoundTitles);
+        var prompt = LlmProviderHelpers.BuildPrompt(profile, excludeTitles, count, notFoundTitles);
         var body = new
         {
             model = config.OpenAiModel,
@@ -184,7 +183,7 @@ public class OpenRouterProvider : ILlmProvider
 
     /// <inheritdoc />
     public async Task<IReadOnlyList<LlmRecommendationItem>> GetRecommendationsAsync(
-        IReadOnlyList<WatchedItemSummary> watchedItems,
+        UserTasteProfile profile,
         IReadOnlyList<string> excludeTitles,
         int count,
         CancellationToken cancellationToken,
@@ -198,7 +197,7 @@ public class OpenRouterProvider : ILlmProvider
             throw new InvalidOperationException("OpenRouter API key is not configured.");
         }
 
-        var prompt = LlmProviderHelpers.BuildPrompt(watchedItems, excludeTitles, count, notFoundTitles);
+        var prompt = LlmProviderHelpers.BuildPrompt(profile, excludeTitles, count, notFoundTitles);
         var body = new
         {
             model = config.OpenRouterModel,

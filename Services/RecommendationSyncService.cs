@@ -16,6 +16,7 @@ public class RecommendationSyncService
     private readonly RecommendationEngine _engine;
     private readonly VirtualItemWriter _itemWriter;
     private readonly IUserManager _userManager;
+    private readonly ILibraryManager _libraryManager;
     private readonly ILogger<RecommendationSyncService> _logger;
 
     public RecommendationSyncService(
@@ -23,12 +24,14 @@ public class RecommendationSyncService
         RecommendationEngine engine,
         VirtualItemWriter itemWriter,
         IUserManager userManager,
+        ILibraryManager libraryManager,
         ILogger<RecommendationSyncService> logger)
     {
         _virtualLibraryManager = virtualLibraryManager;
         _engine = engine;
         _itemWriter = itemWriter;
         _userManager = userManager;
+        _libraryManager = libraryManager;
         _logger = logger;
     }
 
@@ -67,6 +70,11 @@ public class RecommendationSyncService
         }
 
         UpdateStatus($"Synced {completed} user(s) at {DateTime.UtcNow:u}");
+
+        // Scan library so the new stubs appear immediately without a manual refresh
+        _logger.LogInformation("Triggering library scan to surface new AI recommendations...");
+        await _libraryManager.ValidateMediaLibrary(new Progress<double>(), cancellationToken)
+            .ConfigureAwait(false);
     }
 
     public async Task SyncUserAsync(User user, CancellationToken cancellationToken)

@@ -26,7 +26,7 @@ public class OllamaProvider : ILlmProvider
 
     /// <inheritdoc />
     public async Task<IReadOnlyList<LlmRecommendationItem>> GetRecommendationsAsync(
-        IReadOnlyList<WatchedItemSummary> watchedItems,
+        UserTasteProfile profile,
         IReadOnlyList<string> excludeTitles,
         int count,
         CancellationToken cancellationToken,
@@ -45,7 +45,7 @@ public class OllamaProvider : ILlmProvider
             throw new InvalidOperationException("Ollama Cloud requires an API key from ollama.com.");
         }
 
-        var prompt = LlmProviderHelpers.BuildPrompt(watchedItems, excludeTitles, count, notFoundTitles);
+        var prompt = LlmProviderHelpers.BuildPrompt(profile, excludeTitles, count, notFoundTitles);
         return await ChatAsync(baseUrl, config, prompt, cancellationToken).ConfigureAwait(false);
     }
 

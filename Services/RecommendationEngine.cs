@@ -42,20 +42,33 @@ public class RecommendationEngine
         var config = Plugin.Instance?.Configuration
             ?? throw new InvalidOperationException("Plugin not initialized");
 
-        var watched = _watchHistory.GetWatchedItems(user, config.MaxWatchedItems);
-        if (watched.Count == 0)
+        var profile = _watchHistory.BuildTasteProfile(user, config.MaxWatchedItems);
+        if (profile.TotalWatched == 0)
         {
             _logger.LogInformation("User {User} has no watch history; skipping", user.Username);
             return Array.Empty<ResolvedRecommendation>();
         }
 
         var target = config.MaxRecommendationsPerType;
+
+        // Exclude: library ownership + everything the user has personally watched
+        // (watched check prevents checkmarks on stubs for already-seen content)
         var ownedIds = _libraryFilter.GetOwnedTmdbIds();
-        var excludeTitles = _libraryFilter.GetOwnedTitles(user);
+        var watchedIds = _watchHistory.GetWatchedTmdbIds(user);
+        var seenTmdbIds = new HashSet<int>(ownedIds);
+        seenTmdbIds.UnionWith(watchedIds);
+
+        // Prompt-level hints: library titles + watched titles help the LLM avoid suggesting them
+        var ownedTitles = _libraryFilter.GetOwnedTitles(user);
+        var watchedTitles = _watchHistory.GetWatchedTitles(user);
+        var baseTitleExcludes = ownedTitles
+            .Concat(watchedTitles)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
         var llm = _llmFactory.GetActiveProvider();
 
         var confirmed = new List<ResolvedRecommendation>();
-        var seenTmdbIds = new HashSet<int>(ownedIds);
         var notFoundTitles = new List<string>();
         var confirmedTitles = new List<string>();
 
@@ -78,7 +91,7 @@ public class RecommendationEngine
                 ? Math.Min(moviesNeed + showsNeed + 5, 25)
                 : moviesNeed + showsNeed;
 
-            var allExclude = excludeTitles
+            var allExclude = baseTitleExcludes
                 .Concat(confirmedTitles)
                 .ToList();
 
@@ -90,7 +103,7 @@ public class RecommendationEngine
             try
             {
                 candidates = await llm.GetRecommendationsAsync(
-                    watched, allExclude, ask, cancellationToken,
+                    profile, allExclude, ask, cancellationToken,
                     round > 0 ? notFoundTitles : null)
                     .ConfigureAwait(false);
             }

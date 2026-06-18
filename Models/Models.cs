@@ -41,6 +41,29 @@ public class WatchedItemSummary
 }
 
 /// <summary>
+/// Distilled taste profile derived from watch history — sent to the LLM instead of a raw item list.
+/// </summary>
+public class UserTasteProfile
+{
+    public int TotalWatched { get; set; }
+
+    /// <summary>Genre name → frequency count, ordered by count descending.</summary>
+    public List<(string Genre, int Count)> TopGenres { get; set; } = new();
+
+    /// <summary>Human-readable era preference, e.g. "mostly modern (2000s–2020s)".</summary>
+    public string EraPreference { get; set; } = "varied";
+
+    /// <summary>Percentage of watched content that is movies (vs series).</summary>
+    public int MoviePercent { get; set; } = 50;
+
+    /// <summary>Representative sample of titles spread across watch history.</summary>
+    public List<string> SampleTitles { get; set; } = new();
+
+    /// <summary>Titles the user has marked as favourite.</summary>
+    public List<string> FavoriteTitles { get; set; } = new();
+}
+
+/// <summary>
 /// LLM recommendation before TMDB resolution.
 /// </summary>
 public class LlmRecommendationItem

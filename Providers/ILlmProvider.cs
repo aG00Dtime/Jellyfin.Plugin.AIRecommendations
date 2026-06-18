@@ -10,7 +10,7 @@ public interface ILlmProvider
     string Name { get; }
 
     Task<IReadOnlyList<LlmRecommendationItem>> GetRecommendationsAsync(
-        IReadOnlyList<WatchedItemSummary> watchedItems,
+        UserTasteProfile profile,
         IReadOnlyList<string> excludeTitles,
         int count,
         CancellationToken cancellationToken,

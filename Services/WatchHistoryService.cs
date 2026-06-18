@@ -24,9 +24,13 @@ public class WatchHistoryService
         _libraryManager = libraryManager;
     }
 
-    public IReadOnlyList<WatchedItemSummary> GetWatchedItems(User user, int limit)
+    /// <summary>
+    /// Builds a compact taste profile from the user's watch history and favourites.
+    /// This is what gets sent to the LLM instead of a raw item list.
+    /// </summary>
+    public UserTasteProfile BuildTasteProfile(User user, int maxWatched)
     {
-        var half = Math.Max(limit / 2, 1);
+        var half = Math.Max(maxWatched / 2, 1);
 
         var movies = _libraryManager.GetItemList(new InternalItemsQuery(user)
         {
@@ -48,40 +52,119 @@ public class WatchHistoryService
             EnableGroupByMetadataKey = true
         });
 
-        var liked = _libraryManager.GetItemList(new InternalItemsQuery(user)
+        var favorites = _libraryManager.GetItemList(new InternalItemsQuery(user)
         {
             IncludeItemTypes = [BaseItemKind.Movie, BaseItemKind.Series],
-            OrderBy = [(ItemSortBy.Random, SortOrder.Descending)],
-            Limit = Math.Min(10, limit / 4),
+            Limit = 10,
             Recursive = true,
             IsFavoriteOrLiked = true,
             EnableGroupByMetadataKey = true
         });
 
-        return movies
-            .Concat(series)
-            .Concat(liked)
-            .DistinctBy(i => i.Id)
-            .Take(limit)
-            .Select(MapItem)
+        var allWatched = movies.Concat(series).DistinctBy(i => i.Id).ToList();
+
+        if (allWatched.Count == 0)
+        {
+            return new UserTasteProfile { TotalWatched = 0 };
+        }
+
+        var topGenres = allWatched
+            .SelectMany(i => i.Genres ?? Array.Empty<string>())
+            .GroupBy(g => g, StringComparer.OrdinalIgnoreCase)
+            .OrderByDescending(g => g.Count())
+            .Take(6)
+            .Select(g => (g.Key, g.Count()))
+            .ToList();
+
+        var years = allWatched
+            .Where(i => i.ProductionYear.HasValue)
+            .Select(i => i.ProductionYear!.Value)
+            .ToList();
+
+        var moviePct = allWatched.Count > 0 ? movies.Count * 100 / allWatched.Count : 50;
+
+        // Representative sample spread across watch history (not just most recent)
+        var step = Math.Max(1, allWatched.Count / 8);
+        var sample = allWatched
+            .Where((_, i) => i % step == 0)
+            .Take(8)
+            .Select(i => i.Name ?? string.Empty)
+            .Where(n => !string.IsNullOrWhiteSpace(n))
+            .ToList();
+
+        var favTitles = favorites
+            .Select(i => i.Name ?? string.Empty)
+            .Where(n => !string.IsNullOrWhiteSpace(n))
+            .Take(5)
+            .ToList();
+
+        return new UserTasteProfile
+        {
+            TotalWatched = allWatched.Count,
+            TopGenres = topGenres,
+            EraPreference = BuildEraLabel(years),
+            MoviePercent = moviePct,
+            SampleTitles = sample,
+            FavoriteTitles = favTitles
+        };
+    }
+
+    /// <summary>
+    /// Returns TMDB IDs of everything the user has played — used to exclude already-watched
+    /// content from recommendations even when it isn't in the user's real library.
+    /// </summary>
+    public HashSet<int> GetWatchedTmdbIds(User user)
+    {
+        var items = _libraryManager.GetItemList(new InternalItemsQuery(user)
+        {
+            IncludeItemTypes = [BaseItemKind.Movie, BaseItemKind.Series],
+            Recursive = true,
+            IsPlayed = true,
+            EnableGroupByMetadataKey = true
+        });
+
+        var ids = new HashSet<int>();
+        foreach (var item in items)
+        {
+            if (item.TryGetProviderId(MetadataProvider.Tmdb, out var idStr)
+                && int.TryParse(idStr, out var id))
+            {
+                ids.Add(id);
+            }
+        }
+
+        return ids;
+    }
+
+    /// <summary>
+    /// Returns titles of everything the user has watched — used as LLM exclusion hints.
+    /// </summary>
+    public IReadOnlyList<string> GetWatchedTitles(User user, int limit = 150)
+    {
+        var items = _libraryManager.GetItemList(new InternalItemsQuery(user)
+        {
+            IncludeItemTypes = [BaseItemKind.Movie, BaseItemKind.Series],
+            Recursive = true,
+            IsPlayed = true,
+            Limit = limit,
+            EnableGroupByMetadataKey = true
+        });
+
+        return items
+            .Select(i => i.Name ?? string.Empty)
+            .Where(n => !string.IsNullOrWhiteSpace(n))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
     }
 
-    private static WatchedItemSummary MapItem(BaseItem item)
+    private static string BuildEraLabel(List<int> years)
     {
-        item.TryGetProviderId(MetadataProvider.Tmdb, out var tmdbId);
-        var isSeries = item is Series;
-
-        return new WatchedItemSummary
-        {
-            Title = item.Name ?? string.Empty,
-            Year = item.ProductionYear,
-            TmdbId = tmdbId,
-            IsSeries = isSeries,
-            Genres = item.Genres?.ToArray() ?? Array.Empty<string>(),
-            Overview = item.Overview,
-            UserRating = item is Movie or Series ? null : null
-        };
+        if (years.Count == 0) return "varied";
+        var modern = years.Count(y => y >= 2000);
+        var pct = modern * 100 / years.Count;
+        if (pct >= 75) return "mostly modern (2000s–2020s)";
+        if (pct >= 40) return "mix of classic and modern";
+        return "mostly classic (pre-2000s)";
     }
 }
 
