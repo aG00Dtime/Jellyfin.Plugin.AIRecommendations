@@ -1,5 +1,5 @@
 #!/usr/bin/env sh
-# Bump patch version, build, sync checksum, and commit before each push.
+# Bump patch version, build release zip, sync checksum, commit, and push tag before each branch push.
 
 if [ "$SKIP_VERSION_BUMP" = "1" ]; then
   exit 0
@@ -30,18 +30,13 @@ else
   sh scripts/bump-version.sh patch
 fi
 
-if command -v dotnet >/dev/null 2>&1; then
-  dotnet build -c Release
-  if command -v pwsh >/dev/null 2>&1; then
-    pwsh -NoProfile -File scripts/sync-manifest-checksum.ps1
-  elif command -v powershell >/dev/null 2>&1; then
-    powershell -NoProfile -File scripts/sync-manifest-checksum.ps1
-  else
-    sh scripts/sync-manifest-checksum.sh
-  fi
+# build.ps1/build.sh: restore, compile Release DLL, create zip with meta.json, sync manifest checksum
+if command -v pwsh >/dev/null 2>&1; then
+  pwsh -NoProfile -File build.ps1
+elif command -v powershell >/dev/null 2>&1; then
+  powershell -NoProfile -File build.ps1
 else
-  echo "pre-push: dotnet not found — commit blocked until checksum is synced via build.ps1" >&2
-  exit 1
+  sh build.sh
 fi
 
 git add VERSION.txt Jellyfin.Plugin.AIRecommendations.csproj manifest.json
@@ -52,5 +47,9 @@ fi
 
 NEW_VERSION="$(tr -d ' \r\n' < VERSION.txt)"
 git commit -m "chore: bump version to ${NEW_VERSION}"
+
+# Push the release tag so GitHub Actions creates the actual GitHub Release and ZIP
+git tag "v${NEW_VERSION}"
+git push origin "v${NEW_VERSION}"
 
 exit 0
