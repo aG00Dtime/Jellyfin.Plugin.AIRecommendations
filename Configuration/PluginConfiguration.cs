@@ -12,9 +12,13 @@ public class PluginConfiguration : BasePluginConfiguration
     /// </summary>
     public string ActiveProvider { get; set; } = "OpenAI";
 
+    public string OpenAiBaseUrl { get; set; } = "https://api.openai.com/v1";
+
     public string OpenAiApiKey { get; set; } = string.Empty;
 
     public string OpenAiModel { get; set; } = "gpt-4o-mini";
+
+    public string OpenRouterBaseUrl { get; set; } = "https://openrouter.ai/api/v1";
 
     public string OpenRouterApiKey { get; set; } = string.Empty;
 

@@ -128,8 +128,11 @@ public class OpenAiProvider : ILlmProvider
             temperature = 0.7
         };
 
+        var baseUrl = string.IsNullOrWhiteSpace(config.OpenAiBaseUrl)
+            ? "https://api.openai.com/v1"
+            : config.OpenAiBaseUrl.TrimEnd('/');
         var client = _httpClientFactory.CreateClient(nameof(OpenAiProvider));
-        using var request = new HttpRequestMessage(HttpMethod.Post, "https://api.openai.com/v1/chat/completions");
+        using var request = new HttpRequestMessage(HttpMethod.Post, $"{baseUrl}/chat/completions");
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", config.OpenAiApiKey);
         request.Content = new StringContent(JsonSerializer.Serialize(body), Encoding.UTF8, "application/json");
 
@@ -192,8 +195,11 @@ public class OpenRouterProvider : ILlmProvider
             temperature = 0.7
         };
 
+        var baseUrl = string.IsNullOrWhiteSpace(config.OpenRouterBaseUrl)
+            ? "https://openrouter.ai/api/v1"
+            : config.OpenRouterBaseUrl.TrimEnd('/');
         var client = _httpClientFactory.CreateClient(nameof(OpenRouterProvider));
-        using var request = new HttpRequestMessage(HttpMethod.Post, "https://openrouter.ai/api/v1/chat/completions");
+        using var request = new HttpRequestMessage(HttpMethod.Post, $"{baseUrl}/chat/completions");
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", config.OpenRouterApiKey);
         request.Content = new StringContent(JsonSerializer.Serialize(body), Encoding.UTF8, "application/json");
 

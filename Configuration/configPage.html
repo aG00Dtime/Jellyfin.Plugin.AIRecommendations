@@ -21,25 +21,35 @@
 
                     <h3>OpenAI</h3>
                     <div class="inputContainer">
+                        <input is="emby-input" type="text" id="openAiBaseUrl" label="OpenAI Base URL" />
+                        <div class="fieldDescription">Default: https://api.openai.com/v1 — change for custom or self-hosted endpoints.</div>
+                    </div>
+                    <div class="inputContainer">
                         <input is="emby-input" type="password" id="openAiApiKey" label="OpenAI API Key" />
                     </div>
                     <div class="inputContainer">
                         <input is="emby-input" type="text" id="openAiModel" label="OpenAI Model" />
+                        <div class="fieldDescription">e.g. gpt-4o-mini, gpt-4o, gpt-4-turbo</div>
                     </div>
 
                     <h3>OpenRouter</h3>
+                    <div class="inputContainer">
+                        <input is="emby-input" type="text" id="openRouterBaseUrl" label="OpenRouter Base URL" />
+                        <div class="fieldDescription">Default: https://openrouter.ai/api/v1</div>
+                    </div>
                     <div class="inputContainer">
                         <input is="emby-input" type="password" id="openRouterApiKey" label="OpenRouter API Key" />
                     </div>
                     <div class="inputContainer">
                         <input is="emby-input" type="text" id="openRouterModel" label="OpenRouter Model" />
+                        <div class="fieldDescription">e.g. openai/gpt-4o-mini, anthropic/claude-3-haiku, meta-llama/llama-3.1-8b-instruct:free</div>
                     </div>
 
                     <h3>Ollama</h3>
                     <div class="selectContainer">
                         <label class="selectLabel" for="ollamaDeployment">Ollama Deployment</label>
                         <select is="emby-select" id="ollamaDeployment" class="emby-select-withcolor">
-                            <option value="Local">Local (localhost:11434)</option>
+                            <option value="Local">Local</option>
                             <option value="Cloud">Cloud (ollama.com)</option>
                         </select>
                     </div>
@@ -52,6 +62,7 @@
                     </div>
                     <div class="inputContainer">
                         <input is="emby-input" type="text" id="ollamaModel" label="Ollama Model" />
+                        <div class="fieldDescription">e.g. llama3.2, mistral, gemma2</div>
                     </div>
 
                     <h3>TMDB</h3>
@@ -86,17 +97,26 @@
                 uniquePluginId: "7c4a9e2b-3f1d-4a8c-b6e5-2d9f8a1c0b3e"
             };
 
+            var OLLAMA_URLS = { Local: 'http://localhost:11434', Cloud: 'https://ollama.com' };
+
+            document.querySelector('#ollamaDeployment').addEventListener('change', function () {
+                var url = OLLAMA_URLS[this.value] || OLLAMA_URLS.Local;
+                document.querySelector('#ollamaBaseUrl').value = url;
+            });
+
             document.querySelector('.configPage')
                 .addEventListener('pageshow', function () {
                     Dashboard.showLoadingMsg();
                     ApiClient.getPluginConfiguration(AIRecommendationsConfig.uniquePluginId).then(function (config) {
                         document.querySelector('#activeProvider').value = config.ActiveProvider || 'OpenAI';
+                        document.querySelector('#openAiBaseUrl').value = config.OpenAiBaseUrl || 'https://api.openai.com/v1';
                         document.querySelector('#openAiApiKey').value = config.OpenAiApiKey || '';
                         document.querySelector('#openAiModel').value = config.OpenAiModel || 'gpt-4o-mini';
+                        document.querySelector('#openRouterBaseUrl').value = config.OpenRouterBaseUrl || 'https://openrouter.ai/api/v1';
                         document.querySelector('#openRouterApiKey').value = config.OpenRouterApiKey || '';
                         document.querySelector('#openRouterModel').value = config.OpenRouterModel || 'openai/gpt-4o-mini';
                         document.querySelector('#ollamaDeployment').value = config.OllamaDeployment || 'Local';
-                        document.querySelector('#ollamaBaseUrl').value = config.OllamaBaseUrl || 'http://localhost:11434';
+                        document.querySelector('#ollamaBaseUrl').value = config.OllamaBaseUrl || OLLAMA_URLS[config.OllamaDeployment] || OLLAMA_URLS.Local;
                         document.querySelector('#ollamaApiKey').value = config.OllamaApiKey || '';
                         document.querySelector('#ollamaModel').value = config.OllamaModel || 'llama3.2';
                         document.querySelector('#tmdbApiKey').value = config.TmdbApiKey || '';
@@ -113,8 +133,10 @@
                     Dashboard.showLoadingMsg();
                     ApiClient.getPluginConfiguration(AIRecommendationsConfig.uniquePluginId).then(function (config) {
                         config.ActiveProvider = document.querySelector('#activeProvider').value;
+                        config.OpenAiBaseUrl = document.querySelector('#openAiBaseUrl').value;
                         config.OpenAiApiKey = document.querySelector('#openAiApiKey').value;
                         config.OpenAiModel = document.querySelector('#openAiModel').value;
+                        config.OpenRouterBaseUrl = document.querySelector('#openRouterBaseUrl').value;
                         config.OpenRouterApiKey = document.querySelector('#openRouterApiKey').value;
                         config.OpenRouterModel = document.querySelector('#openRouterModel').value;
                         config.OllamaDeployment = document.querySelector('#ollamaDeployment').value;
