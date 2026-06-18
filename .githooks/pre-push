@@ -1,5 +1,5 @@
 #!/usr/bin/env sh
-# Bump patch version and commit before each push (skip tags / SKIP_VERSION_BUMP=1).
+# Bump patch version, build, sync checksum, and commit before each push.
 
 if [ "$SKIP_VERSION_BUMP" = "1" ]; then
   exit 0
@@ -28,6 +28,20 @@ elif command -v powershell >/dev/null 2>&1; then
   powershell -NoProfile -File scripts/bump-version.ps1 patch
 else
   sh scripts/bump-version.sh patch
+fi
+
+if command -v dotnet >/dev/null 2>&1; then
+  dotnet build -c Release
+  if command -v pwsh >/dev/null 2>&1; then
+    pwsh -NoProfile -File scripts/sync-manifest-checksum.ps1
+  elif command -v powershell >/dev/null 2>&1; then
+    powershell -NoProfile -File scripts/sync-manifest-checksum.ps1
+  else
+    sh scripts/sync-manifest-checksum.sh
+  fi
+else
+  echo "pre-push: dotnet not found — commit blocked until checksum is synced via build.ps1" >&2
+  exit 1
 fi
 
 git add VERSION.txt Jellyfin.Plugin.AIRecommendations.csproj manifest.json

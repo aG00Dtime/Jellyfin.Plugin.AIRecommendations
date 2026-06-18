@@ -4,14 +4,14 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_FILE="$SCRIPT_DIR/Jellyfin.Plugin.AIRecommendations.csproj"
-OUTPUT_DIR="$SCRIPT_DIR/bin/Release/net8.0"
+OUTPUT_DIR="$SCRIPT_DIR/bin/Release/net9.0"
 DLL_NAME="Jellyfin.Plugin.AIRecommendations.dll"
 ZIP_NAME="Jellyfin.Plugin.AIRecommendations.zip"
 
 echo "=== AI Recommendations Plugin Build ==="
 
 if ! command -v dotnet &> /dev/null; then
-    echo "ERROR: .NET SDK not found. Install .NET 8 SDK."
+    echo "ERROR: .NET SDK not found. Install .NET 9 SDK."
     exit 1
 fi
 
@@ -29,6 +29,8 @@ fi
 ZIP_PATH="$OUTPUT_DIR/$ZIP_NAME"
 rm -f "$ZIP_PATH"
 (cd "$OUTPUT_DIR" && zip -j "$ZIP_NAME" "$DLL_NAME")
+
+"$SCRIPT_DIR/scripts/sync-manifest-checksum.sh" "$ZIP_PATH"
 
 CHECKSUM=$(md5sum "$ZIP_PATH" | awk '{print $1}')
 echo ""

@@ -80,7 +80,14 @@ jobs:
               timestamp: $ts
             }] + .[0].versions' manifest.json > manifest.tmp && mv manifest.tmp manifest.json
 
-    - name: Commit and push version files
+        ./scripts/sync-manifest-checksum.sh
+        ACTUAL=$(jq -r --arg v "$VERSION.0" '.[0].versions[] | select(.version == $v) | .checksum' manifest.json)
+        if [ "$ACTUAL" != "$CHECKSUM" ]; then
+          echo "manifest checksum sync failed"
+          exit 1
+        fi
+
+    - name: Commit and push manifest before release
       run: |
         git config user.name "github-actions[bot]"
         git config user.email "github-actions[bot]@users.noreply.github.com"

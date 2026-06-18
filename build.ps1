@@ -34,6 +34,7 @@ if (Test-Path $zipPath) { Remove-Item $zipPath -Force }
 Compress-Archive -Path $dllPath -DestinationPath $zipPath -Force
 
 $hash = (Get-FileHash $zipPath -Algorithm MD5).Hash.ToLower()
+& (Join-Path $PSScriptRoot "scripts\sync-manifest-checksum.ps1") -ZipPath $zipPath
 Write-Host ""
 Write-Host "Build successful!" -ForegroundColor Green
 Write-Host "  DLL: $dllPath"

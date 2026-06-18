@@ -30,15 +30,14 @@ jobs:
         cd bin/Release/net9.0
         zip -j Jellyfin.Plugin.AIRecommendations.zip Jellyfin.Plugin.AIRecommendations.dll
 
+    - name: Sync and verify manifest checksum
+      run: |
+        chmod +x scripts/sync-manifest-checksum.sh scripts/verify-version.ps1 2>/dev/null || true
+        ./scripts/sync-manifest-checksum.sh
+        VERIFY_ZIP_CHECKSUM=1 pwsh -NoProfile -File scripts/verify-version.ps1 2>/dev/null || \
+        VERIFY_ZIP_CHECKSUM=1 powershell -NoProfile -File scripts/verify-version.ps1
+
     - name: Test build artifacts
       run: |
-        if [ ! -f "bin/Release/net9.0/Jellyfin.Plugin.AIRecommendations.dll" ]; then
-          echo "Build failed - DLL not found"
-          exit 1
-        fi
-        if [ ! -f "bin/Release/net9.0/Jellyfin.Plugin.AIRecommendations.zip" ]; then
-          echo "Build failed - ZIP not found"
-          exit 1
-        fi
-        echo "Build successful!"
-        md5sum bin/Release/net9.0/Jellyfin.Plugin.AIRecommendations.zip
+        test -f "bin/Release/net9.0/Jellyfin.Plugin.AIRecommendations.dll"
+        test -f "bin/Release/net9.0/Jellyfin.Plugin.AIRecommendations.zip"
