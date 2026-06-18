@@ -121,10 +121,6 @@ jobs:
         git fetch origin main
         git checkout main
 
-        echo "$VERSION" > VERSION.txt
-        sed -i "s/<AssemblyVersion>.*<\/AssemblyVersion>/<AssemblyVersion>$VERSION.0<\/AssemblyVersion>/" Jellyfin.Plugin.AIRecommendations.csproj
-        sed -i "s/<FileVersion>.*<\/FileVersion>/<FileVersion>$VERSION.0<\/FileVersion>/" Jellyfin.Plugin.AIRecommendations.csproj
-
         jq --arg version "$VERSION.0" \
            --arg changelog "Release $VERSION" \
            --arg abi "$TARGET_ABI" \
@@ -147,6 +143,6 @@ jobs:
           exit 1
         fi
 
-        git add manifest.json Jellyfin.Plugin.AIRecommendations.csproj VERSION.txt
+        git add manifest.json
         git commit -m "chore: update manifest for v$VERSION [skip ci]" || echo "No changes to commit"
         git push origin main
