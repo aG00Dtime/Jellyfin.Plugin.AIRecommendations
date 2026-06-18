@@ -21,7 +21,8 @@ public static class LlmProviderHelpers
         UserTasteProfile profile,
         IReadOnlyList<string> excludeTitles,
         int count,
-        IReadOnlyList<string>? notFoundTitles = null)
+        IReadOnlyList<string>? notFoundTitles = null,
+        IReadOnlyList<TmdbCandidate>? catalog = null)
     {
         var genres = profile.TopGenres.Count > 0
             ? string.Join(", ", profile.TopGenres.Select(g => $"{g.Genre} ({g.Count})"))
@@ -34,8 +35,43 @@ public static class LlmProviderHelpers
             ? $"\nFavourites: {string.Join(", ", profile.FavoriteTitles)}"
             : string.Empty;
 
-        var exclude = string.Join(", ", excludeTitles.Take(100));
+        if (catalog is { Count: > 0 })
+        {
+            // Catalog (RAG) mode: LLM picks from pre-fetched TMDB results by tmdbId
+            var catalogJson = JsonSerializer.Serialize(catalog.Select(c => new
+            {
+                tmdbId = c.TmdbId,
+                title = c.Title,
+                year = c.Year,
+                type = c.IsSeries ? "series" : "movie",
+                overview = c.Overview ?? string.Empty
+            }));
 
+            var exclude = string.Join(", ", excludeTitles.Take(100));
+
+            return $$"""
+                Choose exactly {{count}} items from the CATALOG below that best match the user's taste.
+                You MUST use the exact tmdbId values from the catalog. Return ONLY valid JSON — no prose.
+
+                TASTE PROFILE:
+                Genres: {{genres}}
+                Era preference: {{profile.EraPreference}}
+                Content mix: {{mix}}
+                Enjoys: {{samples}}{{favSection}}
+
+                SKIP any catalog items whose title matches these (user already has them):
+                {{exclude}}
+
+                CATALOG (pick from this list only — do NOT invent titles):
+                {{catalogJson}}
+
+                JSON: {"recommendations":[{"tmdbId":123,"title":"...","year":2020,"type":"movie","reason":"one line why"}]}
+                type must be "movie" or "series".
+                """;
+        }
+
+        // Free-form mode (fallback when no catalog available)
+        var excludeStr = string.Join(", ", excludeTitles.Take(100));
         var notFoundSection = notFoundTitles is { Count: > 0 }
             ? $"\nAlso do NOT suggest (not found on TMDB): {string.Join(", ", notFoundTitles)}"
             : string.Empty;
@@ -50,7 +86,7 @@ public static class LlmProviderHelpers
             Enjoys: {{samples}}{{favSection}}
 
             MUST NOT recommend any of these (user already has them — absolute rule, no exceptions):
-            {{exclude}}{{notFoundSection}}
+            {{excludeStr}}{{notFoundSection}}
 
             Rules: real titles only (must exist on TMDB), mix movies+series, vary eras.
             {"recommendations":[{"title":"Name","year":2020,"type":"movie","reason":"one line why"}]}
@@ -120,7 +156,8 @@ public class OpenAiProvider : ILlmProvider
         IReadOnlyList<string> excludeTitles,
         int count,
         CancellationToken cancellationToken,
-        IReadOnlyList<string>? notFoundTitles = null)
+        IReadOnlyList<string>? notFoundTitles = null,
+        IReadOnlyList<TmdbCandidate>? catalog = null)
     {
         var config = Plugin.Instance?.Configuration
             ?? throw new InvalidOperationException("Plugin not initialized");
@@ -130,7 +167,7 @@ public class OpenAiProvider : ILlmProvider
             throw new InvalidOperationException("OpenAI API key is not configured.");
         }
 
-        var prompt = LlmProviderHelpers.BuildPrompt(profile, excludeTitles, count, notFoundTitles);
+        var prompt = LlmProviderHelpers.BuildPrompt(profile, excludeTitles, count, notFoundTitles, catalog);
         var body = new
         {
             model = config.OpenAiModel,
@@ -188,7 +225,8 @@ public class OpenRouterProvider : ILlmProvider
         IReadOnlyList<string> excludeTitles,
         int count,
         CancellationToken cancellationToken,
-        IReadOnlyList<string>? notFoundTitles = null)
+        IReadOnlyList<string>? notFoundTitles = null,
+        IReadOnlyList<TmdbCandidate>? catalog = null)
     {
         var config = Plugin.Instance?.Configuration
             ?? throw new InvalidOperationException("Plugin not initialized");
@@ -198,7 +236,7 @@ public class OpenRouterProvider : ILlmProvider
             throw new InvalidOperationException("OpenRouter API key is not configured.");
         }
 
-        var prompt = LlmProviderHelpers.BuildPrompt(profile, excludeTitles, count, notFoundTitles);
+        var prompt = LlmProviderHelpers.BuildPrompt(profile, excludeTitles, count, notFoundTitles, catalog);
         var body = new
         {
             model = config.OpenRouterModel,

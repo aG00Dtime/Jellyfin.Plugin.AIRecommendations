@@ -65,6 +65,7 @@ public class UserTasteProfile
 
 /// <summary>
 /// LLM recommendation before TMDB resolution.
+/// When TmdbId is set the item came from the RAG catalog and needs no TMDB search.
 /// </summary>
 public class LlmRecommendationItem
 {
@@ -76,10 +77,26 @@ public class LlmRecommendationItem
 
     public string Reason { get; set; } = string.Empty;
 
+    /// <summary>Set when the LLM picked from a TMDB Discover catalog; skips search.</summary>
+    public int? TmdbId { get; set; }
+
     public bool IsSeries =>
         Type.Equals("series", StringComparison.OrdinalIgnoreCase)
         || Type.Equals("tv", StringComparison.OrdinalIgnoreCase)
         || Type.Equals("show", StringComparison.OrdinalIgnoreCase);
+}
+
+/// <summary>
+/// A candidate from TMDB Discover — pre-fetched before the LLM call so the LLM
+/// picks from real, current data rather than from training-data memory.
+/// </summary>
+public class TmdbCandidate
+{
+    public int TmdbId { get; set; }
+    public string Title { get; set; } = string.Empty;
+    public int? Year { get; set; }
+    public bool IsSeries { get; set; }
+    public string? Overview { get; set; }
 }
 
 /// <summary>

@@ -1,3 +1,4 @@
+using Jellyfin.Database.Implementations.Entities;
 using Jellyfin.Plugin.AIRecommendations.Models;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Library;
@@ -62,19 +63,18 @@ public class FavouriteWatcher : IHostedService
         }
 
         // Fire-and-forget — don't block the event dispatcher
-        _ = Task.Run(() => HandleFavouriteAsync(user.Username, user.Id, e.Item, CancellationToken.None));
+        _ = Task.Run(() => HandleFavouriteAsync(user, e.Item, CancellationToken.None));
     }
 
     private async Task HandleFavouriteAsync(
-        string username,
-        Guid userId,
+        User user,
         BaseItem item,
         CancellationToken ct)
     {
         try
         {
             var config = Plugin.Instance!.Configuration;
-            var userKey = userId.ToString("N");
+            var userKey = user.Id.ToString("N");
             var reg = config.UserLibraries.FirstOrDefault(r => r.UserId == userKey);
             if (reg is null)
             {
@@ -121,7 +121,7 @@ public class FavouriteWatcher : IHostedService
 
             _logger.LogInformation(
                 "{User} favourited \"{Title}\" in AI library — submitting Jellyseerr request immediately",
-                username, item.Name);
+                user.Username, item.Name);
 
             var rec = new ResolvedRecommendation
             {
@@ -139,9 +139,24 @@ public class FavouriteWatcher : IHostedService
                 reg.RequestedTmdbIds.Add(tmdbId);
                 Plugin.Instance!.SaveConfiguration();
 
+                // Remove the heart so the stub doesn't appear in Jellyfin's Favourites section
+                try
+                {
+                    var userData = _userDataManager.GetUserData(user, item);
+                    if (userData is not null)
+                    {
+                        userData.IsFavorite = false;
+                        _userDataManager.SaveUserData(user, item, userData, UserDataSaveReason.UpdateUserRating, ct);
+                    }
+                }
+                catch (Exception unfavEx)
+                {
+                    _logger.LogWarning(unfavEx, "FavouriteWatcher: could not un-favourite \"{Title}\"", item.Name);
+                }
+
                 _logger.LogInformation(
                     "Jellyseerr request sent for \"{Title}\" (tmdb {Id}) on behalf of {User}",
-                    item.Name, tmdbId, username);
+                    item.Name, tmdbId, user.Username);
             }
         }
         catch (Exception ex)
