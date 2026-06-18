@@ -20,59 +20,96 @@ https://raw.githubusercontent.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/ma
 
 ## How it works
 
+### Taste profile
+
+Before calling the LLM, the plugin builds a compact taste profile from each user's Jellyfin watch history:
+
+| Field | What it captures |
+|---|---|
+| **Top genres** | Up to 6 genres ranked by play count |
+| **Era preference** | "mostly modern", "mix of classic and modern", or "mostly classic (pre-2000s)" |
+| **Movie/show ratio** | % of watch history that is movies vs series |
+| **Sample titles** | 8 titles sampled evenly across watch history (not just the most recent) |
+| **Favourite titles** | Up to 5 items the user has marked as a favourite in Jellyfin |
+
+This profile — not a raw item list — is what gets sent to the LLM. It is small, cheap to transmit, and gives the model enough signal to make personalised picks.
+
+### Exclusion sets
+
+Before generating recommendations, the plugin assembles three exclusion sets so the LLM is never asked to suggest something the user already has or has dismissed:
+
+- **Watched** — TMDB IDs of every played movie, plus every series with at least one played episode (including partial watches)
+- **Owned** — TMDB IDs of every real (non-stub) item in the library, excluding the AI recommendation folders themselves so stubs don't self-block
+- **Rejected / Requested** — IDs the user has permanently dismissed or already requested via Jellyseerr
+
 ### The recommendation loop
 
-The plugin runs a **two-round LLM + TMDB feedback loop** each sync cycle:
+The plugin runs a **two-round LLM + TMDB verification loop** each sync:
 
 **Round 1**
-1. Collects each user's watch history (up to 30 items) and their top genres.
-2. Sends a compact prompt to the LLM asking for ~15–20 candidates (movies and shows).
-3. Verifies every candidate against TMDB in parallel (up to 8 concurrent lookups).
-4. Confirmed titles (resolved TMDB ID) go into the confirmed list; unresolved titles go into the "not found" list.
+1. Builds the exclusion sets and taste profile described above.
+2. Sends a compact prompt asking for `N` candidates (typically 25 total — movies + shows).
+3. Resolves every suggestion against TMDB in parallel (up to 8 concurrent requests).
+4. Confirmed titles (TMDB ID found) go into the result list; unresolved titles go into a "not found" list.
 
-**Round 2** (only if the target isn't met)
-1. Sends a follow-up prompt including the list of titles that failed TMDB lookup so the LLM avoids re-suggesting them.
+**Round 2** (only if the target count isn't met)
+1. Sends a follow-up prompt that includes the failed titles so the LLM knows to avoid re-suggesting them.
 2. Asks for exactly the remaining deficit.
-3. Verified results are added to the confirmed list.
+3. Verified results are merged into the confirmed list.
 
-The target is **10 movies + 10 shows** per user (configurable via `MaxRecommendationsPerType`).
+The target is **10 movies + 10 shows** per user by default (configurable).
 
 ### What the LLM receives
 
-The prompt is kept deliberately short to minimize latency and cost:
-
 ```
-Suggest exactly N movies/shows this user would enjoy. Return ONLY valid JSON.
+Suggest exactly N movie/show recommendations for this user. Return ONLY valid JSON.
 
-Genres: Action, Drama, Sci-Fi
-Watched: Inception (2010, movie), Breaking Bad (2008, series), ...
-Skip (already owned): The Matrix, Interstellar, ...
+User taste profile:
+  Total watched: 87
+  Top genres: Action (34), Drama (28), Sci-Fi (19), Thriller (12), Comedy (8), Animation (5)
+  Era preference: mostly modern (2000s–2020s)
+  Mix: 60% movies, 40% shows
+  Sample titles: Inception, Breaking Bad, The Witcher, Dune, Severance, Parasite, Oppenheimer, Succession
+  Favourites: Interstellar, The Wire
 
-Rules: real titles only (must exist on TMDB), mix movies+series, vary eras, be specific with year.
+Already watched (exclude): ...
+Already owned (exclude): ...
 
-JSON format: {"recommendations":[{"title":"Name","year":2020,"type":"movie","reason":"one line why"}]}
-```
-
-- Watch history: up to 25 most recent items, comma-separated
-- Exclude list: up to 100 owned titles, comma-separated
-- No bullet points, no verbose instruction blocks
-
-### TMDB verification
-
-Every LLM suggestion is validated against The Movie Database API before it goes into a library. This prevents the LLM from hallucinating titles that don't exist. Titles that fail lookup are fed back into round 2 so the LLM knows not to re-suggest them.
-
-### Virtual libraries
-
-Confirmed recommendations are written as `.strm` stub files into per-user folders:
-
-```
-{data}/virtual/{userId}/movies/{Title} ({Year}) [tmdbid-{id}]/{Title} ({Year}) [tmdbid-{id}].strm
-{data}/virtual/{userId}/shows/{Title} [tmdbid-{id}]/Season 1/{Title} - S01E01 [tmdbid-{id}].strm
+Rules: real titles only (must exist on TMDB), not in the exclude lists, vary genres and eras.
+JSON: {"recommendations":[{"title":"...","year":2020,"type":"movie","reason":"one line"}]}
 ```
 
-Jellyfin's metadata scanner picks up the TMDB ID from the filename and pulls full artwork, descriptions, and ratings. The files aren't playable — they're metadata hooks only.
+### Virtual library stubs
 
-**Per-user visibility**: after provisioning, the plugin reconciles library access so each user only sees their own recommendation folders. Users who had "Enable all folders" are demoted to an explicit list that excludes other users' AI libraries.
+Confirmed recommendations are written as `.strm` + `.nfo` stub folders:
+
+```
+{data}/virtual/{userId}/movies/{Title} ({Year}) [tmdbid-{id}]/
+    {Title} ({Year}) [tmdbid-{id}].strm    ← JustWatch search URL
+    {Title} ({Year}) [tmdbid-{id}].nfo     ← TMDB ID + AI reason + plot
+
+{data}/virtual/{userId}/shows/{Title} [tmdbid-{id}]/
+    tvshow.nfo
+    Season 1/{Title} - S01E01 [tmdbid-{id}].strm
+```
+
+Jellyfin's scanner picks up the TMDB ID from the filename and pulls full artwork, cast, ratings, and descriptions. The `.strm` files are not playable — they're metadata hooks only.
+
+Stubs accumulate up to **50 per type** (movies / shows). On each sync only rejected and requested stubs are removed; the rest persist until the user acts on them.
+
+**Per-user visibility**: the plugin reconciles library permissions after provisioning so each user only sees their own AI libraries. Users with "enable all folders" are demoted to an explicit allowlist that excludes other users' AI folders.
+
+### User feedback loop
+
+Once stubs appear in Jellyfin, the user has three actions:
+
+| Action | What happens |
+|---|---|
+| ❤️ **Favourite** the item | Jellyseerr request is submitted **immediately** (no waiting for the next sync). TMDB ID is recorded as "requested" and the stub is removed on the next sync. |
+| 👎 **Dislike** the item | TMDB ID is added to the permanent reject list. Stub is removed on next sync and will never be suggested again. |
+| 🗑️ **Delete** the item in Jellyfin | Detected on the next sync by comparing what was placed vs what is on disk. TMDB ID is permanently rejected — same effect as dislike but via native Jellyfin deletion. |
+
+The `FavouriteWatcher` service subscribes to Jellyfin's `UserDataSaved` event and fires the Jellyseerr request in under a second of the heart being tapped, without waiting for the scheduled sync.
 
 ---
 
@@ -136,25 +173,38 @@ Download `Jellyfin.Plugin.AIRecommendations.zip` from [Releases](https://github.
 
 Admin only:
 
-- `GET /AIRecommendations/Status` — last sync time and message
-- `POST /AIRecommendations/Sync` — trigger sync for all users
-- `POST /AIRecommendations/Sync/{userId}` — sync one user
-- `POST /AIRecommendations/TestProvider` — test LLM connection from config UI
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/AIRecommendations/Status` | Last sync time and message |
+| `POST` | `/AIRecommendations/Sync` | Trigger sync for all users |
+| `POST` | `/AIRecommendations/Sync/{userId}` | Sync one user |
+| `GET` | `/AIRecommendations/Users` | List registered users and stub counts |
+| `GET` | `/AIRecommendations/Recommendations/{userId}` | List current stubs on disk for a user |
+| `POST` | `/AIRecommendations/Dismiss/{userId}/{tmdbId}` | Permanently reject a TMDB ID and delete its stub |
+| `POST` | `/AIRecommendations/Clear` | Delete all stubs and reset state for all users |
+| `POST` | `/AIRecommendations/Clear/{userId}` | Delete all stubs and reset state for one user |
+| `POST` | `/AIRecommendations/TestProvider` | Test LLM connection from config UI |
 
 ## Releases
 
-Tag `v1.0.x` to trigger the release workflow, which builds the ZIP, computes the MD5 checksum, creates a GitHub Release, and updates `manifest.json` on `main` automatically.
+Every `git push` to `main` triggers the pre-push hook, which bumps the patch version, commits the change, and pushes a `v1.0.x` tag. That tag triggers the GitHub Actions release workflow, which:
+
+1. Builds the release ZIP on a clean Ubuntu runner
+2. Computes the MD5 checksum
+3. Creates a GitHub Release with the ZIP attached
+4. Updates `manifest.json` on `main` with the real checksum
 
 ## Git hooks
 
-Auto-bump patch version on push:
+Install hooks:
 
 ```powershell
 .\scripts\setup-hooks.ps1
 ```
 
-- **pre-push** — bumps patch version, builds, syncs checksum, commits, then pushes
+- **pre-push** — bumps patch version in `VERSION.txt` + `.csproj`, adds a manifest entry with the release URL, commits, and pushes the `v{version}` tag. CI does the actual build, checksum, and release.
+- **pre-commit** — verifies that `VERSION.txt`, `AssemblyVersion`, and `manifest.json` all agree on the same version number.
 
-Skip once: `$env:SKIP_VERSION_BUMP=1; git push`
+Skip version bump once: `$env:SKIP_VERSION_BUMP=1; git push`
 
 Manual bump: `.\scripts\bump-version.ps1 -Part minor`
