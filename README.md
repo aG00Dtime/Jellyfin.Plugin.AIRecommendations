@@ -1,8 +1,18 @@
 # Jellyfin.Plugin.AIRecommendations
 
+> **Work in progress** — early preview, not production-ready. Expect breaking changes.
+
 Jellyfin plugin that builds per-user movie and TV recommendation libraries from watch history. Uses an LLM (OpenAI, OpenRouter, or Ollama) for suggestions and TMDB for metadata. Recommendations appear as normal libraries on all clients.
 
 Requires Jellyfin 10.9+ and .NET 8 SDK.
+
+## Plugin catalog
+
+Add this repository in **Dashboard → Plugins → Repositories**:
+
+```
+https://raw.githubusercontent.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/main/manifest.json
+```
 
 ## Build
 
@@ -16,15 +26,17 @@ Output: `bin/Release/net8.0/Jellyfin.Plugin.AIRecommendations.dll`
 
 ## Install
 
-This repo is **private**. Jellyfin plugin catalogs fetch `manifest.json` over plain HTTP with no auth, so the GitHub raw URL will not work while the repo stays private.
+### From Jellyfin catalog
 
-### Option A — build and deploy (dev machine)
+Use the repository URL above, then install **AI Recommendations (WIP)** from the catalog.
+
+### Build and deploy (dev machine)
 
 ```powershell
 .\deploy-local.ps1
 ```
 
-### Option B — install from GitHub Release (private repo)
+### From GitHub Release
 
 ```powershell
 $env:GITHUB_TOKEN = "ghp_..."   # token with repo scope
@@ -32,10 +44,6 @@ $env:GITHUB_TOKEN = "ghp_..."   # token with repo scope
 ```
 
 Or pin a version: `.\scripts\install-from-release.ps1 -Tag v1.0.0`
-
-### Option C — Jellyfin catalog (requires public hosting)
-
-To use **Dashboard → Plugins → Repositories**, host `manifest.json` and the release zip somewhere Jellyfin can reach without login (public repo, or your own web server on the LAN). A private GitHub repo cannot provide that URL.
 
 ## Configuration
 
