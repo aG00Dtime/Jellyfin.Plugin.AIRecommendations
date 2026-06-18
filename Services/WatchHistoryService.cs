@@ -111,11 +111,15 @@ public class WatchHistoryService
 
     /// <summary>
     /// Returns TMDB IDs of everything the user has played — used to exclude already-watched
-    /// content from recommendations even when it isn't in the user's real library.
+    /// content from recommendations. Includes partially-watched shows (any played episode)
+    /// so the LLM doesn't re-recommend something the user is already partway through.
     /// </summary>
     public HashSet<int> GetWatchedTmdbIds(User user)
     {
-        var items = _libraryManager.GetItemList(new InternalItemsQuery(user)
+        var ids = new HashSet<int>();
+
+        // Fully-played movies and completed series
+        var fullyWatched = _libraryManager.GetItemList(new InternalItemsQuery(user)
         {
             IncludeItemTypes = [BaseItemKind.Movie, BaseItemKind.Series],
             Recursive = true,
@@ -123,13 +127,37 @@ public class WatchHistoryService
             EnableGroupByMetadataKey = true
         });
 
-        var ids = new HashSet<int>();
-        foreach (var item in items)
+        foreach (var item in fullyWatched)
         {
             if (item.TryGetProviderId(MetadataProvider.Tmdb, out var idStr)
                 && int.TryParse(idStr, out var id))
             {
                 ids.Add(id);
+            }
+        }
+
+        // Also include series where the user has watched ANY episode (partial watches)
+        // IsPlayed=true on Series requires all episodes — this catches the rest.
+        var watchedEpisodes = _libraryManager.GetItemList(new InternalItemsQuery(user)
+        {
+            IncludeItemTypes = [BaseItemKind.Episode],
+            Recursive = true,
+            IsPlayed = true,
+            Limit = 2000,
+            EnableGroupByMetadataKey = true
+        });
+
+        foreach (var ep in watchedEpisodes)
+        {
+            // Get the series: Episode → Season → Series (or Episode → Series if no season folder)
+            var series = ep.GetParent() as MediaBrowser.Controller.Entities.TV.Series
+                ?? ep.GetParent()?.GetParent() as MediaBrowser.Controller.Entities.TV.Series;
+
+            if (series is not null
+                && series.TryGetProviderId(MetadataProvider.Tmdb, out var seriesIdStr)
+                && int.TryParse(seriesIdStr, out var seriesId))
+            {
+                ids.Add(seriesId);
             }
         }
 
@@ -184,15 +212,28 @@ public class LibraryFilterService
     {
         var ids = new HashSet<int>();
 
-        var movies = _libraryManager.GetItemList(new InternalItemsQuery
+        // Exclude AI recommendation library folders so stubs don't count as "owned"
+        // and block the engine from ever generating new recommendations.
+        var aiPaths = Plugin.Instance?.Configuration.UserLibraries
+            .SelectMany(r => new[] { r.MoviePath, r.ShowPath })
+            .Where(p => !string.IsNullOrEmpty(p))
+            .ToList() ?? [];
+
+        var items = _libraryManager.GetItemList(new InternalItemsQuery
         {
             IncludeItemTypes = [BaseItemKind.Movie, BaseItemKind.Series],
             Recursive = true,
             IsVirtualItem = false
         });
 
-        foreach (var item in movies)
+        foreach (var item in items)
         {
+            if (aiPaths.Count > 0
+                && aiPaths.Any(p => item.Path?.StartsWith(p, StringComparison.OrdinalIgnoreCase) == true))
+            {
+                continue;
+            }
+
             if (item.TryGetProviderId(MetadataProvider.Tmdb, out var idStr)
                 && int.TryParse(idStr, out var id))
             {

@@ -40,5 +40,6 @@ public class PluginServiceRegistrator : IPluginServiceRegistrator
         services.AddSingleton<RecommendationSyncService>();
         services.AddSingleton<RecommendationSyncTask>();
         services.AddHostedService<PluginStartupService>();
+        services.AddHostedService<FavouriteWatcher>();
     }
 }
