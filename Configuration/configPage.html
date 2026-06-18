@@ -215,7 +215,11 @@
                         'X-MediaBrowser-Token': token
                     },
                     body: JSON.stringify(body)
-                }).then(function (r) { return r.json(); });
+                }).then(function (r) {
+                    if (r.status === 204 || r.headers.get('content-length') === '0') return null;
+                    var ct = r.headers.get('content-type') || '';
+                    return ct.indexOf('application/json') >= 0 ? r.json() : null;
+                });
             }
 
             function apiGet(path) {
@@ -302,9 +306,15 @@
                     tbody.querySelectorAll('.btn-clear-user').forEach(function (btn) {
                         btn.addEventListener('click', function () {
                             if (!confirm('Clear recommendations for this user?')) return;
+                            btn.disabled = true;
+                            btn.textContent = 'Clearing…';
                             apiPost('AIRecommendations/Clear/' + btn.dataset.id, {}).then(function () {
                                 document.getElementById('stubViewerPanel').style.display = 'none';
                                 loadUsers();
+                            }).catch(function () {
+                                btn.disabled = false;
+                                btn.textContent = 'Clear';
+                                Dashboard.alert('Clear failed — check logs.');
                             });
                         });
                     });
@@ -433,7 +443,18 @@
 
                 document.getElementById('btn-clear-all') && document.getElementById('btn-clear-all').addEventListener('click', function () {
                     if (!confirm('Clear recommendations for ALL users? This removes all stubs and resets accepted/rejected lists.')) return;
-                    apiPost('AIRecommendations/Clear', {}).then(function () { loadUsers(); });
+                    var btn = document.getElementById('btn-clear-all');
+                    btn.disabled = true;
+                    btn.textContent = 'Clearing…';
+                    apiPost('AIRecommendations/Clear', {}).then(function () {
+                        btn.textContent = 'Cleared ✓';
+                        setTimeout(function () { btn.disabled = false; btn.textContent = 'Clear All Users'; }, 2000);
+                        loadUsers();
+                    }).catch(function () {
+                        btn.disabled = false;
+                        btn.textContent = 'Clear All Users';
+                        Dashboard.alert('Clear failed — check logs.');
+                    });
                 });
 
                 document.getElementById('btn-refresh-logs').addEventListener('click', loadLogs);
