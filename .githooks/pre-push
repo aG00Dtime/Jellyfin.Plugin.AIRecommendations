@@ -1,5 +1,6 @@
 #!/usr/bin/env sh
-# Bump patch version, build release zip, sync checksum, commit, and push tag before each branch push.
+# Bump patch version, commit, and push release tag before each branch push.
+# CI (GitHub Actions) handles the actual build, zip, checksum, and release creation.
 
 if [ "$SKIP_VERSION_BUMP" = "1" ]; then
   exit 0
@@ -30,15 +31,6 @@ else
   sh scripts/bump-version.sh patch
 fi
 
-# build.ps1/build.sh: restore, compile Release DLL, create zip with meta.json, sync manifest checksum
-if command -v pwsh >/dev/null 2>&1; then
-  pwsh -NoProfile -File build.ps1
-elif command -v powershell >/dev/null 2>&1; then
-  powershell -NoProfile -File build.ps1
-else
-  sh build.sh
-fi
-
 git add VERSION.txt Jellyfin.Plugin.AIRecommendations.csproj manifest.json
 
 if git diff --cached --quiet; then
@@ -48,7 +40,8 @@ fi
 NEW_VERSION="$(tr -d ' \r\n' < VERSION.txt)"
 git commit -m "chore: bump version to ${NEW_VERSION}"
 
-# Push the release tag so GitHub Actions creates the actual GitHub Release and ZIP
+# Push the release tag — this triggers GitHub Actions to build the zip,
+# create the GitHub Release, and update the manifest checksum.
 git tag "v${NEW_VERSION}"
 git push origin "v${NEW_VERSION}"
 
