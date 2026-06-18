@@ -1,0 +1,112 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+
+    - name: Get version from tag
+      id: version
+      run: |
+        VERSION=${GITHUB_REF#refs/tags/v}
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        echo "Version: $VERSION"
+
+    - name: Update .csproj version
+      run: |
+        VERSION=${{ steps.version.outputs.version }}
+        sed -i "s/<AssemblyVersion>.*<\/AssemblyVersion>/<AssemblyVersion>$VERSION.0<\/AssemblyVersion>/" Jellyfin.Plugin.AIRecommendations.csproj
+        sed -i "s/<FileVersion>.*<\/FileVersion>/<FileVersion>$VERSION.0<\/FileVersion>/" Jellyfin.Plugin.AIRecommendations.csproj
+        echo "$VERSION" > VERSION.txt
+
+    - name: Restore dependencies
+      run: dotnet restore
+
+    - name: Build
+      run: dotnet build -c Release --no-restore
+
+    - name: Create ZIP
+      run: |
+        cd bin/Release/net8.0
+        zip -j Jellyfin.Plugin.AIRecommendations.zip Jellyfin.Plugin.AIRecommendations.dll
+        cd ../../..
+
+    - name: Calculate checksum
+      id: checksum
+      run: |
+        CHECKSUM=$(md5sum bin/Release/net8.0/Jellyfin.Plugin.AIRecommendations.zip | awk '{print $1}')
+        echo "checksum=$CHECKSUM" >> $GITHUB_OUTPUT
+        echo "Checksum: $CHECKSUM"
+
+    - name: Update manifest.json
+      run: |
+        VERSION=${{ steps.version.outputs.version }}
+        CHECKSUM=${{ steps.checksum.outputs.checksum }}
+        TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+        cat > manifest.json << EOF
+        [
+          {
+            "guid": "7c4a9e2b-3f1d-4a8c-b6e5-2d9f8a1c0b3e",
+            "name": "AI Recommendations",
+            "description": "Per-user AI movie and TV recommendations synced to virtual libraries on all Jellyfin clients",
+            "overview": "LLM-powered recommendations via OpenAI, OpenRouter, or Ollama — visible on web, mobile, and TV",
+            "owner": "aG00Dtime",
+            "category": "General",
+            "versions": [
+              {
+                "version": "$VERSION.0",
+                "changelog": "Release $VERSION",
+                "targetAbi": "10.9.0.0",
+                "sourceUrl": "https://github.com/${{ github.repository }}/releases/download/v$VERSION/Jellyfin.Plugin.AIRecommendations.zip",
+                "checksum": "$CHECKSUM",
+                "timestamp": "$TIMESTAMP"
+              }
+            ]
+          }
+        ]
+        EOF
+
+    - name: Commit and push version files
+      run: |
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+        git add manifest.json Jellyfin.Plugin.AIRecommendations.csproj VERSION.txt
+        git commit -m "Update manifest and csproj for version ${{ steps.version.outputs.version }}" || echo "No changes to commit"
+        git push origin HEAD:main || echo "Nothing to push"
+
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: bin/Release/net8.0/Jellyfin.Plugin.AIRecommendations.zip
+        body: |
+          ## Jellyfin AI Recommendations v${{ steps.version.outputs.version }}
+
+          ### Installation
+          Add this repository to Jellyfin:
+          ```
+          https://raw.githubusercontent.com/${{ github.repository }}/main/manifest.json
+          ```
+
+          ### Checksums
+          - MD5: ${{ steps.checksum.outputs.checksum }}
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
