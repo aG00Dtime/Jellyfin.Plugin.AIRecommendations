@@ -23,6 +23,7 @@ public class PluginServiceRegistrator : IPluginServiceRegistrator
         services.AddHttpClient(nameof(OllamaProvider))
             .ConfigureHttpClient(c => c.Timeout = TimeSpan.FromMinutes(5));
         services.AddHttpClient(nameof(TmdbMetadataService));
+        services.AddHttpClient(nameof(JellyseerrService));
 
         services.AddSingleton<WatchHistoryService>();
         services.AddSingleton<LibraryFilterService>();
@@ -35,6 +36,7 @@ public class PluginServiceRegistrator : IPluginServiceRegistrator
         services.AddSingleton<VirtualItemWriter>();
         services.AddSingleton<LibraryPermissionManager>();
         services.AddSingleton<VirtualLibraryManager>();
+        services.AddSingleton<JellyseerrService>();
         services.AddSingleton<RecommendationSyncService>();
         services.AddSingleton<RecommendationSyncTask>();
         services.AddHostedService<PluginStartupService>();

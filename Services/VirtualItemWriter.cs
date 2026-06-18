@@ -96,7 +96,7 @@ public class VirtualItemWriter
               <title>{X(movie.Title)}</title>
               <year>{movie.Year?.ToString(CultureInfo.InvariantCulture) ?? string.Empty}</year>
               <uniqueid type="tmdb" default="true">{tmdbId}</uniqueid>
-              <tagline>AI Recommendation · Find it on JustWatch</tagline>
+              <tagline>AI Pick — ❤️ to request via Jellyseerr · 👎 to dismiss</tagline>
               <plot>{X(plot)}</plot>
               <tag>AI Recommendation</tag>
               <lockdata>false</lockdata>
@@ -115,7 +115,7 @@ public class VirtualItemWriter
               <title>{X(show.Title)}</title>
               <year>{show.Year?.ToString(CultureInfo.InvariantCulture) ?? string.Empty}</year>
               <uniqueid type="tmdb" default="true">{tmdbId}</uniqueid>
-              <tagline>AI Recommendation · Find it on JustWatch</tagline>
+              <tagline>AI Pick — ❤️ to request via Jellyseerr · 👎 to dismiss</tagline>
               <plot>{X(plot)}</plot>
               <tag>AI Recommendation</tag>
               <lockdata>false</lockdata>

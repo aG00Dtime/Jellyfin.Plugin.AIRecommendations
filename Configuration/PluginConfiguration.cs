@@ -47,6 +47,24 @@ public class PluginConfiguration : BasePluginConfiguration
 
     public bool LimitShowsToSeasonOne { get; set; } = true;
 
+    /// <summary>
+    /// Jellyseerr base URL, e.g. http://jellyseerr:5055
+    /// Leave blank to disable Jellyseerr integration.
+    /// </summary>
+    public string JellyseerrBaseUrl { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Jellyseerr API key (from your Jellyseerr profile → API Key).
+    /// </summary>
+    public string JellyseerrApiKey { get; set; } = string.Empty;
+
+    /// <summary>
+    /// When true, each recommendation is automatically submitted as a
+    /// Jellyseerr request during sync. Items already requested or
+    /// available in Jellyseerr are skipped.
+    /// </summary>
+    public bool JellyseerrAutoRequest { get; set; }
+
     public List<UserLibraryRegistration> UserLibraries { get; set; } = new();
 
     public DateTime? LastSyncUtc { get; set; }
@@ -55,7 +73,7 @@ public class PluginConfiguration : BasePluginConfiguration
 }
 
 /// <summary>
-/// Tracks auto-provisioned libraries for a user.
+/// Tracks auto-provisioned libraries and user feedback for a single user.
 /// </summary>
 public class UserLibraryRegistration
 {
@@ -72,4 +90,10 @@ public class UserLibraryRegistration
     public string MovieLibraryName { get; set; } = string.Empty;
 
     public string ShowLibraryName { get; set; } = string.Empty;
+
+    /// <summary>TMDB IDs the user thumbed-down — never recommend again.</summary>
+    public List<int> RejectedTmdbIds { get; set; } = new();
+
+    /// <summary>TMDB IDs already submitted to Jellyseerr — skip until actually owned.</summary>
+    public List<int> RequestedTmdbIds { get; set; } = new();
 }

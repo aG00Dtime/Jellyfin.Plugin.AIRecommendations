@@ -37,6 +37,7 @@ public class RecommendationEngine
 
     public async Task<IReadOnlyList<ResolvedRecommendation>> GenerateForUserAsync(
         User user,
+        IReadOnlyCollection<int> extraExcludeIds,
         CancellationToken cancellationToken)
     {
         var config = Plugin.Instance?.Configuration
@@ -51,12 +52,12 @@ public class RecommendationEngine
 
         var target = config.MaxRecommendationsPerType;
 
-        // Exclude: library ownership + everything the user has personally watched
-        // (watched check prevents checkmarks on stubs for already-seen content)
+        // Exclude: library ownership + watched + rejected/already-requested by this user
         var ownedIds = _libraryFilter.GetOwnedTmdbIds();
         var watchedIds = _watchHistory.GetWatchedTmdbIds(user);
         var seenTmdbIds = new HashSet<int>(ownedIds);
         seenTmdbIds.UnionWith(watchedIds);
+        seenTmdbIds.UnionWith(extraExcludeIds);
 
         // Title sets: used both as LLM hints AND as a hard post-resolution gate for items
         // whose TMDB metadata hasn't been fetched yet (no ID → ID check misses them).
