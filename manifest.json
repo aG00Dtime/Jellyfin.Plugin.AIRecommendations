@@ -9,11 +9,11 @@
     "versions": [
       {
         "version": "1.0.11.0",
-        "changelog": "Fix Ollama Cloud: use /api/chat endpoint with gemma4 model",
+        "changelog": "Release 1.0.11",
         "targetAbi": "10.11.9.0",
         "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.11/Jellyfin.Plugin.AIRecommendations.zip",
-        "checksum": "",
-        "timestamp": "2026-06-18T16:00:00Z"
+        "checksum": "f523e138d438b8376816549d5b6f83f7",
+        "timestamp": "2026-06-18T15:42:44Z"
       },
       {
         "version": "1.0.10.0",
