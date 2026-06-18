@@ -45,10 +45,10 @@ public class OllamaProvider : ILlmProvider
         }
 
         var prompt = LlmProviderHelpers.BuildPrompt(watchedItems, excludeTitles, count);
-        return await GenerateAsync(baseUrl, config, prompt, cancellationToken).ConfigureAwait(false);
+        return await ChatAsync(baseUrl, config, prompt, cancellationToken).ConfigureAwait(false);
     }
 
-    private async Task<IReadOnlyList<LlmRecommendationItem>> GenerateAsync(
+    private async Task<IReadOnlyList<LlmRecommendationItem>> ChatAsync(
         string baseUrl,
         Configuration.PluginConfiguration config,
         string prompt,
@@ -57,13 +57,16 @@ public class OllamaProvider : ILlmProvider
         var body = new
         {
             model = config.OllamaModel,
-            system = "You are a media recommendation assistant. Return only valid JSON.",
-            prompt,
-            stream = false
+            stream = false,
+            messages = new[]
+            {
+                new { role = "system", content = "You are a media recommendation assistant. Return only valid JSON." },
+                new { role = "user", content = prompt }
+            }
         };
 
         var client = _httpClientFactory.CreateClient(nameof(OllamaProvider));
-        using var request = new HttpRequestMessage(HttpMethod.Post, $"{baseUrl}/api/generate");
+        using var request = new HttpRequestMessage(HttpMethod.Post, $"{baseUrl}/api/chat");
         if (!string.IsNullOrWhiteSpace(config.OllamaApiKey))
         {
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", config.OllamaApiKey);
@@ -76,7 +79,7 @@ public class OllamaProvider : ILlmProvider
 
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
         using var doc = JsonDocument.Parse(json);
-        var content = doc.RootElement.GetProperty("response").GetString() ?? string.Empty;
+        var content = doc.RootElement.GetProperty("message").GetProperty("content").GetString() ?? string.Empty;
         return LlmProviderHelpers.ParseRecommendations(content, _logger);
     }
 }
