@@ -14,5 +14,6 @@ public interface ILlmProvider
         IReadOnlyList<string> excludeTitles,
         int count,
         CancellationToken cancellationToken,
-        IReadOnlyList<string>? notFoundTitles = null);
+        IReadOnlyList<string>? notFoundTitles = null,
+        IReadOnlyList<TmdbCandidate>? catalog = null);
 }

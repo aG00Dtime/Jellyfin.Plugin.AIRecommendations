@@ -7,11 +7,14 @@ using Microsoft.Extensions.Logging;
 namespace Jellyfin.Plugin.AIRecommendations.Services;
 
 /// <summary>
-/// Orchestrates LLM + TMDB recommendation generation with a 2-round feedback loop.
+/// Orchestrates LLM + TMDB recommendation generation.
 ///
-/// Round 1: ask LLM for 3× the target count, verify all via TMDB in parallel.
-/// Round 2 (only if still below target): ask again for the deficit, passing back
-///   titles that failed TMDB lookup so the LLM avoids re-suggesting them.
+/// RAG path (default): fetches TMDB Discover candidates per genre first, passes
+/// the catalog to the LLM so it picks from real, current data (no hallucination).
+/// The LLM returns tmdbIds from the catalog — no TMDB search round needed.
+///
+/// Fallback path: if Discover yields too few candidates the engine falls back to
+/// free-form LLM generation with a 2-round TMDB verification loop.
 /// </summary>
 public class RecommendationEngine
 {
@@ -20,6 +23,12 @@ public class RecommendationEngine
     private readonly LlmProviderFactory _llmFactory;
     private readonly TmdbMetadataService _tmdb;
     private readonly ILogger<RecommendationEngine> _logger;
+
+    // How many catalog items to fetch per genre (movies + shows separately)
+    private const int DiscoverLimitPerGenre = 5;
+
+    // Minimum catalog size (per type) to use RAG mode; fall back to free-form below this
+    private const int MinCatalogPerType = 5;
 
     public RecommendationEngine(
         WatchHistoryService watchHistory,
@@ -52,15 +61,12 @@ public class RecommendationEngine
 
         var target = config.MaxRecommendationsPerType;
 
-        // Exclude: library ownership + watched + rejected/already-requested by this user
         var ownedIds = _libraryFilter.GetOwnedTmdbIds();
         var watchedIds = _watchHistory.GetWatchedTmdbIds(user);
         var seenTmdbIds = new HashSet<int>(ownedIds);
         seenTmdbIds.UnionWith(watchedIds);
         seenTmdbIds.UnionWith(extraExcludeIds);
 
-        // Title sets: used both as LLM hints AND as a hard post-resolution gate for items
-        // whose TMDB metadata hasn't been fetched yet (no ID → ID check misses them).
         var ownedTitles = _libraryFilter.GetOwnedTitles(user);
         var watchedTitles = _watchHistory.GetWatchedTitles(user);
         var baseTitleExcludes = ownedTitles
@@ -68,8 +74,19 @@ public class RecommendationEngine
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
 
-        // HashSet for O(1) post-resolution title check (grows as we confirm items)
         var excludedTitleSet = new HashSet<string>(baseTitleExcludes, StringComparer.OrdinalIgnoreCase);
+
+        // === RAG: pre-fetch TMDB Discover candidates in parallel ===
+        var topGenres = profile.TopGenres.Select(g => g.Genre).ToList();
+        var (movieCatalog, showCatalog) = await FetchCatalogAsync(topGenres, seenTmdbIds, cancellationToken)
+            .ConfigureAwait(false);
+
+        _logger.LogInformation(
+            "RAG catalog for {User}: {Movies} movie candidates, {Shows} show candidates",
+            user.Username, movieCatalog.Count, showCatalog.Count);
+
+        var catalogById = movieCatalog.Concat(showCatalog)
+            .ToDictionary(c => c.TmdbId);
 
         var llm = _llmFactory.GetActiveProvider();
 
@@ -90,26 +107,54 @@ public class RecommendationEngine
                 break;
             }
 
-            // Round 1: ask for need+5 (buffer for TMDB misses, capped at 25 to keep prompts small)
-            // Round 2: ask exactly the deficit
-            var ask = round == 0
-                ? Math.Min(moviesNeed + showsNeed + 5, 25)
-                : moviesNeed + showsNeed;
+            // In RAG mode we ask for exactly what we need (catalog items are pre-verified).
+            // In free-form mode we ask for slightly more to account for TMDB misses.
+            var useRag = movieCatalog.Count >= MinCatalogPerType || showCatalog.Count >= MinCatalogPerType;
+
+            var ask = useRag
+                ? moviesNeed + showsNeed
+                : (round == 0
+                    ? Math.Min(moviesNeed + showsNeed + 5, 25)
+                    : moviesNeed + showsNeed);
 
             var allExclude = baseTitleExcludes
                 .Concat(confirmedTitles)
                 .ToList();
 
+            // Build per-round catalog filtered to items not yet confirmed/seen
+            List<TmdbCandidate>? roundCatalog = null;
+            if (useRag)
+            {
+                var availableMovies = movieCatalog
+                    .Where(c => !seenTmdbIds.Contains(c.TmdbId))
+                    .ToList();
+                var availableShows = showCatalog
+                    .Where(c => !seenTmdbIds.Contains(c.TmdbId))
+                    .ToList();
+                roundCatalog = availableMovies.Concat(availableShows).ToList();
+
+                if (roundCatalog.Count == 0)
+                {
+                    _logger.LogInformation(
+                        "Catalog exhausted for {User} on round {Round} — stopping",
+                        user.Username, round + 1);
+                    break;
+                }
+            }
+
             _logger.LogInformation(
-                "LLM round {Round}: asking for {Ask} candidates (need {Movies} movies, {Shows} shows) for {User}",
-                round + 1, ask, moviesNeed, showsNeed, user.Username);
+                "LLM round {Round} for {User}: asking for {Ask} candidates " +
+                "(need {Movies} movies, {Shows} shows, mode={Mode})",
+                round + 1, user.Username, ask, moviesNeed, showsNeed,
+                useRag ? "RAG" : "free-form");
 
             IReadOnlyList<LlmRecommendationItem> candidates;
             try
             {
                 candidates = await llm.GetRecommendationsAsync(
                     profile, allExclude, ask, cancellationToken,
-                    round > 0 ? notFoundTitles : null)
+                    round > 0 ? notFoundTitles : null,
+                    roundCatalog)
                     .ConfigureAwait(false);
             }
             catch (Exception ex)
@@ -124,8 +169,8 @@ public class RecommendationEngine
                 break;
             }
 
-            // Verify candidates via TMDB in parallel (capped at 8 concurrent)
-            var results = await VerifyViaTmdbAsync(candidates, seenTmdbIds, cancellationToken)
+            var results = await ResolveRecommendationsAsync(
+                candidates, seenTmdbIds, catalogById, cancellationToken)
                 .ConfigureAwait(false);
 
             foreach (var (item, rec) in results)
@@ -139,29 +184,61 @@ public class RecommendationEngine
                 }
                 else
                 {
-                    // Treat owned/watched titles the same as TMDB-unresolvable ones
-                    // so round 2 doesn't waste a slot re-suggesting them
                     notFoundTitles.Add(item.Title);
                 }
             }
 
             _logger.LogInformation(
-                "Round {Round} result: {Confirmed} confirmed, {Failed} not found on TMDB",
+                "Round {Round} result: {Confirmed} confirmed, {Failed} skipped",
                 round + 1, results.Count(r => r.rec is not null), results.Count(r => r.rec is null));
         }
 
         return confirmed;
     }
 
-    private async Task<IReadOnlyList<(LlmRecommendationItem item, ResolvedRecommendation? rec)>> VerifyViaTmdbAsync(
+    private async Task<(List<TmdbCandidate> movies, List<TmdbCandidate> shows)> FetchCatalogAsync(
+        IReadOnlyList<string> genreNames,
+        HashSet<int> excludeIds,
+        CancellationToken cancellationToken)
+    {
+        var movieTask = _tmdb.DiscoverAsync(genreNames, isMovie: true, excludeIds, DiscoverLimitPerGenre, cancellationToken);
+        var showTask = _tmdb.DiscoverAsync(genreNames, isMovie: false, excludeIds, DiscoverLimitPerGenre, cancellationToken);
+
+        await Task.WhenAll(movieTask, showTask).ConfigureAwait(false);
+
+        return (movieTask.Result.ToList(), showTask.Result.ToList());
+    }
+
+    private async Task<IReadOnlyList<(LlmRecommendationItem item, ResolvedRecommendation? rec)>> ResolveRecommendationsAsync(
         IReadOnlyList<LlmRecommendationItem> candidates,
         HashSet<int> seenTmdbIds,
+        Dictionary<int, TmdbCandidate> catalogById,
         CancellationToken cancellationToken)
     {
         using var semaphore = new SemaphoreSlim(8, 8);
 
         var tasks = candidates.Select(async item =>
         {
+            // Catalog (RAG) item: resolve directly without a TMDB search request
+            if (item.TmdbId.HasValue && catalogById.TryGetValue(item.TmdbId.Value, out var candidate))
+            {
+                if (seenTmdbIds.Contains(candidate.TmdbId))
+                {
+                    return (item, (ResolvedRecommendation?)null);
+                }
+
+                return (item, (ResolvedRecommendation?)new ResolvedRecommendation
+                {
+                    TmdbId = candidate.TmdbId,
+                    Title = candidate.Title,
+                    Year = candidate.Year,
+                    IsSeries = candidate.IsSeries,
+                    Reason = item.Reason,
+                    Overview = candidate.Overview
+                });
+            }
+
+            // Free-form item: fall back to TMDB title search
             await semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
