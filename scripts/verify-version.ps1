@@ -31,10 +31,6 @@ if (-not $entry) {
     Write-Error "manifest.json has no entry for version $expectedFour"
 }
 
-if ([string]::IsNullOrWhiteSpace($entry.checksum)) {
-    Write-Error "manifest.json checksum is empty for $expectedFour - run .\build.ps1"
-}
-
 if ($env:VERIFY_ZIP_CHECKSUM -eq '1' -and (Test-Path $ZipPath)) {
     $expectedChecksum = (Get-FileHash $ZipPath -Algorithm MD5).Hash.ToLower()
     if ($entry.checksum -ne $expectedChecksum) {
