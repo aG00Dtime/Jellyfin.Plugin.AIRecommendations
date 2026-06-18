@@ -106,8 +106,7 @@ Once stubs appear in Jellyfin, the user has three actions:
 | Action | What happens |
 |---|---|
 | ❤️ **Favourite** the item | Jellyseerr request is submitted **immediately** (no waiting for the next sync). TMDB ID is recorded as "requested" and the stub is removed on the next sync. |
-| 👎 **Dislike** the item | TMDB ID is added to the permanent reject list. Stub is removed on next sync and will never be suggested again. |
-| 🗑️ **Delete** the item in Jellyfin | Detected on the next sync by comparing what was placed vs what is on disk. TMDB ID is permanently rejected — same effect as dislike but via native Jellyfin deletion. |
+| 🗑️ **Delete** the item in Jellyfin | Detected on the next sync by comparing what was placed vs what is on disk. TMDB ID is permanently rejected and will never be suggested again. |
 
 The `FavouriteWatcher` service subscribes to Jellyfin's `UserDataSaved` event and fires the Jellyseerr request in under a second of the heart being tapped, without waiting for the scheduled sync.
 
