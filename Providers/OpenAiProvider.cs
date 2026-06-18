@@ -37,7 +37,7 @@ public static class LlmProviderHelpers
         var exclude = string.Join(", ", excludeTitles.Take(100));
 
         var notFoundSection = notFoundTitles is { Count: > 0 }
-            ? $"\nDo NOT suggest (TMDB lookup failed previously): {string.Join(", ", notFoundTitles)}"
+            ? $"\nAlso do NOT suggest (not found on TMDB): {string.Join(", ", notFoundTitles)}"
             : string.Empty;
 
         return $$"""
@@ -49,7 +49,8 @@ public static class LlmProviderHelpers
             Content mix: {{mix}}
             Enjoys: {{samples}}{{favSection}}
 
-            Skip (already watched or owned): {{exclude}}{{notFoundSection}}
+            MUST NOT recommend any of these (user already has them — absolute rule, no exceptions):
+            {{exclude}}{{notFoundSection}}
 
             Rules: real titles only (must exist on TMDB), mix movies+series, vary eras.
             {"recommendations":[{"title":"Name","year":2020,"type":"movie","reason":"one line why"}]}

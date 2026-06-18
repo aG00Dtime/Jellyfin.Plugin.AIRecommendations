@@ -58,13 +58,17 @@ public class RecommendationEngine
         var seenTmdbIds = new HashSet<int>(ownedIds);
         seenTmdbIds.UnionWith(watchedIds);
 
-        // Prompt-level hints: library titles + watched titles help the LLM avoid suggesting them
+        // Title sets: used both as LLM hints AND as a hard post-resolution gate for items
+        // whose TMDB metadata hasn't been fetched yet (no ID → ID check misses them).
         var ownedTitles = _libraryFilter.GetOwnedTitles(user);
         var watchedTitles = _watchHistory.GetWatchedTitles(user);
         var baseTitleExcludes = ownedTitles
             .Concat(watchedTitles)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
+
+        // HashSet for O(1) post-resolution title check (grows as we confirm items)
+        var excludedTitleSet = new HashSet<string>(baseTitleExcludes, StringComparer.OrdinalIgnoreCase);
 
         var llm = _llmFactory.GetActiveProvider();
 
@@ -125,14 +129,17 @@ public class RecommendationEngine
 
             foreach (var (item, rec) in results)
             {
-                if (rec is not null)
+                if (rec is not null && !excludedTitleSet.Contains(rec.Title))
                 {
                     seenTmdbIds.Add(rec.TmdbId);
+                    excludedTitleSet.Add(rec.Title);
                     confirmedTitles.Add(item.Title);
                     confirmed.Add(rec);
                 }
                 else
                 {
+                    // Treat owned/watched titles the same as TMDB-unresolvable ones
+                    // so round 2 doesn't waste a slot re-suggesting them
                     notFoundTitles.Add(item.Title);
                 }
             }
