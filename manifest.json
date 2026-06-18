@@ -3,10 +3,18 @@
     "guid": "7c4a9e2b-3f1d-4a8c-b6e5-2d9f8a1c0b3e",
     "name": "AI Recommendations (WIP)",
     "description": "[Work in progress] Per-user AI movie and TV recommendations synced to virtual libraries on all Jellyfin clients",
-    "overview": "[WIP] LLM-powered recommendations via OpenAI, OpenRouter, or Ollama — not production-ready yet",
+    "overview": "[WIP] LLM-powered recommendations via OpenAI, OpenRouter, or Ollama \u00e2\u20ac\u201d not production-ready yet",
     "owner": "aG00Dtime",
     "category": "General",
     "versions": [
+      {
+        "version": "1.0.13.0",
+        "changelog": "Per-user library visibility + 2-round LLM loop",
+        "targetAbi": "10.11.9.0",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.13/Jellyfin.Plugin.AIRecommendations.zip",
+        "checksum": "",
+        "timestamp": "2026-06-18T16:00:00Z"
+      },
       {
         "version": "1.0.12.0",
         "changelog": "Release 1.0.12",
