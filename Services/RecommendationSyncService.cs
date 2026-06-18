@@ -1,6 +1,6 @@
 using Jellyfin.Data;
-using Jellyfin.Data.Entities;
-using Jellyfin.Data.Enums;
+using Jellyfin.Database.Implementations.Entities;
+using Jellyfin.Database.Implementations.Enums;
 using Jellyfin.Plugin.AIRecommendations.Models;
 using MediaBrowser.Controller.Library;
 using Microsoft.Extensions.Logging;
@@ -34,7 +34,7 @@ public class RecommendationSyncService
 
     public async Task SyncAllUsersAsync(IProgress<double>? progress, CancellationToken cancellationToken)
     {
-        var users = _userManager.Users
+        var users = _userManager.GetUsers()
             .Where(u => !u.HasPermission(PermissionKind.IsDisabled))
             .ToList();
 

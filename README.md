@@ -4,9 +4,9 @@
 
 Jellyfin plugin that builds per-user movie and TV recommendation libraries from watch history. Uses an LLM (OpenAI, OpenRouter, or Ollama) for suggestions and TMDB for metadata. Recommendations appear as normal libraries on all clients.
 
-Requires Jellyfin **10.10+** and .NET 8 SDK.
+Requires Jellyfin **10.11+** (use plugin **v1.0.1** if you are on **10.10.x**).
 
-> **Jellyfin 10.11+** is not supported yet (requires a separate build). Check plugin status under **Dashboard → Plugins** — if it says **NotSupported**, your server version does not match the plugin ABI.
+> If status shows **NotSupported**, your Jellyfin version does not match the plugin build. Check **Dashboard → Help** for your server version, then install the matching plugin version from the catalog.
 
 ## Plugin catalog
 

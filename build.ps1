@@ -3,15 +3,15 @@ $ErrorActionPreference = "Stop"
 
 $ProjectRoot = $PSScriptRoot
 $ProjectFile = Join-Path $ProjectRoot "Jellyfin.Plugin.AIRecommendations.csproj"
-$OutputDir = Join-Path $ProjectRoot "bin\Release\net8.0"
+$OutputDir = Join-Path $ProjectRoot "bin\Release\net9.0"
 $DllName = "Jellyfin.Plugin.AIRecommendations.dll"
 $ZipName = "Jellyfin.Plugin.AIRecommendations.zip"
 
 Write-Host "=== AI Recommendations Plugin Build ===" -ForegroundColor Cyan
 
 if (-not (Get-Command dotnet -ErrorAction SilentlyContinue)) {
-    Write-Host "ERROR: .NET SDK not found. Install .NET 8 SDK:" -ForegroundColor Red
-    Write-Host "  winget install Microsoft.DotNet.SDK.8" -ForegroundColor Yellow
+    Write-Host "ERROR: .NET SDK not found. Install .NET 9 SDK:" -ForegroundColor Red
+    Write-Host "  winget install Microsoft.DotNet.SDK.9" -ForegroundColor Yellow
     exit 1
 }
 

@@ -47,12 +47,12 @@ public class RecommendationSyncTask : IScheduledTask
         [
             new TaskTriggerInfo
             {
-                Type = "IntervalTrigger",
+                Type = TaskTriggerInfoType.IntervalTrigger,
                 IntervalTicks = TimeSpan.FromHours(hours).Ticks
             },
             new TaskTriggerInfo
             {
-                Type = "StartupTrigger",
+                Type = TaskTriggerInfoType.StartupTrigger,
                 MaxRuntimeTicks = TimeSpan.FromMinutes(30).Ticks
             }
         ];
