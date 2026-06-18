@@ -171,6 +171,7 @@ public class VirtualItemWriter
               <tagline>AI Pick — ❤️ to request via Jellyseerr · 🗑️ Delete to dismiss forever</tagline>
               <plot>{X(plot)}</plot>
               <tag>AI Recommendation</tag>
+              <dateadded>2000-01-01 00:00:00</dateadded>
               <lockdata>false</lockdata>
               <lockedfields>Tagline|Overview</lockedfields>
             </movie>
@@ -190,6 +191,7 @@ public class VirtualItemWriter
               <tagline>AI Pick — ❤️ to request via Jellyseerr · 🗑️ Delete to dismiss forever</tagline>
               <plot>{X(plot)}</plot>
               <tag>AI Recommendation</tag>
+              <dateadded>2000-01-01 00:00:00</dateadded>
               <lockdata>false</lockdata>
               <lockedfields>Tagline|Overview</lockedfields>
             </tvshow>
