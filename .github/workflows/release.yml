@@ -30,6 +30,17 @@ jobs:
         echo "version=$VERSION" >> $GITHUB_OUTPUT
         echo "Version: $VERSION"
 
+    - name: Compute release metadata
+      id: meta
+      run: |
+        VERSION=${{ steps.version.outputs.version }}
+        TARGET_ABI="10.11.0.0"
+        if [ "$VERSION" = "1.0.1" ]; then TARGET_ABI="10.10.0.0"; fi
+        if [ "$VERSION" = "1.0.0" ]; then TARGET_ABI="10.9.0.0"; fi
+        TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+        echo "targetAbi=$TARGET_ABI" >> $GITHUB_OUTPUT
+        echo "timestamp=$TIMESTAMP" >> $GITHUB_OUTPUT
+
     - name: Update .csproj version
       run: |
         VERSION=${{ steps.version.outputs.version }}
@@ -42,10 +53,30 @@ jobs:
     - name: Build
       run: dotnet build -c Release --no-restore
 
-    - name: Create ZIP
+    - name: Create ZIP with meta.json
       run: |
+        VERSION=${{ steps.version.outputs.version }}
+        TARGET_ABI=${{ steps.meta.outputs.targetAbi }}
+        TIMESTAMP=${{ steps.meta.outputs.timestamp }}
+
+        cat > bin/Release/net9.0/meta.json << EOF
+        {
+          "category": "General",
+          "changelog": "Release $VERSION",
+          "description": "Per-user AI movie and TV recommendations synced to virtual libraries on all Jellyfin clients",
+          "guid": "7c4a9e2b-3f1d-4a8c-b6e5-2d9f8a1c0b3e",
+          "imageUrl": null,
+          "name": "AI Recommendations",
+          "overview": "LLM-powered recommendations via OpenAI, OpenRouter, or Ollama",
+          "owner": "aG00Dtime",
+          "targetAbi": "$TARGET_ABI",
+          "timestamp": "$TIMESTAMP",
+          "version": "$VERSION.0"
+        }
+        EOF
+
         cd bin/Release/net9.0
-        zip -j Jellyfin.Plugin.AIRecommendations.zip Jellyfin.Plugin.AIRecommendations.dll
+        zip -j Jellyfin.Plugin.AIRecommendations.zip Jellyfin.Plugin.AIRecommendations.dll meta.json
 
     - name: Calculate checksum
       id: checksum
@@ -80,25 +111,19 @@ jobs:
       run: |
         VERSION=${{ steps.version.outputs.version }}
         CHECKSUM=${{ steps.checksum.outputs.checksum }}
-        TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-        TARGET_ABI="10.11.0.0"
-
-        if [ "$VERSION" = "1.0.1" ]; then TARGET_ABI="10.10.0.0"; fi
-        if [ "$VERSION" = "1.0.0" ]; then TARGET_ABI="10.9.0.0"; fi
+        TARGET_ABI=${{ steps.meta.outputs.targetAbi }}
+        TIMESTAMP=${{ steps.meta.outputs.timestamp }}
 
         git config user.name "github-actions[bot]"
         git config user.email "github-actions[bot]@users.noreply.github.com"
 
-        # Switch to main so the push is a simple fast-forward, not a detached-HEAD push
         git fetch origin main
         git checkout main
 
-        # Re-apply version in csproj and VERSION.txt on main
         echo "$VERSION" > VERSION.txt
         sed -i "s/<AssemblyVersion>.*<\/AssemblyVersion>/<AssemblyVersion>$VERSION.0<\/AssemblyVersion>/" Jellyfin.Plugin.AIRecommendations.csproj
         sed -i "s/<FileVersion>.*<\/FileVersion>/<FileVersion>$VERSION.0<\/FileVersion>/" Jellyfin.Plugin.AIRecommendations.csproj
 
-        # Update (or insert) the manifest entry for this version with the CI-built checksum
         jq --arg version "$VERSION.0" \
            --arg changelog "Release $VERSION" \
            --arg abi "$TARGET_ABI" \
@@ -115,7 +140,6 @@ jobs:
               timestamp: $ts
             }] + .[0].versions' manifest.json > manifest.tmp && mv manifest.tmp manifest.json
 
-        # Verify the manifest was updated correctly
         ACTUAL=$(jq -r --arg v "$VERSION.0" '.[0].versions[] | select(.version == $v) | .checksum' manifest.json)
         if [ "$ACTUAL" != "$CHECKSUM" ]; then
           echo "ERROR: manifest checksum mismatch after update (expected $CHECKSUM, got $ACTUAL)"
