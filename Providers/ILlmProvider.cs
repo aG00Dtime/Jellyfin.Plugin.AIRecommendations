@@ -13,5 +13,6 @@ public interface ILlmProvider
         IReadOnlyList<WatchedItemSummary> watchedItems,
         IReadOnlyList<string> excludeTitles,
         int count,
-        CancellationToken cancellationToken);
+        CancellationToken cancellationToken,
+        IReadOnlyList<string>? notFoundTitles = null);
 }

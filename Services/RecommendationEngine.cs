@@ -7,7 +7,11 @@ using Microsoft.Extensions.Logging;
 namespace Jellyfin.Plugin.AIRecommendations.Services;
 
 /// <summary>
-/// Orchestrates LLM + TMDB recommendation generation.
+/// Orchestrates LLM + TMDB recommendation generation with a 2-round feedback loop.
+///
+/// Round 1: ask LLM for 3× the target count, verify all via TMDB in parallel.
+/// Round 2 (only if still below target): ask again for the deficit, passing back
+///   titles that failed TMDB lookup so the LLM avoids re-suggesting them.
 /// </summary>
 public class RecommendationEngine
 {
@@ -45,41 +49,117 @@ public class RecommendationEngine
             return Array.Empty<ResolvedRecommendation>();
         }
 
+        var target = config.MaxRecommendationsPerType;
         var ownedIds = _libraryFilter.GetOwnedTmdbIds();
         var excludeTitles = _libraryFilter.GetOwnedTitles(user);
-
         var llm = _llmFactory.GetActiveProvider();
-        var requestCount = config.MaxRecommendationsPerType * 2;
 
-        var llmItems = await llm.GetRecommendationsAsync(watched, excludeTitles, requestCount, cancellationToken)
-            .ConfigureAwait(false);
+        var confirmed = new List<ResolvedRecommendation>();
+        var seenTmdbIds = new HashSet<int>(ownedIds);
+        var notFoundTitles = new List<string>();
+        var confirmedTitles = new List<string>();
 
-        var resolved = new List<ResolvedRecommendation>();
-        var seenIds = new HashSet<int>();
-
-        foreach (var item in llmItems)
+        const int maxRounds = 2;
+        for (var round = 0; round < maxRounds; round++)
         {
-            if (resolved.Count >= requestCount)
+            var moviesHave = confirmed.Count(r => !r.IsSeries);
+            var showsHave = confirmed.Count(r => r.IsSeries);
+            var moviesNeed = Math.Max(0, target - moviesHave);
+            var showsNeed = Math.Max(0, target - showsHave);
+
+            if (moviesNeed == 0 && showsNeed == 0)
             {
                 break;
             }
 
+            // Ask for more than needed to absorb TMDB misses; round 1 asks 3×, round 2 asks 2×
+            var ask = (moviesNeed + showsNeed) * (round == 0 ? 3 : 2);
+
+            var allExclude = excludeTitles
+                .Concat(confirmedTitles)
+                .ToList();
+
+            _logger.LogInformation(
+                "LLM round {Round}: asking for {Ask} candidates (need {Movies} movies, {Shows} shows) for {User}",
+                round + 1, ask, moviesNeed, showsNeed, user.Username);
+
+            IReadOnlyList<LlmRecommendationItem> candidates;
             try
             {
-                var rec = await _tmdb.ResolveAsync(item, cancellationToken).ConfigureAwait(false);
-                if (rec is null || ownedIds.Contains(rec.TmdbId) || !seenIds.Add(rec.TmdbId))
-                {
-                    continue;
-                }
-
-                resolved.Add(rec);
+                candidates = await llm.GetRecommendationsAsync(
+                    watched, allExclude, ask, cancellationToken,
+                    round > 0 ? notFoundTitles : null)
+                    .ConfigureAwait(false);
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Failed to resolve recommendation {Title}", item.Title);
+                _logger.LogError(ex, "LLM call failed on round {Round} for {User}", round + 1, user.Username);
+                break;
             }
+
+            if (candidates.Count == 0)
+            {
+                _logger.LogWarning("LLM returned 0 candidates on round {Round}", round + 1);
+                break;
+            }
+
+            // Verify candidates via TMDB in parallel (capped at 8 concurrent)
+            var results = await VerifyViaTmdbAsync(candidates, seenTmdbIds, cancellationToken)
+                .ConfigureAwait(false);
+
+            foreach (var (item, rec) in results)
+            {
+                if (rec is not null)
+                {
+                    seenTmdbIds.Add(rec.TmdbId);
+                    confirmedTitles.Add(item.Title);
+                    confirmed.Add(rec);
+                }
+                else
+                {
+                    notFoundTitles.Add(item.Title);
+                }
+            }
+
+            _logger.LogInformation(
+                "Round {Round} result: {Confirmed} confirmed, {Failed} not found on TMDB",
+                round + 1, results.Count(r => r.rec is not null), results.Count(r => r.rec is null));
         }
 
-        return resolved;
+        return confirmed;
+    }
+
+    private async Task<IReadOnlyList<(LlmRecommendationItem item, ResolvedRecommendation? rec)>> VerifyViaTmdbAsync(
+        IReadOnlyList<LlmRecommendationItem> candidates,
+        HashSet<int> seenTmdbIds,
+        CancellationToken cancellationToken)
+    {
+        using var semaphore = new SemaphoreSlim(8, 8);
+
+        var tasks = candidates.Select(async item =>
+        {
+            await semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                var rec = await _tmdb.ResolveAsync(item, cancellationToken).ConfigureAwait(false);
+                if (rec is null || seenTmdbIds.Contains(rec.TmdbId))
+                {
+                    return (item, (ResolvedRecommendation?)null);
+                }
+
+                return (item, rec);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "TMDB lookup failed for {Title}", item.Title);
+                return (item, (ResolvedRecommendation?)null);
+            }
+            finally
+            {
+                semaphore.Release();
+            }
+        });
+
+        return await Task.WhenAll(tasks).ConfigureAwait(false);
     }
 }

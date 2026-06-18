@@ -29,7 +29,8 @@ public class OllamaProvider : ILlmProvider
         IReadOnlyList<WatchedItemSummary> watchedItems,
         IReadOnlyList<string> excludeTitles,
         int count,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        IReadOnlyList<string>? notFoundTitles = null)
     {
         var config = Plugin.Instance?.Configuration
             ?? throw new InvalidOperationException("Plugin not initialized");
@@ -44,7 +45,7 @@ public class OllamaProvider : ILlmProvider
             throw new InvalidOperationException("Ollama Cloud requires an API key from ollama.com.");
         }
 
-        var prompt = LlmProviderHelpers.BuildPrompt(watchedItems, excludeTitles, count);
+        var prompt = LlmProviderHelpers.BuildPrompt(watchedItems, excludeTitles, count, notFoundTitles);
         return await ChatAsync(baseUrl, config, prompt, cancellationToken).ConfigureAwait(false);
     }
 

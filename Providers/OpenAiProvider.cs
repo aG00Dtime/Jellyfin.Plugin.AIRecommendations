@@ -20,25 +20,50 @@ public static class LlmProviderHelpers
     public static string BuildPrompt(
         IReadOnlyList<WatchedItemSummary> watchedItems,
         IReadOnlyList<string> excludeTitles,
-        int count)
+        int count,
+        IReadOnlyList<string>? notFoundTitles = null)
     {
+        var topGenres = watchedItems
+            .SelectMany(w => w.Genres)
+            .GroupBy(g => g, StringComparer.OrdinalIgnoreCase)
+            .OrderByDescending(g => g.Count())
+            .Take(6)
+            .Select(g => g.Key);
+
         var watched = watchedItems.Select(w =>
-            $"- {w.Title} ({w.Year?.ToString() ?? "?"}) [{w.TypeLabel()}] genres: {string.Join(", ", w.Genres)}");
+            $"- {w.Title} ({w.Year?.ToString() ?? "?"}) [{w.TypeLabel()}]");
 
         var exclude = excludeTitles.Take(200).Select(t => $"- {t}");
 
-        return $$"""
-            Based on this user's watch history, suggest exactly {{count}} movies and TV shows they would enjoy that are NOT in their library.
+        var notFoundSection = notFoundTitles is { Count: > 0 }
+            ? $"""
 
-            WATCHED:
+            NOTE: These titles were previously suggested but could NOT be verified on TMDB — do NOT suggest them again:
+            {string.Join(Environment.NewLine, notFoundTitles.Select(t => $"- {t}"))}
+            """
+            : string.Empty;
+
+        return $$"""
+            You are a media recommendation engine. Based on this user's watch history, suggest exactly {{count}} movies and TV shows they would enjoy.
+
+            TOP GENRES WATCHED: {{string.Join(", ", topGenres)}}
+
+            WATCH HISTORY (most recent first):
             {{string.Join(Environment.NewLine, watched)}}
 
-            DO NOT RECOMMEND (already watched or owned):
+            DO NOT RECOMMEND (already in library):
             {{string.Join(Environment.NewLine, exclude)}}
+            {{notFoundSection}}
 
-            Return ONLY valid JSON with this exact shape:
-            {"recommendations":[{"title":"Name","year":2020,"type":"movie","reason":"short reason"}]}
-            Use type "movie" or "series". Include a mix of movies and series if possible.
+            Rules:
+            - Only suggest titles that genuinely exist and are on TMDB
+            - Include a mix of movies and series
+            - Vary by era (classic and recent)
+            - Be specific with the year
+
+            Return ONLY valid JSON:
+            {"recommendations":[{"title":"Name","year":2020,"type":"movie","reason":"one sentence"}]}
+            Use type "movie" or "series".
             """;
     }
 
@@ -106,7 +131,8 @@ public class OpenAiProvider : ILlmProvider
         IReadOnlyList<WatchedItemSummary> watchedItems,
         IReadOnlyList<string> excludeTitles,
         int count,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        IReadOnlyList<string>? notFoundTitles = null)
     {
         var config = Plugin.Instance?.Configuration
             ?? throw new InvalidOperationException("Plugin not initialized");
@@ -116,7 +142,7 @@ public class OpenAiProvider : ILlmProvider
             throw new InvalidOperationException("OpenAI API key is not configured.");
         }
 
-        var prompt = LlmProviderHelpers.BuildPrompt(watchedItems, excludeTitles, count);
+        var prompt = LlmProviderHelpers.BuildPrompt(watchedItems, excludeTitles, count, notFoundTitles);
         var body = new
         {
             model = config.OpenAiModel,
@@ -173,7 +199,8 @@ public class OpenRouterProvider : ILlmProvider
         IReadOnlyList<WatchedItemSummary> watchedItems,
         IReadOnlyList<string> excludeTitles,
         int count,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        IReadOnlyList<string>? notFoundTitles = null)
     {
         var config = Plugin.Instance?.Configuration
             ?? throw new InvalidOperationException("Plugin not initialized");
@@ -183,7 +210,7 @@ public class OpenRouterProvider : ILlmProvider
             throw new InvalidOperationException("OpenRouter API key is not configured.");
         }
 
-        var prompt = LlmProviderHelpers.BuildPrompt(watchedItems, excludeTitles, count);
+        var prompt = LlmProviderHelpers.BuildPrompt(watchedItems, excludeTitles, count, notFoundTitles);
         var body = new
         {
             model = config.OpenRouterModel,
