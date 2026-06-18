@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Security;
 using System.Text;
 using Jellyfin.Plugin.AIRecommendations.Models;
 using Microsoft.Extensions.Logging;
@@ -51,12 +52,14 @@ public class VirtualItemWriter
         var folder = Path.Combine(moviesPath, folderName);
         Directory.CreateDirectory(folder);
 
-        // Filename matches folder name so Jellyfin's metadata matcher picks up title+year+tmdbid
+        // STRM → JustWatch so clicking Play gives the user somewhere to go
         var strmPath = Path.Combine(folder, $"{folderName}.strm");
-        File.WriteAllText(strmPath, "https://example.invalid/ai-recommendations/not-playable", Encoding.UTF8);
+        File.WriteAllText(strmPath, JustWatchUrl(movie.Title), Encoding.UTF8);
 
-        var reasonPath = Path.Combine(folder, ".ai-reason.txt");
-        File.WriteAllText(reasonPath, movie.Reason, Encoding.UTF8);
+        // NFO sidecar: locks tagline + tag so Jellyfin shows "AI Recommendation"
+        // even after TMDB refreshes the poster and other metadata.
+        var nfoPath = Path.Combine(folder, $"{folderName}.nfo");
+        File.WriteAllText(nfoPath, BuildMovieNfo(movie), Encoding.UTF8);
     }
 
     private static void WriteShow(string showsPath, ResolvedRecommendation show, bool limitToSeasonOne)
@@ -68,16 +71,69 @@ public class VirtualItemWriter
 
         var episodeName = $"{Sanitize(show.Title)} - S01E01 [tmdbid-{show.TmdbId.ToString(CultureInfo.InvariantCulture)}].strm";
         var strmPath = Path.Combine(seasonFolder, episodeName);
-        File.WriteAllText(strmPath, "https://example.invalid/ai-recommendations/not-playable", Encoding.UTF8);
+        File.WriteAllText(strmPath, JustWatchUrl(show.Title), Encoding.UTF8);
 
-        var reasonPath = Path.Combine(showFolder, ".ai-reason.txt");
-        File.WriteAllText(reasonPath, show.Reason, Encoding.UTF8);
+        // tvshow.nfo in show root — Jellyfin picks this up for series metadata
+        var nfoPath = Path.Combine(showFolder, "tvshow.nfo");
+        File.WriteAllText(nfoPath, BuildShowNfo(show), Encoding.UTF8);
 
         if (!limitToSeasonOne)
         {
             // v1 only writes season 1 stub
         }
     }
+
+    private static string JustWatchUrl(string title)
+        => $"https://www.justwatch.com/us/search?q={Uri.EscapeDataString(title)}";
+
+    private static string BuildMovieNfo(ResolvedRecommendation movie)
+    {
+        var tmdbId = movie.TmdbId.ToString(CultureInfo.InvariantCulture);
+        var plot = BuildPlot(movie);
+        return $"""
+            <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+            <movie>
+              <title>{X(movie.Title)}</title>
+              <year>{movie.Year?.ToString(CultureInfo.InvariantCulture) ?? string.Empty}</year>
+              <uniqueid type="tmdb" default="true">{tmdbId}</uniqueid>
+              <tagline>AI Recommendation · Find it on JustWatch</tagline>
+              <plot>{X(plot)}</plot>
+              <tag>AI Recommendation</tag>
+              <lockdata>false</lockdata>
+              <lockedfields>Tagline|Overview</lockedfields>
+            </movie>
+            """;
+    }
+
+    private static string BuildShowNfo(ResolvedRecommendation show)
+    {
+        var tmdbId = show.TmdbId.ToString(CultureInfo.InvariantCulture);
+        var plot = BuildPlot(show);
+        return $"""
+            <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+            <tvshow>
+              <title>{X(show.Title)}</title>
+              <year>{show.Year?.ToString(CultureInfo.InvariantCulture) ?? string.Empty}</year>
+              <uniqueid type="tmdb" default="true">{tmdbId}</uniqueid>
+              <tagline>AI Recommendation · Find it on JustWatch</tagline>
+              <plot>{X(plot)}</plot>
+              <tag>AI Recommendation</tag>
+              <lockdata>false</lockdata>
+              <lockedfields>Tagline|Overview</lockedfields>
+            </tvshow>
+            """;
+    }
+
+    private static string BuildPlot(ResolvedRecommendation item)
+    {
+        var reason = string.IsNullOrWhiteSpace(item.Reason) ? string.Empty : $"💡 {item.Reason}";
+        var overview = string.IsNullOrWhiteSpace(item.Overview) ? string.Empty : item.Overview;
+        return string.IsNullOrWhiteSpace(overview) ? reason : $"{reason}\n\n{overview}";
+    }
+
+    // XML-safe encoding for NFO text content
+    private static string X(string? value)
+        => SecurityElement.Escape(value ?? string.Empty) ?? string.Empty;
 
     private static void CleanDirectory(string root, HashSet<string> desiredFolderNames)
     {
