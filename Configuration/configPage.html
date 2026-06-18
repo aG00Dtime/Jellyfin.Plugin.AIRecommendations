@@ -8,6 +8,7 @@
         .test-result { margin-top: 6px; padding: 6px 10px; border-radius: 3px; font-size: .85em; display: none; }
         .test-result.ok { background: #1a3a1a; color: #7edb7e; display: block; }
         .test-result.err { background: #3a1a1a; color: #db7e7e; display: block; }
+        .test-result.loading { background: #1a1a2a; color: #aaa; display: block; }
         .status-box { background: #1e1e1e; border: 1px solid #333; border-radius: 4px; padding: 10px 14px; margin: 12px 0; font-size: .85em; }
         .status-box .label { color: #888; margin-bottom: 4px; }
         .status-box .msg { word-break: break-all; white-space: pre-wrap; }
@@ -53,7 +54,7 @@
                             <input is="emby-input" type="text" id="openAiModel" label="Model" />
                             <div class="fieldDescription">e.g. gpt-4o-mini, gpt-4o, gpt-4-turbo</div>
                         </div>
-                        <button is="emby-button" type="button" class="raised button-alt" onclick="testProvider('OpenAI')">Test Connection</button>
+                        <button is="emby-button" type="button" id="btn-test-openai" class="raised button-alt">Test Connection</button>
                         <div class="test-result" id="test-openai"></div>
                     </div>
 
@@ -71,7 +72,7 @@
                             <input is="emby-input" type="text" id="openRouterModel" label="Model" />
                             <div class="fieldDescription">e.g. openai/gpt-4o-mini, anthropic/claude-3-haiku, meta-llama/llama-3.1-8b-instruct:free</div>
                         </div>
-                        <button is="emby-button" type="button" class="raised button-alt" onclick="testProvider('OpenRouter')">Test Connection</button>
+                        <button is="emby-button" type="button" id="btn-test-openrouter" class="raised button-alt">Test Connection</button>
                         <div class="test-result" id="test-openrouter"></div>
                     </div>
 
@@ -96,7 +97,7 @@
                             <input is="emby-input" type="text" id="ollamaModel" label="Model" />
                             <div class="fieldDescription">Local: llama3.2, mistral, gemma3 &nbsp;|&nbsp; Cloud: gemma4, qwen3.5, gpt-oss:20b, deepseek-v4-flash</div>
                         </div>
-                        <button is="emby-button" type="button" class="raised button-alt" onclick="testProvider('Ollama')">Test Connection</button>
+                        <button is="emby-button" type="button" id="btn-test-ollama" class="raised button-alt">Test Connection</button>
                         <div class="test-result" id="test-ollama"></div>
                     </div>
 
@@ -130,135 +131,152 @@
             </div>
         </div>
         <script type="text/javascript">
+        (function () {
             var PLUGIN_ID = "7c4a9e2b-3f1d-4a8c-b6e5-2d9f8a1c0b3e";
             var OLLAMA_URLS = { Local: 'http://localhost:11434', Cloud: 'https://ollama.com' };
 
             function showProviderSection(provider) {
-                document.querySelectorAll('.provider-section').forEach(function(el) {
+                document.querySelectorAll('.provider-section').forEach(function (el) {
                     el.classList.remove('active');
                 });
-                var key = provider.toLowerCase().replace('openrouter', 'openrouter').replace('openai', 'openai');
-                var el = document.getElementById('section-' + key);
+                var id = 'section-' + provider.toLowerCase();
+                var el = document.getElementById(id);
                 if (el) el.classList.add('active');
             }
 
-            document.querySelector('#activeProvider').addEventListener('change', function() {
-                showProviderSection(this.value);
-            });
+            function apiPost(path, body) {
+                var url = ApiClient.getUrl(path);
+                var token = ApiClient.accessToken();
+                return fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Emby-Token': token,
+                        'X-MediaBrowser-Token': token
+                    },
+                    body: JSON.stringify(body)
+                }).then(function (r) { return r.json(); });
+            }
 
-            document.querySelector('#ollamaDeployment').addEventListener('change', function() {
-                var url = OLLAMA_URLS[this.value] || OLLAMA_URLS.Local;
-                document.querySelector('#ollamaBaseUrl').value = url;
-            });
+            function apiGet(path) {
+                var url = ApiClient.getUrl(path);
+                var token = ApiClient.accessToken();
+                return fetch(url, {
+                    headers: {
+                        'X-Emby-Token': token,
+                        'X-MediaBrowser-Token': token
+                    }
+                }).then(function (r) { return r.json(); });
+            }
 
             function testProvider(provider) {
-                var resultEl;
                 var req = { Provider: provider };
+                var resultEl;
 
                 if (provider === 'OpenAI') {
-                    req.BaseUrl = document.querySelector('#openAiBaseUrl').value;
-                    req.ApiKey = document.querySelector('#openAiApiKey').value;
-                    req.Model = document.querySelector('#openAiModel').value;
+                    req.BaseUrl = document.getElementById('openAiBaseUrl').value;
+                    req.ApiKey = document.getElementById('openAiApiKey').value;
+                    req.Model = document.getElementById('openAiModel').value;
                     resultEl = document.getElementById('test-openai');
                 } else if (provider === 'OpenRouter') {
-                    req.BaseUrl = document.querySelector('#openRouterBaseUrl').value;
-                    req.ApiKey = document.querySelector('#openRouterApiKey').value;
-                    req.Model = document.querySelector('#openRouterModel').value;
+                    req.BaseUrl = document.getElementById('openRouterBaseUrl').value;
+                    req.ApiKey = document.getElementById('openRouterApiKey').value;
+                    req.Model = document.getElementById('openRouterModel').value;
                     resultEl = document.getElementById('test-openrouter');
                 } else {
-                    req.BaseUrl = document.querySelector('#ollamaBaseUrl').value;
-                    req.ApiKey = document.querySelector('#ollamaApiKey').value;
-                    req.Model = document.querySelector('#ollamaModel').value;
-                    req.OllamaDeployment = document.querySelector('#ollamaDeployment').value;
+                    req.BaseUrl = document.getElementById('ollamaBaseUrl').value;
+                    req.ApiKey = document.getElementById('ollamaApiKey').value;
+                    req.Model = document.getElementById('ollamaModel').value;
+                    req.OllamaDeployment = document.getElementById('ollamaDeployment').value;
                     resultEl = document.getElementById('test-ollama');
                 }
 
-                resultEl.className = 'test-result';
+                resultEl.className = 'test-result loading';
                 resultEl.textContent = 'Testing…';
-                resultEl.style.display = 'block';
 
-                ApiClient.ajax({
-                    type: 'POST',
-                    url: ApiClient.getUrl('AIRecommendations/TestProvider'),
-                    contentType: 'application/json',
-                    data: JSON.stringify(req)
-                }).then(function(result) {
+                apiPost('AIRecommendations/TestProvider', req).then(function (result) {
                     resultEl.className = 'test-result ' + (result.Success ? 'ok' : 'err');
                     resultEl.textContent = result.Message;
-                }).catch(function(err) {
+                }).catch(function (err) {
                     resultEl.className = 'test-result err';
-                    resultEl.textContent = 'Request failed: ' + (err.status || err.message || err);
+                    resultEl.textContent = 'Request failed: ' + (err.message || String(err));
                 });
             }
 
             function loadStatus() {
-                ApiClient.ajax({
-                    type: 'GET',
-                    url: ApiClient.getUrl('AIRecommendations/Status')
-                }).then(function(status) {
+                apiGet('AIRecommendations/Status').then(function (status) {
+                    if (!status || !status.LastSyncMessage) return;
                     var box = document.getElementById('statusBox');
                     var msg = document.getElementById('statusMsg');
-                    if (status && status.LastSyncMessage) {
-                        var isErr = status.LastSyncMessage.toLowerCase().indexOf('error') >= 0
-                                 || status.LastSyncMessage.toLowerCase().indexOf('fail') >= 0;
-                        msg.className = 'msg ' + (isErr ? 'status-err' : 'status-ok');
-                        var ts = status.LastSyncUtc ? new Date(status.LastSyncUtc).toLocaleString() : '';
-                        msg.textContent = (ts ? ts + '\n' : '') + status.LastSyncMessage;
-                        box.style.display = 'block';
-                    }
-                }).catch(function() {});
+                    var isErr = /error|fail/i.test(status.LastSyncMessage);
+                    msg.className = 'msg ' + (isErr ? 'status-err' : 'status-ok');
+                    var ts = status.LastSyncUtc ? new Date(status.LastSyncUtc).toLocaleString() : '';
+                    msg.textContent = (ts ? ts + '\n' : '') + status.LastSyncMessage;
+                    box.style.display = 'block';
+                }).catch(function () {});
             }
 
-            document.querySelector('.configPage')
-                .addEventListener('pageshow', function() {
-                    Dashboard.showLoadingMsg();
-                    ApiClient.getPluginConfiguration(PLUGIN_ID).then(function(config) {
-                        document.querySelector('#activeProvider').value = config.ActiveProvider || 'OpenAI';
-                        document.querySelector('#openAiBaseUrl').value = config.OpenAiBaseUrl || 'https://api.openai.com/v1';
-                        document.querySelector('#openAiApiKey').value = config.OpenAiApiKey || '';
-                        document.querySelector('#openAiModel').value = config.OpenAiModel || 'gpt-4o-mini';
-                        document.querySelector('#openRouterBaseUrl').value = config.OpenRouterBaseUrl || 'https://openrouter.ai/api/v1';
-                        document.querySelector('#openRouterApiKey').value = config.OpenRouterApiKey || '';
-                        document.querySelector('#openRouterModel').value = config.OpenRouterModel || 'openai/gpt-4o-mini';
-                        document.querySelector('#ollamaDeployment').value = config.OllamaDeployment || 'Local';
-                        document.querySelector('#ollamaBaseUrl').value = config.OllamaBaseUrl || OLLAMA_URLS[config.OllamaDeployment] || OLLAMA_URLS.Local;
-                        document.querySelector('#ollamaApiKey').value = config.OllamaApiKey || '';
-                        document.querySelector('#ollamaModel').value = config.OllamaModel || 'gemma4';
-                        document.querySelector('#tmdbApiKey').value = config.TmdbApiKey || '';
-                        document.querySelector('#maxRecommendationsPerType').value = config.MaxRecommendationsPerType || 25;
-                        document.querySelector('#syncIntervalHours').value = config.SyncIntervalHours || 24;
-                        document.querySelector('#limitShowsToSeasonOne').checked = config.LimitShowsToSeasonOne !== false;
-                        showProviderSection(config.ActiveProvider || 'OpenAI');
-                        Dashboard.hideLoadingMsg();
-                        loadStatus();
-                    });
+            document.querySelector('.configPage').addEventListener('pageshow', function () {
+                Dashboard.showLoadingMsg();
+                ApiClient.getPluginConfiguration(PLUGIN_ID).then(function (config) {
+                    document.getElementById('activeProvider').value = config.ActiveProvider || 'OpenAI';
+                    document.getElementById('openAiBaseUrl').value = config.OpenAiBaseUrl || 'https://api.openai.com/v1';
+                    document.getElementById('openAiApiKey').value = config.OpenAiApiKey || '';
+                    document.getElementById('openAiModel').value = config.OpenAiModel || 'gpt-4o-mini';
+                    document.getElementById('openRouterBaseUrl').value = config.OpenRouterBaseUrl || 'https://openrouter.ai/api/v1';
+                    document.getElementById('openRouterApiKey').value = config.OpenRouterApiKey || '';
+                    document.getElementById('openRouterModel').value = config.OpenRouterModel || 'openai/gpt-4o-mini';
+                    document.getElementById('ollamaDeployment').value = config.OllamaDeployment || 'Local';
+                    document.getElementById('ollamaBaseUrl').value = config.OllamaBaseUrl || OLLAMA_URLS[config.OllamaDeployment] || OLLAMA_URLS.Local;
+                    document.getElementById('ollamaApiKey').value = config.OllamaApiKey || '';
+                    document.getElementById('ollamaModel').value = config.OllamaModel || 'gemma4';
+                    document.getElementById('tmdbApiKey').value = config.TmdbApiKey || '';
+                    document.getElementById('maxRecommendationsPerType').value = config.MaxRecommendationsPerType || 25;
+                    document.getElementById('syncIntervalHours').value = config.SyncIntervalHours || 24;
+                    document.getElementById('limitShowsToSeasonOne').checked = config.LimitShowsToSeasonOne !== false;
+                    showProviderSection(config.ActiveProvider || 'OpenAI');
+                    Dashboard.hideLoadingMsg();
+                    loadStatus();
                 });
 
-            document.querySelector('.configForm')
-                .addEventListener('submit', function(e) {
-                    e.preventDefault();
-                    Dashboard.showLoadingMsg();
-                    ApiClient.getPluginConfiguration(PLUGIN_ID).then(function(config) {
-                        config.ActiveProvider = document.querySelector('#activeProvider').value;
-                        config.OpenAiBaseUrl = document.querySelector('#openAiBaseUrl').value;
-                        config.OpenAiApiKey = document.querySelector('#openAiApiKey').value;
-                        config.OpenAiModel = document.querySelector('#openAiModel').value;
-                        config.OpenRouterBaseUrl = document.querySelector('#openRouterBaseUrl').value;
-                        config.OpenRouterApiKey = document.querySelector('#openRouterApiKey').value;
-                        config.OpenRouterModel = document.querySelector('#openRouterModel').value;
-                        config.OllamaDeployment = document.querySelector('#ollamaDeployment').value;
-                        config.OllamaBaseUrl = document.querySelector('#ollamaBaseUrl').value;
-                        config.OllamaApiKey = document.querySelector('#ollamaApiKey').value;
-                        config.OllamaModel = document.querySelector('#ollamaModel').value;
-                        config.TmdbApiKey = document.querySelector('#tmdbApiKey').value;
-                        config.MaxRecommendationsPerType = parseInt(document.querySelector('#maxRecommendationsPerType').value, 10);
-                        config.SyncIntervalHours = parseInt(document.querySelector('#syncIntervalHours').value, 10);
-                        config.LimitShowsToSeasonOne = document.querySelector('#limitShowsToSeasonOne').checked;
-                        ApiClient.updatePluginConfiguration(PLUGIN_ID, config).then(function() {
-                            Dashboard.processPluginConfigurationUpdateResult();
-                        });
+                document.getElementById('activeProvider').addEventListener('change', function () {
+                    showProviderSection(this.value);
+                });
+
+                document.getElementById('ollamaDeployment').addEventListener('change', function () {
+                    document.getElementById('ollamaBaseUrl').value = OLLAMA_URLS[this.value] || OLLAMA_URLS.Local;
+                });
+
+                document.getElementById('btn-test-openai').addEventListener('click', function () { testProvider('OpenAI'); });
+                document.getElementById('btn-test-openrouter').addEventListener('click', function () { testProvider('OpenRouter'); });
+                document.getElementById('btn-test-ollama').addEventListener('click', function () { testProvider('Ollama'); });
+            });
+
+            document.querySelector('.configForm').addEventListener('submit', function (e) {
+                e.preventDefault();
+                Dashboard.showLoadingMsg();
+                ApiClient.getPluginConfiguration(PLUGIN_ID).then(function (config) {
+                    config.ActiveProvider = document.getElementById('activeProvider').value;
+                    config.OpenAiBaseUrl = document.getElementById('openAiBaseUrl').value;
+                    config.OpenAiApiKey = document.getElementById('openAiApiKey').value;
+                    config.OpenAiModel = document.getElementById('openAiModel').value;
+                    config.OpenRouterBaseUrl = document.getElementById('openRouterBaseUrl').value;
+                    config.OpenRouterApiKey = document.getElementById('openRouterApiKey').value;
+                    config.OpenRouterModel = document.getElementById('openRouterModel').value;
+                    config.OllamaDeployment = document.getElementById('ollamaDeployment').value;
+                    config.OllamaBaseUrl = document.getElementById('ollamaBaseUrl').value;
+                    config.OllamaApiKey = document.getElementById('ollamaApiKey').value;
+                    config.OllamaModel = document.getElementById('ollamaModel').value;
+                    config.TmdbApiKey = document.getElementById('tmdbApiKey').value;
+                    config.MaxRecommendationsPerType = parseInt(document.getElementById('maxRecommendationsPerType').value, 10);
+                    config.SyncIntervalHours = parseInt(document.getElementById('syncIntervalHours').value, 10);
+                    config.LimitShowsToSeasonOne = document.getElementById('limitShowsToSeasonOne').checked;
+                    ApiClient.updatePluginConfiguration(PLUGIN_ID, config).then(function () {
+                        Dashboard.processPluginConfigurationUpdateResult();
                     });
                 });
+            });
+        })();
         </script>
     </div>
 </body>
