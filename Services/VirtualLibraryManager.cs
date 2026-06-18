@@ -1,6 +1,6 @@
 using Jellyfin.Data;
-using Jellyfin.Data.Entities;
-using Jellyfin.Data.Enums;
+using Jellyfin.Database.Implementations.Entities;
+using Jellyfin.Database.Implementations.Enums;
 using Jellyfin.Plugin.AIRecommendations.Configuration;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Library;
@@ -151,7 +151,7 @@ public class VirtualLibraryManager
 
     public async Task ProvisionAllUsersAsync(CancellationToken cancellationToken)
     {
-        foreach (var user in _userManager.Users)
+        foreach (var user in _userManager.GetUsers())
         {
             if (user.HasPermission(PermissionKind.IsDisabled))
             {

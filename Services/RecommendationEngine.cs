@@ -1,4 +1,4 @@
-using Jellyfin.Data.Entities;
+using Jellyfin.Database.Implementations.Entities;
 using Jellyfin.Plugin.AIRecommendations.Metadata;
 using Jellyfin.Plugin.AIRecommendations.Models;
 using Jellyfin.Plugin.AIRecommendations.Providers;

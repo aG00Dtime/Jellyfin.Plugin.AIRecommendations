@@ -8,7 +8,7 @@ $ErrorActionPreference = "Stop"
 
 $ProjectRoot = $PSScriptRoot
 $DllName = "Jellyfin.Plugin.AIRecommendations.dll"
-$SourceDll = Join-Path $ProjectRoot "bin\Release\net8.0\$DllName"
+$SourceDll = Join-Path $ProjectRoot "bin\Release\net9.0\$DllName"
 $version = (Get-Content (Join-Path $ProjectRoot "VERSION.txt") -Raw).Trim()
 $PluginFolderName = "AI Recommendations_$version.0"
 
