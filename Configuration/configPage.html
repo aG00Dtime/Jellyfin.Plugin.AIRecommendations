@@ -182,6 +182,12 @@
                             <span>Only create Season 1 stubs for TV shows</span>
                         </label>
                     </div>
+                    <div class="checkboxContainer checkboxContainer-withDescription">
+                        <label>
+                            <input is="emby-checkbox" type="checkbox" id="alwaysRefreshRecommendations" />
+                            <span>Always refresh recommendations (replace existing stubs each sync instead of accumulating)</span>
+                        </label>
+                    </div>
 
                     <br />
                     <div>
@@ -421,6 +427,7 @@
                     document.getElementById('maxRecommendationsPerType').value = config.MaxRecommendationsPerType || 25;
                     document.getElementById('syncIntervalHours').value = config.SyncIntervalHours || 24;
                     document.getElementById('limitShowsToSeasonOne').checked = config.LimitShowsToSeasonOne !== false;
+                    document.getElementById('alwaysRefreshRecommendations').checked = !!config.AlwaysRefreshRecommendations;
                     showProviderSection(config.ActiveProvider || 'OpenAI');
                     Dashboard.hideLoadingMsg();
                     loadStatus();
@@ -485,6 +492,7 @@
                     config.MaxRecommendationsPerType = parseInt(document.getElementById('maxRecommendationsPerType').value, 10);
                     config.SyncIntervalHours = parseInt(document.getElementById('syncIntervalHours').value, 10);
                     config.LimitShowsToSeasonOne = document.getElementById('limitShowsToSeasonOne').checked;
+                    config.AlwaysRefreshRecommendations = document.getElementById('alwaysRefreshRecommendations').checked;
                     ApiClient.updatePluginConfiguration(PLUGIN_ID, config).then(function () {
                         Dashboard.processPluginConfigurationUpdateResult();
                     });

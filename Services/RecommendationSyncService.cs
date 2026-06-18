@@ -91,10 +91,17 @@ public class RecommendationSyncService
         var registration = await _virtualLibraryManager.EnsureUserLibrariesAsync(user, cancellationToken)
             .ConfigureAwait(false);
 
+        // In always-refresh mode, clear PlacedTmdbIds first so DetectAndRejectDeletedStubs
+        // doesn't mistake the programmatic wipe for user deletions.
+        if (config.AlwaysRefreshRecommendations)
+        {
+            registration.PlacedTmdbIds.Clear();
+        }
+
         // Detect stubs the user deleted via Jellyfin's native delete — permanently reject them
         DetectAndRejectDeletedStubs(user, registration);
 
-        // Process ❤️ / 👎 feedback the user left on existing stubs
+        // Process ❤️ feedback the user left on existing stubs
         await ProcessUserFeedbackAsync(user, registration, cancellationToken).ConfigureAwait(false);
         Plugin.Instance!.SaveConfiguration();
 
@@ -106,8 +113,13 @@ public class RecommendationSyncService
         var all = await _engine.GenerateForUserAsync(user, extraExcludeIds, cancellationToken)
             .ConfigureAwait(false);
 
-        // Remove stubs for anything the user has rejected or already requested via Jellyseerr
+        // Always remove rejected + requested stubs; in refresh mode also wipe everything on disk
         var removeIds = new HashSet<int>(registration.RejectedTmdbIds.Concat(registration.RequestedTmdbIds));
+        if (config.AlwaysRefreshRecommendations)
+        {
+            removeIds.UnionWith(VirtualItemWriter.ScanTmdbIds(registration.MoviePath));
+            removeIds.UnionWith(VirtualItemWriter.ScanTmdbIds(registration.ShowPath));
+        }
 
         var pending = all
             .Where(r => !registration.RequestedTmdbIds.Contains(r.TmdbId))

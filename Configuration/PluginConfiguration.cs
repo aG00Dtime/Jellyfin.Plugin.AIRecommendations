@@ -48,6 +48,13 @@ public class PluginConfiguration : BasePluginConfiguration
     public bool LimitShowsToSeasonOne { get; set; } = true;
 
     /// <summary>
+    /// When true, all existing stubs are replaced with a fresh set on every sync.
+    /// When false (default), stubs accumulate up to the per-type cap and only
+    /// leave when dismissed or requested.
+    /// </summary>
+    public bool AlwaysRefreshRecommendations { get; set; } = false;
+
+    /// <summary>
     /// Jellyseerr base URL, e.g. http://jellyseerr:5055
     /// Leave blank to disable Jellyseerr integration.
     /// </summary>
