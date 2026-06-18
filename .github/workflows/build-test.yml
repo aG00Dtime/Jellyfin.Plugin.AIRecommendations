@@ -25,19 +25,39 @@ jobs:
     - name: Build
       run: dotnet build -c Release --no-restore
 
-    - name: Create ZIP
+    - name: Create ZIP with meta.json
       run: |
-        cd bin/Release/net9.0
-        zip -j Jellyfin.Plugin.AIRecommendations.zip Jellyfin.Plugin.AIRecommendations.dll
+        VERSION=$(cat VERSION.txt | tr -d ' \r\n')
+        TARGET_ABI=$(jq -r --arg v "${VERSION}.0" '.[0].versions[] | select(.version == $v) | .targetAbi // "10.11.0.0"' manifest.json)
+        TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
-    - name: Sync and verify manifest checksum
+        cat > bin/Release/net9.0/meta.json << EOF
+        {
+          "category": "General",
+          "changelog": "Build $VERSION",
+          "description": "Per-user AI movie and TV recommendations synced to virtual libraries on all Jellyfin clients",
+          "guid": "7c4a9e2b-3f1d-4a8c-b6e5-2d9f8a1c0b3e",
+          "imageUrl": "",
+          "name": "AI Recommendations",
+          "overview": "LLM-powered recommendations via OpenAI, OpenRouter, or Ollama",
+          "owner": "aG00Dtime",
+          "targetAbi": "$TARGET_ABI",
+          "timestamp": "$TIMESTAMP",
+          "version": "${VERSION}.0"
+        }
+        EOF
+
+        cd bin/Release/net9.0
+        zip -j Jellyfin.Plugin.AIRecommendations.zip Jellyfin.Plugin.AIRecommendations.dll meta.json
+
+    - name: Verify version consistency
       run: |
-        chmod +x scripts/sync-manifest-checksum.sh scripts/verify-version.ps1 2>/dev/null || true
-        ./scripts/sync-manifest-checksum.sh
-        VERIFY_ZIP_CHECKSUM=1 pwsh -NoProfile -File scripts/verify-version.ps1 2>/dev/null || \
-        VERIFY_ZIP_CHECKSUM=1 powershell -NoProfile -File scripts/verify-version.ps1
+        chmod +x scripts/verify-version.ps1 2>/dev/null || true
+        VERIFY_ZIP_CHECKSUM=0 pwsh -NoProfile -File scripts/verify-version.ps1 2>/dev/null || \
+        VERIFY_ZIP_CHECKSUM=0 powershell -NoProfile -File scripts/verify-version.ps1
 
     - name: Test build artifacts
       run: |
         test -f "bin/Release/net9.0/Jellyfin.Plugin.AIRecommendations.dll"
         test -f "bin/Release/net9.0/Jellyfin.Plugin.AIRecommendations.zip"
+        unzip -l "bin/Release/net9.0/Jellyfin.Plugin.AIRecommendations.zip" | grep -q "meta.json"

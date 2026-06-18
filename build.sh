@@ -40,7 +40,7 @@ cat > "$OUTPUT_DIR/meta.json" << EOF
   "changelog": "$CHANGELOG",
   "description": "Per-user AI movie and TV recommendations synced to virtual libraries on all Jellyfin clients",
   "guid": "7c4a9e2b-3f1d-4a8c-b6e5-2d9f8a1c0b3e",
-  "imageUrl": null,
+  "imageUrl": "",
   "name": "AI Recommendations",
   "overview": "LLM-powered recommendations via OpenAI, OpenRouter, or Ollama",
   "owner": "aG00Dtime",
