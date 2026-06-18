@@ -13,6 +13,7 @@ namespace Jellyfin.Plugin.AIRecommendations.Services;
 
 /// <summary>
 /// Manages per-user library folder permissions.
+/// Each user sees only their own AI recommendation libraries.
 /// </summary>
 public class LibraryPermissionManager
 {
@@ -30,36 +31,70 @@ public class LibraryPermissionManager
         _logger = logger;
     }
 
-    public async Task GrantUserAccessAsync(User user, Guid movieLibraryId, Guid showLibraryId, CancellationToken cancellationToken)
+    /// <summary>
+    /// Grants <paramref name="owner"/> access to their AI libraries and ensures no other
+    /// user can see another user's AI library folders.
+    /// </summary>
+    public async Task ReconcileAllLibraryAccessAsync(CancellationToken cancellationToken)
     {
-        var dto = _userManager.GetUserDto(user);
-        var policy = dto.Policy;
+        var config = Plugin.Instance!.Configuration;
 
-        var aiIds = new[] { movieLibraryId, showLibraryId };
-        var enabled = policy.EnabledFolders?.ToList() ?? new List<Guid>();
+        // userId (N-format) → set of that user's AI library IDs
+        var aiByUser = config.UserLibraries.ToDictionary(
+            r => r.UserId,
+            r => new HashSet<Guid> { r.MovieLibraryId, r.ShowLibraryId });
 
-        if (policy.EnableAllFolders)
+        var allAiIds = config.UserLibraries
+            .SelectMany(r => new[] { r.MovieLibraryId, r.ShowLibraryId })
+            .ToHashSet();
+
+        foreach (var user in _userManager.GetUsers())
         {
-            var allFolderIds = _libraryManager.GetVirtualFolders()
-                .Where(v => Guid.TryParse(v.ItemId, out _))
-                .Select(v => Guid.Parse(v.ItemId))
-                .ToList();
-
-            policy.EnableAllFolders = false;
-            enabled = allFolderIds;
-        }
-
-        foreach (var id in aiIds)
-        {
-            if (!enabled.Contains(id))
+            if (user.HasPermission(PermissionKind.IsDisabled))
             {
-                enabled.Add(id);
+                continue;
             }
-        }
 
-        policy.EnabledFolders = enabled.ToArray();
-        await _userManager.UpdatePolicyAsync(user.Id, policy).ConfigureAwait(false);
-        _logger.LogInformation("Granted AI library access to user {User}", user.Username);
+            var userKey = user.Id.ToString("N");
+            var ownAiIds = aiByUser.TryGetValue(userKey, out var ids) ? ids : new HashSet<Guid>();
+
+            var dto = _userManager.GetUserDto(user);
+            var policy = dto.Policy;
+
+            List<Guid> enabled;
+
+            if (policy.EnableAllFolders)
+            {
+                // Demote from "see everything" to an explicit list,
+                // substituting the user's own AI libs for the pool of all AI libs.
+                enabled = _libraryManager.GetVirtualFolders()
+                    .Where(v => Guid.TryParse(v.ItemId, out _))
+                    .Select(v => Guid.Parse(v.ItemId))
+                    .Where(id => !allAiIds.Contains(id) || ownAiIds.Contains(id))
+                    .ToList();
+
+                policy.EnableAllFolders = false;
+            }
+            else
+            {
+                // Strip any AI libs that don't belong to this user, add their own.
+                enabled = (policy.EnabledFolders?.ToList() ?? new List<Guid>())
+                    .Where(id => !allAiIds.Contains(id) || ownAiIds.Contains(id))
+                    .ToList();
+
+                foreach (var id in ownAiIds.Where(id => id != Guid.Empty && !enabled.Contains(id)))
+                {
+                    enabled.Add(id);
+                }
+            }
+
+            policy.EnabledFolders = enabled.ToArray();
+            await _userManager.UpdatePolicyAsync(user.Id, policy).ConfigureAwait(false);
+
+            _logger.LogInformation(
+                "Library access reconciled for {User}: {Count} folder(s) visible",
+                user.Username, enabled.Count);
+        }
     }
 }
 
@@ -137,17 +172,9 @@ public class VirtualLibraryManager
         config.UserLibraries.Add(registration);
         Plugin.Instance!.SaveConfiguration();
 
-        if (movieId != Guid.Empty && showId != Guid.Empty)
-        {
-            await _permissionManager.GrantUserAccessAsync(user, movieId, showId, cancellationToken)
-                .ConfigureAwait(false);
-        }
-
         _logger.LogInformation(
             "Provisioned AI libraries for {User}: movies={MoviePath}, shows={ShowPath}",
-            user.Username,
-            moviePath,
-            showPath);
+            user.Username, moviePath, showPath);
 
         return registration;
     }
@@ -163,6 +190,9 @@ public class VirtualLibraryManager
 
             await EnsureUserLibrariesAsync(user, cancellationToken).ConfigureAwait(false);
         }
+
+        // After all libraries exist in config, reconcile visibility for every user.
+        await _permissionManager.ReconcileAllLibraryAccessAsync(cancellationToken).ConfigureAwait(false);
     }
 
     private async Task EnsureVirtualFolderAsync(
