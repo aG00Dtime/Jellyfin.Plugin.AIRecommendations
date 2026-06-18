@@ -27,43 +27,31 @@ public static class LlmProviderHelpers
             .SelectMany(w => w.Genres)
             .GroupBy(g => g, StringComparer.OrdinalIgnoreCase)
             .OrderByDescending(g => g.Count())
-            .Take(6)
+            .Take(5)
             .Select(g => g.Key);
 
-        var watched = watchedItems.Select(w =>
-            $"- {w.Title} ({w.Year?.ToString() ?? "?"}) [{w.TypeLabel()}]");
+        // Compact watch history: "Title (Year, movie)" per line
+        var watched = string.Join(", ", watchedItems.Take(25).Select(w =>
+            $"{w.Title} ({w.Year?.ToString() ?? "?"}, {w.TypeLabel()})"));
 
-        var exclude = excludeTitles.Take(200).Select(t => $"- {t}");
+        // Compact exclude list: comma-separated, capped to keep tokens low
+        var exclude = string.Join(", ", excludeTitles.Take(100));
 
         var notFoundSection = notFoundTitles is { Count: > 0 }
-            ? $"""
-
-            NOTE: These titles were previously suggested but could NOT be verified on TMDB — do NOT suggest them again:
-            {string.Join(Environment.NewLine, notFoundTitles.Select(t => $"- {t}"))}
-            """
+            ? $"\nDo NOT suggest these (TMDB lookup failed): {string.Join(", ", notFoundTitles)}"
             : string.Empty;
 
         return $$"""
-            You are a media recommendation engine. Based on this user's watch history, suggest exactly {{count}} movies and TV shows they would enjoy.
+            Suggest exactly {{count}} movies/shows this user would enjoy. Return ONLY valid JSON — no prose.
 
-            TOP GENRES WATCHED: {{string.Join(", ", topGenres)}}
+            Genres: {{string.Join(", ", topGenres)}}
+            Watched: {{watched}}
+            Skip (already owned): {{exclude}}{{notFoundSection}}
 
-            WATCH HISTORY (most recent first):
-            {{string.Join(Environment.NewLine, watched)}}
+            Rules: real titles only (must exist on TMDB), mix movies+series, vary eras, be specific with year.
 
-            DO NOT RECOMMEND (already in library):
-            {{string.Join(Environment.NewLine, exclude)}}
-            {{notFoundSection}}
-
-            Rules:
-            - Only suggest titles that genuinely exist and are on TMDB
-            - Include a mix of movies and series
-            - Vary by era (classic and recent)
-            - Be specific with the year
-
-            Return ONLY valid JSON:
-            {"recommendations":[{"title":"Name","year":2020,"type":"movie","reason":"one sentence"}]}
-            Use type "movie" or "series".
+            JSON format: {"recommendations":[{"title":"Name","year":2020,"type":"movie","reason":"one line why"}]}
+            type must be "movie" or "series".
             """;
     }
 

@@ -16,9 +16,12 @@ public class PluginServiceRegistrator : IPluginServiceRegistrator
     /// <inheritdoc />
     public void RegisterServices(IServiceCollection services, IServerApplicationHost applicationHost)
     {
-        services.AddHttpClient(nameof(OpenAiProvider));
-        services.AddHttpClient(nameof(OpenRouterProvider));
-        services.AddHttpClient(nameof(OllamaProvider));
+        services.AddHttpClient(nameof(OpenAiProvider))
+            .ConfigureHttpClient(c => c.Timeout = TimeSpan.FromMinutes(5));
+        services.AddHttpClient(nameof(OpenRouterProvider))
+            .ConfigureHttpClient(c => c.Timeout = TimeSpan.FromMinutes(5));
+        services.AddHttpClient(nameof(OllamaProvider))
+            .ConfigureHttpClient(c => c.Timeout = TimeSpan.FromMinutes(5));
         services.AddHttpClient(nameof(TmdbMetadataService));
 
         services.AddSingleton<WatchHistoryService>();

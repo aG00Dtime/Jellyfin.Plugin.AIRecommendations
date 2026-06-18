@@ -33,13 +33,13 @@ public class PluginConfiguration : BasePluginConfiguration
 
     public string OllamaApiKey { get; set; } = string.Empty;
 
-    public string OllamaModel { get; set; } = "gemma4";
+    public string OllamaModel { get; set; } = "gemma3:27b";
 
     public string TmdbApiKey { get; set; } = string.Empty;
 
-    public int MaxRecommendationsPerType { get; set; } = 25;
+    public int MaxRecommendationsPerType { get; set; } = 10;
 
-    public int MaxWatchedItems { get; set; } = 40;
+    public int MaxWatchedItems { get; set; } = 30;
 
     public int SyncIntervalHours { get; set; } = 24;
 

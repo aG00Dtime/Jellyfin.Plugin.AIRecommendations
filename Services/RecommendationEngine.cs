@@ -72,8 +72,11 @@ public class RecommendationEngine
                 break;
             }
 
-            // Ask for more than needed to absorb TMDB misses; round 1 asks 3×, round 2 asks 2×
-            var ask = (moviesNeed + showsNeed) * (round == 0 ? 3 : 2);
+            // Round 1: ask for need+5 (buffer for TMDB misses, capped at 25 to keep prompts small)
+            // Round 2: ask exactly the deficit
+            var ask = round == 0
+                ? Math.Min(moviesNeed + showsNeed + 5, 25)
+                : moviesNeed + showsNeed;
 
             var allExclude = excludeTitles
                 .Concat(confirmedTitles)
