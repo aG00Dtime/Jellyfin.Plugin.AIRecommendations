@@ -36,7 +36,7 @@ $semver = (Get-Content (Join-Path $ProjectRoot 'VERSION.txt') -Raw).Trim()
 $manifest = Get-Content (Join-Path $ProjectRoot 'manifest.json') -Raw | ConvertFrom-Json
 $plugin = if ($manifest -is [System.Array]) { $manifest[0] } else { $manifest }
 $entry = $plugin.versions | Where-Object { $_.version -eq "$semver.0" } | Select-Object -First 1
-$targetAbi = if ($entry -and $entry.targetAbi) { $entry.targetAbi } else { "10.11.0.0" }
+$targetAbi = if ($entry -and $entry.targetAbi) { $entry.targetAbi } else { "10.11.9.0" }
 
 $meta = [ordered]@{
     category    = "General"

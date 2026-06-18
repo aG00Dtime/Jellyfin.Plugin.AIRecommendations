@@ -37,10 +37,12 @@ $csprojContent = $csprojContent -replace '<FileVersion>[\d.]+</FileVersion>', "<
 Set-Content -Path $Csproj -Value $csprojContent -NoNewline
 
 $csprojContent = Get-Content $Csproj -Raw
-if ($csprojContent -match 'Jellyfin\.Controller" Version="(\d+)\.(\d+)') {
+if ($csprojContent -match 'Jellyfin\.Controller" Version="(\d+)\.(\d+)\.(\d+)') {
+    $targetAbi = "$($Matches[1]).$($Matches[2]).$($Matches[3]).0"
+} elseif ($csprojContent -match 'Jellyfin\.Controller" Version="(\d+)\.(\d+)') {
     $targetAbi = "$($Matches[1]).$($Matches[2]).0.0"
 } else {
-    $targetAbi = '10.11.0.0'
+    $targetAbi = '10.11.9.0'
 }
 
 $timestamp = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')

@@ -30,7 +30,7 @@ ZIP_PATH="$OUTPUT_DIR/$ZIP_NAME"
 
 # Generate meta.json (required by Jellyfin 10.10+ to read plugin metadata)
 SEMVER=$(tr -d ' \r\n' < "$SCRIPT_DIR/VERSION.txt")
-TARGET_ABI=$(jq -r --arg v "${SEMVER}.0" '.[0].versions[] | select(.version == $v) | .targetAbi // "10.11.0.0"' "$SCRIPT_DIR/manifest.json")
+TARGET_ABI=$(jq -r --arg v "${SEMVER}.0" '.[0].versions[] | select(.version == $v) | .targetAbi // "10.11.9.0"' "$SCRIPT_DIR/manifest.json")
 CHANGELOG=$(jq -r --arg v "${SEMVER}.0" '.[0].versions[] | select(.version == $v) | .changelog // "Build '"$SEMVER"'"' "$SCRIPT_DIR/manifest.json")
 TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
