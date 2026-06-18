@@ -14,21 +14,28 @@ Linux/macOS: `./build.sh`
 
 Output: `bin/Release/net8.0/Jellyfin.Plugin.AIRecommendations.dll`
 
-## Install locally
+## Install
+
+This repo is **private**. Jellyfin plugin catalogs fetch `manifest.json` over plain HTTP with no auth, so the GitHub raw URL will not work while the repo stays private.
+
+### Option A — build and deploy (dev machine)
 
 ```powershell
 .\deploy-local.ps1
 ```
 
-Copies the DLL to `%AppData%\Jellyfin\Server\plugins\AI Recommendations_1.0.0.0\`. Restart Jellyfin, then open **Dashboard → Plugins → AI Recommendations**.
+### Option B — install from GitHub Release (private repo)
 
-## Plugin catalog
-
-Add this repository in **Dashboard → Plugins → Repositories**:
-
+```powershell
+$env:GITHUB_TOKEN = "ghp_..."   # token with repo scope
+.\scripts\install-from-release.ps1
 ```
-https://raw.githubusercontent.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/main/manifest.json
-```
+
+Or pin a version: `.\scripts\install-from-release.ps1 -Tag v1.0.0`
+
+### Option C — Jellyfin catalog (requires public hosting)
+
+To use **Dashboard → Plugins → Repositories**, host `manifest.json` and the release zip somewhere Jellyfin can reach without login (public repo, or your own web server on the LAN). A private GitHub repo cannot provide that URL.
 
 ## Configuration
 
