@@ -8,7 +8,7 @@ using Microsoft.Extensions.Logging;
 namespace Jellyfin.Plugin.AIRecommendations.Providers;
 
 /// <summary>
-/// Ollama provider using native /api/chat (local and ollama.com cloud).
+/// Ollama provider. Uses /api/generate for both local and cloud (ollama.com).
 /// </summary>
 public class OllamaProvider : ILlmProvider
 {
@@ -45,19 +45,10 @@ public class OllamaProvider : ILlmProvider
         }
 
         var prompt = LlmProviderHelpers.BuildPrompt(watchedItems, excludeTitles, count);
-
-        try
-        {
-            return await ChatAsync(baseUrl, config, prompt, cancellationToken).ConfigureAwait(false);
-        }
-        catch (Exception ex) when (isCloud)
-        {
-            _logger.LogWarning(ex, "Ollama native /api/chat failed, trying OpenAI-compatible endpoint");
-            return await ChatOpenAiCompatibleAsync(baseUrl, config, prompt, cancellationToken).ConfigureAwait(false);
-        }
+        return await GenerateAsync(baseUrl, config, prompt, cancellationToken).ConfigureAwait(false);
     }
 
-    private async Task<IReadOnlyList<LlmRecommendationItem>> ChatAsync(
+    private async Task<IReadOnlyList<LlmRecommendationItem>> GenerateAsync(
         string baseUrl,
         Configuration.PluginConfiguration config,
         string prompt,
@@ -66,16 +57,13 @@ public class OllamaProvider : ILlmProvider
         var body = new
         {
             model = config.OllamaModel,
-            stream = false,
-            messages = new[]
-            {
-                new { role = "system", content = "You are a media recommendation assistant. Return only valid JSON." },
-                new { role = "user", content = prompt }
-            }
+            system = "You are a media recommendation assistant. Return only valid JSON.",
+            prompt,
+            stream = false
         };
 
         var client = _httpClientFactory.CreateClient(nameof(OllamaProvider));
-        using var request = new HttpRequestMessage(HttpMethod.Post, $"{baseUrl}/api/chat");
+        using var request = new HttpRequestMessage(HttpMethod.Post, $"{baseUrl}/api/generate");
         if (!string.IsNullOrWhiteSpace(config.OllamaApiKey))
         {
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", config.OllamaApiKey);
@@ -88,51 +76,7 @@ public class OllamaProvider : ILlmProvider
 
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
         using var doc = JsonDocument.Parse(json);
-        var content = doc.RootElement.GetProperty("message").GetProperty("content").GetString() ?? string.Empty;
-        return LlmProviderHelpers.ParseRecommendations(content, _logger);
-    }
-
-    private async Task<IReadOnlyList<LlmRecommendationItem>> ChatOpenAiCompatibleAsync(
-        string baseUrl,
-        Configuration.PluginConfiguration config,
-        string prompt,
-        CancellationToken cancellationToken)
-    {
-        var openAiBase = baseUrl.Contains("ollama.com", StringComparison.OrdinalIgnoreCase)
-            ? "https://ollama.com/v1"
-            : $"{baseUrl}/v1";
-
-        var body = new
-        {
-            model = config.OllamaModel,
-            messages = new[]
-            {
-                new { role = "system", content = "You are a media recommendation assistant. Return only valid JSON." },
-                new { role = "user", content = prompt }
-            },
-            temperature = 0.7
-        };
-
-        var client = _httpClientFactory.CreateClient(nameof(OllamaProvider));
-        using var request = new HttpRequestMessage(HttpMethod.Post, $"{openAiBase}/chat/completions");
-        if (!string.IsNullOrWhiteSpace(config.OllamaApiKey))
-        {
-            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", config.OllamaApiKey);
-        }
-
-        request.Content = new StringContent(JsonSerializer.Serialize(body), Encoding.UTF8, "application/json");
-
-        using var response = await client.SendAsync(request, cancellationToken).ConfigureAwait(false);
-        response.EnsureSuccessStatusCode();
-
-        var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-        using var doc = JsonDocument.Parse(json);
-        var content = doc.RootElement
-            .GetProperty("choices")[0]
-            .GetProperty("message")
-            .GetProperty("content")
-            .GetString() ?? string.Empty;
-
+        var content = doc.RootElement.GetProperty("response").GetString() ?? string.Empty;
         return LlmProviderHelpers.ParseRecommendations(content, _logger);
     }
 }

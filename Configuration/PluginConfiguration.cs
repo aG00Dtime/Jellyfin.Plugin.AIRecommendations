@@ -33,7 +33,7 @@ public class PluginConfiguration : BasePluginConfiguration
 
     public string OllamaApiKey { get; set; } = string.Empty;
 
-    public string OllamaModel { get; set; } = "llama3.2";
+    public string OllamaModel { get; set; } = "gemma4";
 
     public string TmdbApiKey { get; set; } = string.Empty;
 
