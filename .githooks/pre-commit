@@ -1,0 +1,25 @@
+#!/usr/bin/env sh
+# Keep version files in sync before commit.
+
+ROOT="$(git rev-parse --show-toplevel)"
+cd "$ROOT" || exit 1
+
+if command -v pwsh >/dev/null 2>&1; then
+  pwsh -NoProfile -File scripts/verify-version.ps1
+elif command -v powershell >/dev/null 2>&1; then
+  powershell -NoProfile -File scripts/verify-version.ps1
+else
+  semver="$(tr -d ' \r\n' < VERSION.txt)"
+  expected="${semver}.0"
+  grep -q "<AssemblyVersion>${expected}</AssemblyVersion>" Jellyfin.Plugin.AIRecommendations.csproj || {
+    echo "pre-commit: AssemblyVersion does not match VERSION.txt (${expected})" >&2
+    echo "Run: ./scripts/bump-version.sh patch" >&2
+    exit 1
+  }
+  grep -q "\"version\": \"${expected}\"" manifest.json || {
+    echo "pre-commit: manifest.json version does not match VERSION.txt (${expected})" >&2
+    exit 1
+  }
+fi
+
+exit 0

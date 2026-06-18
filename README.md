@@ -51,3 +51,18 @@ Admin only:
 ## Releases
 
 Tag `v1.0.0` (etc.) to trigger the release workflow and publish a zip to GitHub Releases.
+
+## Git hooks
+
+Auto-bump patch version on push:
+
+```powershell
+.\scripts\setup-hooks.ps1
+```
+
+- **pre-commit** — blocks commit if `VERSION.txt`, `.csproj`, and `manifest.json` are out of sync
+- **pre-push** — bumps patch version, commits, then pushes
+
+Skip once: `$env:SKIP_VERSION_BUMP=1; git push`
+
+Manual bump: `.\scripts\bump-version.ps1 -Part minor`

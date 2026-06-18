@@ -9,7 +9,8 @@ $ErrorActionPreference = "Stop"
 $ProjectRoot = $PSScriptRoot
 $DllName = "Jellyfin.Plugin.AIRecommendations.dll"
 $SourceDll = Join-Path $ProjectRoot "bin\Release\net8.0\$DllName"
-$PluginFolderName = "AI Recommendations_1.0.0.0"
+$version = (Get-Content (Join-Path $ProjectRoot "VERSION.txt") -Raw).Trim()
+$PluginFolderName = "AI Recommendations_$version.0"
 
 if (-not (Test-Path $SourceDll)) {
     Write-Host "DLL not found. Running build first..." -ForegroundColor Yellow
