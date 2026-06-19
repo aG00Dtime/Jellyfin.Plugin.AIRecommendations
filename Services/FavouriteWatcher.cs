@@ -247,8 +247,28 @@ public class FavouriteWatcher : IHostedService
                 }
             }
 
+            // Always remove the heart from AI recommendation stubs so they never
+            // linger in the user's Favourites section, regardless of whether a
+            // Jellyseerr request is new, already queued, or partially failed.
+            try
+            {
+                var userData = _userDataManager.GetUserData(user, item);
+                if (userData is not null && userData.IsFavorite)
+                {
+                    userData.IsFavorite = false;
+                    _userDataManager.SaveUserData(user, item, userData, UserDataSaveReason.UpdateUserRating, ct);
+                }
+            }
+            catch (Exception unfavEx)
+            {
+                _logger.LogWarning(unfavEx, "FavouriteWatcher: could not un-favourite \"{Title}\"", item.Name);
+            }
+
             if (reg.RequestedTmdbIds.Contains(tmdbId))
             {
+                _logger.LogDebug(
+                    "FavouriteWatcher: \"{Title}\" already requested — heart cleared, Jellyseerr skipped",
+                    item.Name);
                 return;
             }
 
@@ -271,21 +291,6 @@ public class FavouriteWatcher : IHostedService
             {
                 reg.RequestedTmdbIds.Add(tmdbId);
                 Plugin.Instance!.SaveConfiguration();
-
-                // Remove the heart so the stub doesn't appear in Jellyfin's Favourites section
-                try
-                {
-                    var userData = _userDataManager.GetUserData(user, item);
-                    if (userData is not null)
-                    {
-                        userData.IsFavorite = false;
-                        _userDataManager.SaveUserData(user, item, userData, UserDataSaveReason.UpdateUserRating, ct);
-                    }
-                }
-                catch (Exception unfavEx)
-                {
-                    _logger.LogWarning(unfavEx, "FavouriteWatcher: could not un-favourite \"{Title}\"", item.Name);
-                }
 
                 _logger.LogInformation(
                     "Jellyseerr request sent for \"{Title}\" (tmdb {Id}) on behalf of {User}",
