@@ -25,7 +25,7 @@ Then install **AI Recommendations (WIP)** from the catalog and restart Jellyfin.
 ## Setup
 
 1. Open **Dashboard > Plugins > AI Recommendations**.
-2. Select an LLM provider and paste in your API key.
+2. Select an AI model provider and paste in your API key.
 3. Paste in a [TMDB API key](https://www.themoviedb.org/settings/api) (free account required).
 4. Optionally fill in a Jellyseerr URL and API key (see below).
 5. Click **Save**.
@@ -35,7 +35,7 @@ Each user gets two libraries created automatically on the first sync.
 
 ---
 
-## LLM providers
+## AI model providers
 
 | Provider | Notes |
 |---|---|
@@ -97,10 +97,10 @@ flowchart TD
     B --> C[Build taste profile\ngenres, era, sample titles, favourites]
     C --> D[Build exclusion sets\nwatched, owned, rejected, already requested]
     D --> E[Fetch TMDB Discover\nper top genre, movies + shows in parallel]
-    E --> F[LLM picks N items\nfrom catalog by TMDB ID]
+    E --> F[AI model picks N items\nfrom catalog by TMDB ID]
     F --> G{Target count met?}
     G -- Yes --> H[Write stubs to disk\n.strm + .nfo per item]
-    G -- No --> I[Round 2: LLM picks\nfrom remaining catalog]
+    G -- No --> I[Round 2: model picks\nfrom remaining catalog]
     I --> H
     H --> J[Jellyfin library scan]
     J --> K([Recommendations visible to user])
@@ -120,7 +120,7 @@ The plugin reads each user's watch history and builds a compact profile:
 
 ### TMDB catalog
 
-Instead of asking the LLM to invent titles, the plugin fetches real candidates from TMDB Discover first. It queries each of the user's top genres (movies and shows in parallel), collects up to 10 results per genre sorted by popularity, filters out anything already watched or owned, and sends that list to the LLM. The LLM picks from the list by TMDB ID. Because every item is a real TMDB entry, results are accurate and up to date.
+Instead of asking the AI model to invent titles from memory, the plugin fetches real candidates from TMDB Discover first. It queries each of the user's top genres (movies and shows in parallel), collects up to 10 results per genre sorted by popularity, filters out anything already watched or owned, and sends that list to the model. The model picks from the list by TMDB ID. Because every item is a real TMDB entry, results are accurate and up to date.
 
 ### Stubs
 
@@ -140,7 +140,7 @@ Each recommendation is written as a folder with a `.strm` file and a `.nfo` file
 | `POST` | `/AIRecommendations/Dismiss/{userId}/{tmdbId}` | Permanently reject a TMDB ID |
 | `POST` | `/AIRecommendations/Clear` | Delete all stubs and reset state for all users |
 | `POST` | `/AIRecommendations/Clear/{userId}` | Delete all stubs and reset state for one user |
-| `POST` | `/AIRecommendations/TestProvider` | Test LLM provider connection |
+| `POST` | `/AIRecommendations/TestProvider` | Test AI model provider connection |
 
 All endpoints require admin authentication.
 
