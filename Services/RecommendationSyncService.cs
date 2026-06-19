@@ -89,6 +89,20 @@ public class RecommendationSyncService
             await _libraryManager.ValidateMediaLibrary(new Progress<double>(), cancellationToken)
                 .ConfigureAwait(false);
         }
+
+        // Post-scan pass: virtual episodes for brand-new stubs are created by the library scan
+        // above, not by writing stub files. The per-user cleanup inside SyncUserAsync cannot see
+        // them yet, so we run a second pass here now that they exist in Jellyfin's database.
+        var pluginConfig = Plugin.Instance!.Configuration;
+        foreach (var user in users)
+        {
+            var userKey = user.Id.ToString("N");
+            var reg = pluginConfig.UserLibraries.FirstOrDefault(r => r.UserId == userKey);
+            if (reg is not null)
+            {
+                ClearStubShowEpisodePlayedStates(user, reg);
+            }
+        }
     }
 
     public async Task SyncUserAsync(User user, CancellationToken cancellationToken)
