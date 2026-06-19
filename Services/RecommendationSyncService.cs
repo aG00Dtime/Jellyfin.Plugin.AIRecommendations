@@ -84,8 +84,11 @@ public class RecommendationSyncService
         UpdateStatus($"Synced {completed} user(s) at {DateTime.UtcNow:u}");
 
         _logger.LogInformation("Triggering library scan to surface new AI recommendations...");
-        await _libraryManager.ValidateMediaLibrary(new Progress<double>(), cancellationToken)
-            .ConfigureAwait(false);
+        using (NtfyNotifierSuppressor.Suppress(_logger))
+        {
+            await _libraryManager.ValidateMediaLibrary(new Progress<double>(), cancellationToken)
+                .ConfigureAwait(false);
+        }
     }
 
     public async Task SyncUserAsync(User user, CancellationToken cancellationToken)
