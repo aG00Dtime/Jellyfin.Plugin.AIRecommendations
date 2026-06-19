@@ -8,6 +8,14 @@
     "category": "General",
     "versions": [
       {
+        "version": "1.0.51.0",
+        "changelog": "Build 1.0.51",
+        "targetAbi": "10.11.9.0",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.51/Jellyfin.Plugin.AIRecommendations.zip",
+        "checksum": "",
+        "timestamp": "2026-06-19T11:11:49Z"
+      },
+      {
         "version": "1.0.50.0",
         "changelog": "feat: suppress NtfyNotifier notifications during AI recommendation library scan",
         "targetAbi": "10.11.9.0",
