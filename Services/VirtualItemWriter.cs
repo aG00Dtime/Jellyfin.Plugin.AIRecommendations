@@ -18,6 +18,19 @@ public class VirtualItemWriter
 
     private static readonly Regex TmdbIdPattern = new(@"\[tmdbid-(\d+)\]", RegexOptions.Compiled);
 
+    // Minimal episode NFO with lockdata=true and no TMDB ID.
+    // Without a TMDB provider ID the episode's UserDataKey is path-based, so a fresh
+    // stub always starts unplayed regardless of the user's prior watch history.
+    private static readonly string EpisodeNfo =
+        """
+        <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+        <episodedetails>
+          <season>1</season>
+          <episode>1</episode>
+          <lockdata>true</lockdata>
+        </episodedetails>
+        """;
+
     private readonly ILogger<VirtualItemWriter> _logger;
 
     public VirtualItemWriter(ILogger<VirtualItemWriter> logger)
@@ -38,6 +51,11 @@ public class VirtualItemWriter
         // Remove stubs for rejected / requested / owned items
         RemoveStaleStubs(moviesPath, removeByTmdbId);
         RemoveStaleStubs(showsPath, removeByTmdbId);
+
+        // Upgrade any legacy show stubs that lack the protective episode NFO, and
+        // ensure stubs written by v1.0.45 (tvshow.nfo only) also get an episode stub
+        // so they surface in Jellyfin's "Recently Added" section.
+        EnsureShowEpisodeStubs(showsPath);
 
         // Count what remains
         var existingMovieIds = ScanTmdbIds(moviesPath);
@@ -137,20 +155,93 @@ public class VirtualItemWriter
 
     private static void WriteShow(string showsPath, ResolvedRecommendation show, bool limitToSeasonOne)
     {
-        // Only write the series NFO — no episode stub.
-        // A Season 1 / S01E01.strm file causes Jellyfin to assign the real TMDB episode
-        // ID to the stub episode, which means Jellyfin inherits whatever played-state is
-        // stored under that episode key. If the user previously tried to dismiss this show
-        // (marking the episode as watched), the stub would immediately re-appear as watched
-        // on the next sync. Without an episode stub, all episodes are virtual and start
-        // as unplayed. Users dismiss by marking the series itself as watched, which fires
-        // a Series-level TogglePlayed event that our handler catches correctly.
         var folderName = GetShowFolderName(show);
         var showFolder = Path.Combine(showsPath, folderName);
         Directory.CreateDirectory(showFolder);
 
-        var nfoPath = Path.Combine(showFolder, "tvshow.nfo");
-        File.WriteAllText(nfoPath, BuildShowNfo(show), Encoding.UTF8);
+        File.WriteAllText(Path.Combine(showFolder, "tvshow.nfo"), BuildShowNfo(show), Encoding.UTF8);
+
+        // Write a Season 01/S01E01 stub so the show surfaces in "Recently Added".
+        // The companion NFO sets lockdata=true with no TMDB ID so Jellyfin cannot match
+        // this episode to a real TMDB entry — the UserDataKey is path-based, meaning
+        // fresh stubs always start unplayed regardless of the user's watch history.
+        var seasonFolder = Path.Combine(showFolder, "Season 01");
+        Directory.CreateDirectory(seasonFolder);
+        WriteEpisodeStub(seasonFolder, show.Title);
+    }
+
+    private static void WriteEpisodeStub(string seasonFolder, string showTitle)
+    {
+        var episodeName = $"{Sanitize(showTitle)} - S01E01";
+        var strmPath = Path.Combine(seasonFolder, $"{episodeName}.strm");
+        var nfoPath = Path.Combine(seasonFolder, $"{episodeName}.nfo");
+
+        if (!File.Exists(strmPath))
+        {
+            File.WriteAllText(strmPath, JustWatchUrl(showTitle), Encoding.UTF8);
+        }
+
+        if (!File.Exists(nfoPath))
+        {
+            File.WriteAllText(nfoPath, EpisodeNfo, Encoding.UTF8);
+        }
+    }
+
+    /// <summary>
+    /// Ensures every show stub folder on disk has a Season 01/S01E01 pair that
+    /// includes the protective episode NFO (lockdata=true, no TMDB ID).
+    /// Handles two migration scenarios:
+    ///   - v1.0.45 stubs (tvshow.nfo only, no season) → adds Season 01 so the show
+    ///     appears in Jellyfin's "Recently Added" section.
+    ///   - Pre-v1.0.45 stubs (Season folder with .strm but no .nfo) → deletes and
+    ///     recreates the season so Jellyfin's database entry loses its old TMDB episode
+    ///     ID on the next library scan, clearing inherited played state.
+    /// </summary>
+    private static void EnsureShowEpisodeStubs(string showsPath)
+    {
+        if (!Directory.Exists(showsPath))
+        {
+            return;
+        }
+
+        foreach (var showDir in Directory.GetDirectories(showsPath))
+        {
+            var showFolderName = Path.GetFileName(showDir);
+            var seasonDirs = Directory.GetDirectories(showDir);
+
+            if (seasonDirs.Length == 0)
+            {
+                // v1.0.45 stub: only tvshow.nfo, no episode → add Season 01
+                var seasonFolder = Path.Combine(showDir, "Season 01");
+                Directory.CreateDirectory(seasonFolder);
+                var tagIndex = showFolderName.IndexOf(" [tmdbid-", StringComparison.Ordinal);
+                var title = tagIndex > 0 ? showFolderName.Substring(0, tagIndex) : showFolderName;
+                WriteEpisodeStub(seasonFolder, title);
+                continue;
+            }
+
+            // Legacy stub: season exists with .strm but no companion .nfo → delete and
+            // recreate so the new scan doesn't inherit the old TMDB episode UserDataKey.
+            var hasLegacyStrm = seasonDirs
+                .SelectMany(d => Directory.GetFiles(d, "*.strm"))
+                .Any(strm => !File.Exists(Path.ChangeExtension(strm, ".nfo")));
+
+            if (!hasLegacyStrm)
+            {
+                continue;
+            }
+
+            foreach (var seasonDir in seasonDirs)
+            {
+                Directory.Delete(seasonDir, recursive: true);
+            }
+
+            var newSeasonFolder = Path.Combine(showDir, "Season 01");
+            Directory.CreateDirectory(newSeasonFolder);
+            var tagIdx = showFolderName.IndexOf(" [tmdbid-", StringComparison.Ordinal);
+            var cleanTitle = tagIdx > 0 ? showFolderName.Substring(0, tagIdx) : showFolderName;
+            WriteEpisodeStub(newSeasonFolder, cleanTitle);
+        }
     }
 
     private static string JustWatchUrl(string title)
