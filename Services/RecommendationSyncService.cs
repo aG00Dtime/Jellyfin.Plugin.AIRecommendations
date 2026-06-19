@@ -23,6 +23,7 @@ public class RecommendationSyncService
     private readonly IUserManager _userManager;
     private readonly IUserDataManager _userDataManager;
     private readonly ILibraryManager _libraryManager;
+    private readonly LibraryFilterService _libraryFilter;
     private readonly ILogger<RecommendationSyncService> _logger;
 
     public RecommendationSyncService(
@@ -33,6 +34,7 @@ public class RecommendationSyncService
         IUserManager userManager,
         IUserDataManager userDataManager,
         ILibraryManager libraryManager,
+        LibraryFilterService libraryFilter,
         ILogger<RecommendationSyncService> logger)
     {
         _virtualLibraryManager = virtualLibraryManager;
@@ -42,6 +44,7 @@ public class RecommendationSyncService
         _userManager = userManager;
         _userDataManager = userDataManager;
         _libraryManager = libraryManager;
+        _libraryFilter = libraryFilter;
         _logger = logger;
     }
 
@@ -76,13 +79,14 @@ public class RecommendationSyncService
 
             completed++;
             progress?.Report(100d * completed / users.Count);
+
+            // Scan immediately after each user so their library updates without waiting for all users
+            _logger.LogInformation("Triggering library scan for {User}...", user.Username);
+            await _libraryManager.ValidateMediaLibrary(new Progress<double>(), cancellationToken)
+                .ConfigureAwait(false);
         }
 
         UpdateStatus($"Synced {completed} user(s) at {DateTime.UtcNow:u}");
-
-        _logger.LogInformation("Triggering library scan to surface new AI recommendations...");
-        await _libraryManager.ValidateMediaLibrary(new Progress<double>(), cancellationToken)
-            .ConfigureAwait(false);
     }
 
     public async Task SyncUserAsync(User user, CancellationToken cancellationToken)
@@ -119,6 +123,17 @@ public class RecommendationSyncService
         {
             removeIds.UnionWith(VirtualItemWriter.ScanTmdbIds(registration.MoviePath));
             removeIds.UnionWith(VirtualItemWriter.ScanTmdbIds(registration.ShowPath));
+        }
+
+        // Remove stubs for content now present in the real library (e.g. a download completed)
+        var ownedIds = _libraryFilter.GetOwnedTmdbIds();
+        var nowOwned = registration.PlacedTmdbIds.Where(id => ownedIds.Contains(id)).ToList();
+        if (nowOwned.Count > 0)
+        {
+            _logger.LogInformation(
+                "Removing {Count} stub(s) for {User} — content now owned in library",
+                nowOwned.Count, user.Username);
+            removeIds.UnionWith(nowOwned);
         }
 
         var pending = all

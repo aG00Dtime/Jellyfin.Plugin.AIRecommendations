@@ -25,7 +25,7 @@ public class RecommendationEngine
     private readonly ILogger<RecommendationEngine> _logger;
 
     // How many catalog items to fetch per genre (movies + shows separately)
-    private const int DiscoverLimitPerGenre = 5;
+    private const int DiscoverLimitPerGenre = 10;
 
     // Minimum catalog size (per type) to use RAG mode; fall back to free-form below this
     private const int MinCatalogPerType = 5;

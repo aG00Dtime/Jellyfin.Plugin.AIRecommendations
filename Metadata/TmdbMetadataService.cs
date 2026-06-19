@@ -168,12 +168,17 @@ public class TmdbMetadataService
                 continue;
             }
 
+            var langParam = !string.IsNullOrWhiteSpace(config.DiscoverLanguage)
+                ? $"&with_original_language={Uri.EscapeDataString(config.DiscoverLanguage)}"
+                : string.Empty;
+
             var url = $"https://api.themoviedb.org/3/discover/{type}" +
                       $"?api_key={config.TmdbApiKey}" +
                       $"&with_genres={genreId}" +
-                      $"&sort_by=vote_average.desc" +
-                      $"&vote_count.gte=100" +
-                      $"&include_adult={config.IncludeAdult.ToString().ToLowerInvariant()}";
+                      $"&sort_by=popularity.desc" +
+                      $"&vote_count.gte=50" +
+                      $"&include_adult={config.IncludeAdult.ToString().ToLowerInvariant()}" +
+                      langParam;
 
             try
             {
