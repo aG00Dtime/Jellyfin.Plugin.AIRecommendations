@@ -168,6 +168,13 @@
                         <div class="fieldDescription">Required for posters and metadata. Free key at themoviedb.org.</div>
                     </div>
 
+                    <!-- Discover settings -->
+                    <h3>Recommendations</h3>
+                    <div class="inputContainer">
+                        <input is="emby-input" type="text" id="discoverLanguage" label="Content language (ISO 639-1)" />
+                        <div class="fieldDescription">Filters catalog to content originally produced in this language. <strong>en</strong> = English only. Leave blank for all languages.</div>
+                    </div>
+
                     <!-- Limits -->
                     <h3>Limits</h3>
                     <div class="inputContainer">
@@ -424,6 +431,7 @@
                     document.getElementById('jellyseerrBaseUrl').value = config.JellyseerrBaseUrl || '';
                     document.getElementById('jellyseerrApiKey').value = config.JellyseerrApiKey || '';
                     document.getElementById('tmdbApiKey').value = config.TmdbApiKey || '';
+                    document.getElementById('discoverLanguage').value = config.DiscoverLanguage !== undefined ? config.DiscoverLanguage : 'en';
                     document.getElementById('maxRecommendationsPerType').value = config.MaxRecommendationsPerType || 25;
                     document.getElementById('syncIntervalHours').value = config.SyncIntervalHours || 24;
                     document.getElementById('limitShowsToSeasonOne').checked = config.LimitShowsToSeasonOne !== false;
@@ -489,6 +497,7 @@
                     config.JellyseerrBaseUrl = document.getElementById('jellyseerrBaseUrl').value;
                     config.JellyseerrApiKey = document.getElementById('jellyseerrApiKey').value;
                     config.TmdbApiKey = document.getElementById('tmdbApiKey').value;
+                    config.DiscoverLanguage = document.getElementById('discoverLanguage').value.trim();
                     config.MaxRecommendationsPerType = parseInt(document.getElementById('maxRecommendationsPerType').value, 10);
                     config.SyncIntervalHours = parseInt(document.getElementById('syncIntervalHours').value, 10);
                     config.LimitShowsToSeasonOne = document.getElementById('limitShowsToSeasonOne').checked;

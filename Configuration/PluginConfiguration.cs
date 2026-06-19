@@ -45,6 +45,12 @@ public class PluginConfiguration : BasePluginConfiguration
 
     public bool IncludeAdult { get; set; }
 
+    /// <summary>
+    /// TMDB original-language filter for Discover queries.
+    /// "en" = English-only results. Leave blank for all languages.
+    /// </summary>
+    public string DiscoverLanguage { get; set; } = "en";
+
     public bool LimitShowsToSeasonOne { get; set; } = true;
 
     /// <summary>
