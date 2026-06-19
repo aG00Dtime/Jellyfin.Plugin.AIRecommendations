@@ -45,25 +45,107 @@ public class FavouriteWatcher : IHostedService
 
     private void OnUserDataSaved(object? sender, UserDataSaveEventArgs e)
     {
-        // UpdateUserRating fires for both favourite and like/dislike toggles
-        if (e.SaveReason != UserDataSaveReason.UpdateUserRating)
+        // ❤️ Favourite → submit Jellyseerr request
+        if (e.SaveReason == UserDataSaveReason.UpdateUserRating && e.UserData.IsFavorite)
+        {
+            var user = _userManager.GetUserById(e.UserId);
+            if (user is not null)
+            {
+                _ = Task.Run(() => HandleFavouriteAsync(user, e.Item, CancellationToken.None));
+            }
+
+            return;
+        }
+
+        // ✅ Mark as watched → permanently dismiss
+        if (e.SaveReason == UserDataSaveReason.TogglePlayed && e.UserData.Played)
+        {
+            var user = _userManager.GetUserById(e.UserId);
+            if (user is not null)
+            {
+                _ = Task.Run(() => HandlePlayedAsync(user, e.Item));
+            }
+        }
+    }
+
+    private Task HandlePlayedAsync(User user, BaseItem item)
+    {
+        try
+        {
+            var config = Plugin.Instance!.Configuration;
+            var userKey = user.Id.ToString("N");
+            var reg = config.UserLibraries.FirstOrDefault(r => r.UserId == userKey);
+            if (reg is null)
+            {
+                return Task.CompletedTask;
+            }
+
+            var itemPath = item.Path ?? string.Empty;
+            var inMovieLib = itemPath.StartsWith(reg.MoviePath, StringComparison.OrdinalIgnoreCase);
+            var inShowLib = itemPath.StartsWith(reg.ShowPath, StringComparison.OrdinalIgnoreCase);
+
+            if (!inMovieLib && !inShowLib)
+            {
+                return Task.CompletedTask;
+            }
+
+            // Resolve TMDB ID from provider data or from the stub path
+            if (!item.TryGetProviderId(MetadataProvider.Tmdb, out var tmdbIdStr)
+                || !int.TryParse(tmdbIdStr, out var tmdbId))
+            {
+                var fromFile = VirtualItemWriter.ParseTmdbId(
+                    Path.GetFileNameWithoutExtension(itemPath));
+                var fromFolder = VirtualItemWriter.ParseTmdbId(
+                    Path.GetFileName(Path.GetDirectoryName(itemPath) ?? string.Empty));
+                var resolved = fromFile ?? fromFolder;
+                if (resolved is null)
+                {
+                    return Task.CompletedTask;
+                }
+
+                tmdbId = resolved.Value;
+            }
+
+            if (reg.RejectedTmdbIds.Contains(tmdbId))
+            {
+                return Task.CompletedTask;
+            }
+
+            _logger.LogInformation(
+                "{User} marked \"{Title}\" as watched in AI library — dismissing permanently",
+                user.Username, item.Name);
+
+            reg.RejectedTmdbIds.Add(tmdbId);
+            reg.PlacedTmdbIds.Remove(tmdbId);
+
+            DeleteStubFolder(reg.MoviePath, tmdbId);
+            DeleteStubFolder(reg.ShowPath, tmdbId);
+
+            Plugin.Instance!.SaveConfiguration();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "UserActionWatcher: failed to dismiss \"{Title}\"", item.Name);
+        }
+
+        return Task.CompletedTask;
+    }
+
+    private static void DeleteStubFolder(string path, int tmdbId)
+    {
+        if (!Directory.Exists(path))
         {
             return;
         }
 
-        if (!e.UserData.IsFavorite)
+        foreach (var dir in Directory.GetDirectories(path))
         {
-            return;
+            if (VirtualItemWriter.ParseTmdbId(Path.GetFileName(dir)) == tmdbId)
+            {
+                Directory.Delete(dir, recursive: true);
+                return;
+            }
         }
-
-        var user = _userManager.GetUserById(e.UserId);
-        if (user is null)
-        {
-            return;
-        }
-
-        // Fire-and-forget — don't block the event dispatcher
-        _ = Task.Run(() => HandleFavouriteAsync(user, e.Item, CancellationToken.None));
     }
 
     private async Task HandleFavouriteAsync(

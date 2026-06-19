@@ -168,7 +168,7 @@ public class VirtualItemWriter
               <title>{X(movie.Title)}</title>
               <year>{movie.Year?.ToString(CultureInfo.InvariantCulture) ?? string.Empty}</year>
               <uniqueid type="tmdb" default="true">{tmdbId}</uniqueid>
-              <tagline>AI Pick — ❤️ to request via Jellyseerr · 🗑️ Delete to dismiss forever</tagline>
+              <tagline>AI Pick — ❤️ to request via Jellyseerr · ✅ Mark watched to dismiss forever</tagline>
               <plot>{X(plot)}</plot>
               <tag>AI Recommendation</tag>
               <dateadded>2000-01-01 00:00:00</dateadded>
@@ -188,7 +188,7 @@ public class VirtualItemWriter
               <title>{X(show.Title)}</title>
               <year>{show.Year?.ToString(CultureInfo.InvariantCulture) ?? string.Empty}</year>
               <uniqueid type="tmdb" default="true">{tmdbId}</uniqueid>
-              <tagline>AI Pick — ❤️ to request via Jellyseerr · 🗑️ Delete to dismiss forever</tagline>
+              <tagline>AI Pick — ❤️ to request via Jellyseerr · ✅ Mark watched to dismiss forever</tagline>
               <plot>{X(plot)}</plot>
               <tag>AI Recommendation</tag>
               <dateadded>2000-01-01 00:00:00</dateadded>
@@ -202,7 +202,7 @@ public class VirtualItemWriter
     {
         var reason = string.IsNullOrWhiteSpace(item.Reason) ? string.Empty : $"💡 {item.Reason}";
         var overview = string.IsNullOrWhiteSpace(item.Overview) ? string.Empty : item.Overview;
-        const string hint = "AI Pick — ❤️ to request via Jellyseerr · 🗑️ Delete to dismiss forever";
+        const string hint = "AI Pick — ❤️ to request via Jellyseerr · ✅ Mark watched to dismiss forever";
         var body = string.IsNullOrWhiteSpace(overview) ? reason : $"{reason}\n\n{overview}";
         return string.IsNullOrWhiteSpace(body) ? hint : $"{body}\n\n{hint}";
     }
