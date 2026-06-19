@@ -135,6 +135,25 @@ public class FavouriteWatcher : IHostedService
             reg.RejectedTmdbIds.Add(tmdbId);
             reg.PlacedTmdbIds.Remove(tmdbId);
 
+            // Reset the item's played state BEFORE deleting the folder so Jellyfin stores
+            // Played=false under this item's UserDataKey. If a future stub for the same
+            // TMDB ID is ever created, it won't inherit the "already watched" state.
+            try
+            {
+                var ud = _userDataManager.GetUserData(user, item);
+                if (ud is not null && ud.Played)
+                {
+                    ud.Played = false;
+                    ud.PlayCount = 0;
+                    ud.LastPlayedDate = null;
+                    _userDataManager.SaveUserData(user, item, ud, UserDataSaveReason.Import, CancellationToken.None);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogDebug(ex, "FavouriteWatcher: could not reset play state for \"{Title}\"", item.Name);
+            }
+
             DeleteStubFolder(reg.MoviePath, tmdbId);
             DeleteStubFolder(reg.ShowPath, tmdbId);
 

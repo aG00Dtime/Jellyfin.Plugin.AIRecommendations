@@ -137,22 +137,20 @@ public class VirtualItemWriter
 
     private static void WriteShow(string showsPath, ResolvedRecommendation show, bool limitToSeasonOne)
     {
+        // Only write the series NFO — no episode stub.
+        // A Season 1 / S01E01.strm file causes Jellyfin to assign the real TMDB episode
+        // ID to the stub episode, which means Jellyfin inherits whatever played-state is
+        // stored under that episode key. If the user previously tried to dismiss this show
+        // (marking the episode as watched), the stub would immediately re-appear as watched
+        // on the next sync. Without an episode stub, all episodes are virtual and start
+        // as unplayed. Users dismiss by marking the series itself as watched, which fires
+        // a Series-level TogglePlayed event that our handler catches correctly.
         var folderName = GetShowFolderName(show);
         var showFolder = Path.Combine(showsPath, folderName);
-        var seasonFolder = Path.Combine(showFolder, "Season 1");
-        Directory.CreateDirectory(seasonFolder);
-
-        var episodeName = $"{Sanitize(show.Title)} - S01E01 [tmdbid-{show.TmdbId.ToString(CultureInfo.InvariantCulture)}].strm";
-        var strmPath = Path.Combine(seasonFolder, episodeName);
-        File.WriteAllText(strmPath, JustWatchUrl(show.Title), Encoding.UTF8);
+        Directory.CreateDirectory(showFolder);
 
         var nfoPath = Path.Combine(showFolder, "tvshow.nfo");
         File.WriteAllText(nfoPath, BuildShowNfo(show), Encoding.UTF8);
-
-        if (!limitToSeasonOne)
-        {
-            // v1 only writes season 1 stub
-        }
     }
 
     private static string JustWatchUrl(string title)
@@ -188,7 +186,7 @@ public class VirtualItemWriter
               <title>{X(show.Title)}</title>
               <year>{show.Year?.ToString(CultureInfo.InvariantCulture) ?? string.Empty}</year>
               <uniqueid type="tmdb" default="true">{tmdbId}</uniqueid>
-              <tagline>AI Pick — ❤️ to request via Jellyseerr · ✅ Mark watched to dismiss forever</tagline>
+              <tagline>AI Pick — ❤️ to request via Jellyseerr · ✅ Mark series as watched to dismiss</tagline>
               <plot>{X(plot)}</plot>
               <tag>AI Recommendation</tag>
               <dateadded>2000-01-01 00:00:00</dateadded>
