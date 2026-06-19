@@ -94,6 +94,14 @@ public class RecommendationSyncService
         var registration = await _virtualLibraryManager.EnsureUserLibrariesAsync(user, cancellationToken)
             .ConfigureAwait(false);
 
+        // Clear played states on virtual episodes inside AI show stubs.
+        // Jellyfin auto-generates virtual episode entries (keyed by TMDB episode ID) for any
+        // show that has a TMDB ID in its tvshow.nfo. Those virtual episodes inherit Played=true
+        // from prior UserData — either from the user's real library or from stubs that were
+        // auto-marked as watched by an earlier bug. The series-level played state is not
+        // affected here (users need that mark to dismiss shows).
+        ClearStubShowEpisodePlayedStates(user, registration);
+
         // In always-refresh mode, clear PlacedTmdbIds first so DetectAndRejectDeletedStubs
         // doesn't mistake the programmatic wipe for user deletions.
         if (config.AlwaysRefreshRecommendations)
@@ -305,6 +313,72 @@ public class RecommendationSyncService
                     "{User} favourited {Count} item(s) but Jellyseerr is not configured — set JellyseerrBaseUrl and JellyseerrApiKey",
                     user.Username, toRequest.Count);
             }
+        }
+    }
+
+    /// <summary>
+    /// Resets Played=true on virtual episodes inside the user's AI show stubs.
+    /// Virtual episodes share TMDB episode IDs with any previously dismissed stub for the same
+    /// show, so they inherit the old played state and appear as already-watched even when the
+    /// stub is brand new. Only virtual episodes are touched — the S01E01.strm stub episode
+    /// (non-virtual) retains its state so the dismiss-via-played mechanism still works.
+    /// </summary>
+    private void ClearStubShowEpisodePlayedStates(
+        User user,
+        Configuration.UserLibraryRegistration registration)
+    {
+        if (registration.ShowLibraryId == Guid.Empty)
+        {
+            return;
+        }
+
+        var seriesList = _libraryManager.GetItemList(new InternalItemsQuery(user)
+        {
+            ParentId = registration.ShowLibraryId,
+            IncludeItemTypes = [BaseItemKind.Series],
+            Recursive = false
+        });
+
+        var resetCount = 0;
+
+        foreach (var series in seriesList)
+        {
+            var playedVirtualEpisodes = _libraryManager.GetItemList(new InternalItemsQuery(user)
+            {
+                ParentId = series.Id,
+                IncludeItemTypes = [BaseItemKind.Episode],
+                IsPlayed = true,
+                IsVirtualItem = true,
+                Recursive = true
+            });
+
+            foreach (var ep in playedVirtualEpisodes)
+            {
+                try
+                {
+                    var ud = _userDataManager.GetUserData(user, ep);
+                    if (ud is not null && ud.Played)
+                    {
+                        ud.Played = false;
+                        ud.PlayCount = 0;
+                        ud.LastPlayedDate = null;
+                        _userDataManager.SaveUserData(
+                            user, ep, ud, UserDataSaveReason.Import, CancellationToken.None);
+                        resetCount++;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogDebug(ex, "ClearStubShowEpisodePlayedStates: episode {Id}", ep.Id);
+                }
+            }
+        }
+
+        if (resetCount > 0)
+        {
+            _logger.LogInformation(
+                "Reset {Count} virtual episode(s) to unplayed in {User}'s AI show stubs",
+                resetCount, user.Username);
         }
     }
 
