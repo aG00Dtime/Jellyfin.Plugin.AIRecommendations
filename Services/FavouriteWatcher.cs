@@ -89,21 +89,38 @@ public class FavouriteWatcher : IHostedService
                 return Task.CompletedTask;
             }
 
-            // Resolve TMDB ID from provider data or from the stub path
-            if (!item.TryGetProviderId(MetadataProvider.Tmdb, out var tmdbIdStr)
-                || !int.TryParse(tmdbIdStr, out var tmdbId))
+            // For show stubs the played item may be an Episode whose TMDB provider ID
+            // is the episode's own ID, not the show's. Always pull the show TMDB ID
+            // from the show folder name (first component under ShowPath).
+            // For movies the item's own TMDB ID is correct.
+            int tmdbId;
+            if (inShowLib)
             {
-                var fromFile = VirtualItemWriter.ParseTmdbId(
-                    Path.GetFileNameWithoutExtension(itemPath));
-                var fromFolder = VirtualItemWriter.ParseTmdbId(
-                    Path.GetFileName(Path.GetDirectoryName(itemPath) ?? string.Empty));
-                var resolved = fromFile ?? fromFolder;
+                var resolved = ResolveShowTmdbIdFromPath(itemPath, reg.ShowPath);
                 if (resolved is null)
                 {
                     return Task.CompletedTask;
                 }
 
                 tmdbId = resolved.Value;
+            }
+            else
+            {
+                if (!item.TryGetProviderId(MetadataProvider.Tmdb, out var tmdbIdStr)
+                    || !int.TryParse(tmdbIdStr, out tmdbId))
+                {
+                    var fromFile = VirtualItemWriter.ParseTmdbId(
+                        Path.GetFileNameWithoutExtension(itemPath));
+                    var fromFolder = VirtualItemWriter.ParseTmdbId(
+                        Path.GetFileName(Path.GetDirectoryName(itemPath) ?? string.Empty));
+                    var resolved = fromFile ?? fromFolder;
+                    if (resolved is null)
+                    {
+                        return Task.CompletedTask;
+                    }
+
+                    tmdbId = resolved.Value;
+                }
             }
 
             if (reg.RejectedTmdbIds.Contains(tmdbId))
@@ -172,19 +189,13 @@ public class FavouriteWatcher : IHostedService
                 return;
             }
 
-            // Resolve TMDB ID: try the item's provider data first, then parse from the path
-            if (!item.TryGetProviderId(MetadataProvider.Tmdb, out var tmdbIdStr)
-                || !int.TryParse(tmdbIdStr, out var tmdbId))
+            // For show stubs the favourited item may be an Episode whose TMDB provider
+            // ID is the episode's own ID, not the show's. Pull the show TMDB ID from
+            // the show folder name (first component under ShowPath) to be safe.
+            int tmdbId;
+            if (inShowLib)
             {
-                // Episode STRM filename contains [tmdbid-N] for the show
-                var fromFile = VirtualItemWriter.ParseTmdbId(
-                    Path.GetFileNameWithoutExtension(itemPath));
-
-                // Show/movie folder name also contains [tmdbid-N]
-                var fromFolder = VirtualItemWriter.ParseTmdbId(
-                    Path.GetFileName(Path.GetDirectoryName(itemPath) ?? string.Empty));
-
-                var resolved = fromFile ?? fromFolder;
+                var resolved = ResolveShowTmdbIdFromPath(itemPath, reg.ShowPath);
                 if (resolved is null)
                 {
                     _logger.LogDebug(
@@ -194,6 +205,27 @@ public class FavouriteWatcher : IHostedService
                 }
 
                 tmdbId = resolved.Value;
+            }
+            else
+            {
+                if (!item.TryGetProviderId(MetadataProvider.Tmdb, out var tmdbIdStr)
+                    || !int.TryParse(tmdbIdStr, out tmdbId))
+                {
+                    var fromFile = VirtualItemWriter.ParseTmdbId(
+                        Path.GetFileNameWithoutExtension(itemPath));
+                    var fromFolder = VirtualItemWriter.ParseTmdbId(
+                        Path.GetFileName(Path.GetDirectoryName(itemPath) ?? string.Empty));
+                    var resolved = fromFile ?? fromFolder;
+                    if (resolved is null)
+                    {
+                        _logger.LogDebug(
+                            "FavouriteWatcher: could not resolve TMDB ID for \"{Title}\" — skipping",
+                            item.Name);
+                        return;
+                    }
+
+                    tmdbId = resolved.Value;
+                }
             }
 
             if (reg.RequestedTmdbIds.Contains(tmdbId))
@@ -245,5 +277,16 @@ public class FavouriteWatcher : IHostedService
         {
             _logger.LogWarning(ex, "FavouriteWatcher: Jellyseerr request failed for \"{Title}\"", item.Name);
         }
+    }
+
+    // Episode items carry the episode's own TMDB ID, not the show's.
+    // The show's TMDB ID is encoded in the show folder name under ShowPath.
+    private static int? ResolveShowTmdbIdFromPath(string itemPath, string showPath)
+    {
+        var relative = itemPath
+            .Substring(showPath.Length)
+            .TrimStart(Path.DirectorySeparatorChar, '/');
+        var showFolderName = relative.Split([Path.DirectorySeparatorChar, '/'], 2)[0];
+        return VirtualItemWriter.ParseTmdbId(showFolderName);
     }
 }

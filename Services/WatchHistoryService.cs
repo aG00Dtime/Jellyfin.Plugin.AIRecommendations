@@ -118,6 +118,17 @@ public class WatchHistoryService
     {
         var ids = new HashSet<int>();
 
+        // Exclude AI stub paths so stub shows that Jellyfin considers "played"
+        // (due to having only virtual episodes) don't pollute the watched set.
+        var aiPaths = Plugin.Instance?.Configuration.UserLibraries
+            .SelectMany(r => new[] { r.MoviePath, r.ShowPath })
+            .Where(p => !string.IsNullOrEmpty(p))
+            .ToList() ?? [];
+
+        bool IsAiStub(BaseItem item) =>
+            aiPaths.Count > 0
+            && aiPaths.Any(p => item.Path?.StartsWith(p, StringComparison.OrdinalIgnoreCase) == true);
+
         // Fully-played movies and completed series
         var fullyWatched = _libraryManager.GetItemList(new InternalItemsQuery(user)
         {
@@ -129,6 +140,11 @@ public class WatchHistoryService
 
         foreach (var item in fullyWatched)
         {
+            if (IsAiStub(item))
+            {
+                continue;
+            }
+
             if (item.TryGetProviderId(MetadataProvider.Tmdb, out var idStr)
                 && int.TryParse(idStr, out var id))
             {
@@ -143,12 +159,16 @@ public class WatchHistoryService
             IncludeItemTypes = [BaseItemKind.Episode],
             Recursive = true,
             IsPlayed = true,
-            Limit = 2000,
-            EnableGroupByMetadataKey = true
+            Limit = 2000
         });
 
         foreach (var ep in watchedEpisodes)
         {
+            if (IsAiStub(ep))
+            {
+                continue;
+            }
+
             // Get the series: Episode → Season → Series (or Episode → Series if no season folder)
             var series = ep.GetParent() as MediaBrowser.Controller.Entities.TV.Series
                 ?? ep.GetParent()?.GetParent() as MediaBrowser.Controller.Entities.TV.Series;
