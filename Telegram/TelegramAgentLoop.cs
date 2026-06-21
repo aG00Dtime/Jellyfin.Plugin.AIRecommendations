@@ -62,12 +62,6 @@ public sealed class TelegramAgentLoop
         var config = Plugin.Instance?.Configuration;
         if (config is null) return "Plugin not initialized.";
 
-        if (config.ActiveProvider.Equals("Ollama", StringComparison.OrdinalIgnoreCase))
-        {
-            return "The Telegram agent requires an OpenAI-compatible provider with function-calling support. " +
-                   "Please switch to OpenAI or OpenRouter in the plugin settings.";
-        }
-
         if (!Guid.TryParse(jellyfinUserId, out var userId))
             return "Could not identify your Jellyfin account.";
 
@@ -416,16 +410,27 @@ RULES:
     }
 
     private static string GetActiveModel(Configuration.PluginConfiguration config) =>
-        config.ActiveProvider.Equals("OpenRouter", StringComparison.OrdinalIgnoreCase)
-            ? config.OpenRouterModel
-            : config.OpenAiModel;
+        config.ActiveProvider switch
+        {
+            var p when p.Equals("OpenRouter", StringComparison.OrdinalIgnoreCase) => config.OpenRouterModel,
+            var p when p.Equals("Ollama",     StringComparison.OrdinalIgnoreCase) => config.OllamaModel,
+            _ => config.OpenAiModel
+        };
 
     private static (string BaseUrl, string ApiKey) GetProviderCredentials(Configuration.PluginConfiguration config) =>
-        config.ActiveProvider.Equals("OpenRouter", StringComparison.OrdinalIgnoreCase)
-            ? (string.IsNullOrWhiteSpace(config.OpenRouterBaseUrl) ? "https://openrouter.ai/api/v1" : config.OpenRouterBaseUrl.TrimEnd('/'),
-               config.OpenRouterApiKey)
-            : (string.IsNullOrWhiteSpace(config.OpenAiBaseUrl) ? "https://api.openai.com/v1" : config.OpenAiBaseUrl.TrimEnd('/'),
-               config.OpenAiApiKey);
+        config.ActiveProvider switch
+        {
+            var p when p.Equals("OpenRouter", StringComparison.OrdinalIgnoreCase) =>
+                (string.IsNullOrWhiteSpace(config.OpenRouterBaseUrl) ? "https://openrouter.ai/api/v1" : config.OpenRouterBaseUrl.TrimEnd('/'),
+                 config.OpenRouterApiKey),
+            // Ollama exposes an OpenAI-compatible endpoint at {host}/v1
+            var p when p.Equals("Ollama", StringComparison.OrdinalIgnoreCase) =>
+                ($"{(string.IsNullOrWhiteSpace(config.OllamaBaseUrl) ? "http://localhost:11434" : config.OllamaBaseUrl.TrimEnd('/'))}/v1",
+                 config.OllamaApiKey),
+            _ =>
+                (string.IsNullOrWhiteSpace(config.OpenAiBaseUrl) ? "https://api.openai.com/v1" : config.OpenAiBaseUrl.TrimEnd('/'),
+                 config.OpenAiApiKey)
+        };
 
     private async Task<string> CallLlmAsync(
         Configuration.PluginConfiguration config,
