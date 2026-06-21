@@ -250,7 +250,7 @@ public sealed class TelegramAgentLoop
         var isMovie = !type.Equals("tv", StringComparison.OrdinalIgnoreCase)
                    && !type.Equals("series", StringComparison.OrdinalIgnoreCase);
         var count   = args.TryGetProperty("count", out var c) && c.TryGetInt32(out var n)
-            ? Math.Clamp(n, 1, 10) : 5;
+            ? Math.Clamp(n, 5, 10) : 5;
 
         // Use genres from args, or fall back to the user's taste profile
         List<string> genres;
@@ -492,8 +492,8 @@ TOOLS:
 - sync_to_jellyfin: refresh the AI recommendation stubs in the user's Jellyfin library (only if they ask)
 
 RULES:
-1. For any "recommend", "what should I watch", or "find me something" request, call discover_content first — do not suggest titles from memory.
-2. Present ALL titles returned by discover_content. Use the exact TMDB title, year, and overview from the tool result. Never invent, substitute, or add titles not in the tool response.
+1. For any "recommend", "what should I watch", or "find me something" request, call discover_content with count=5 — do not suggest titles from memory.
+2. Always present ALL titles returned by discover_content (minimum 5). Use the exact TMDB title, year, and overview from the tool result. Never invent, substitute, or add titles not in the tool response.
 3. discover_content already excludes items already in the user's Jellyfin library — every result is something they don't have yet.
 4. If you want to refine or try different genres, call discover_content again with those genres — do not ask the user what to search for without doing it.
 5. Always call search_content before request_media to get the verified TMDB ID — never guess it.
@@ -594,7 +594,7 @@ RULES:
                     {
                         ["type"]   = new { type = "string", @enum = new[] { "movie", "tv" }, description = "Movie or TV show" },
                         ["genres"] = new { type = "array", items = new { type = "string" }, description = "Genre names e.g. ['Action','Thriller']. Omit to use the user's taste profile." },
-                        ["count"]  = new { type = "integer", description = "How many results to return (1-10, default 5)" }
+                        ["count"]  = new { type = "integer", description = "How many results to return (5-10, default 5). Always use at least 5." }
                     },
                     required = new[] { "type" }
                 }
