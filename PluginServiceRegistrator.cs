@@ -30,7 +30,7 @@ public class PluginServiceRegistrator : IPluginServiceRegistrator
         services.AddHttpClient("TelegramBot")
             .ConfigureHttpClient(c => c.Timeout = TimeSpan.FromSeconds(35)); // > poll timeout of 25 s
         services.AddHttpClient("TelegramAgent")
-            .ConfigureHttpClient(c => c.Timeout = TimeSpan.FromMinutes(3));
+            .ConfigureHttpClient(c => c.Timeout = TimeSpan.FromSeconds(60)); // per-LLM-call; turn has its own 90 s timeout
         services.AddHttpClient("ArrService")
             .ConfigureHttpClient(c => c.Timeout = TimeSpan.FromSeconds(30));
         services.AddHttpClient("TasteProfile")

@@ -324,6 +324,11 @@ public sealed class TelegramBotService : IHostedService
         var session = _sessions.GetOrAdd(chatId, _ => new ConversationSession { JellyfinUserId = link.JellyfinUserId });
         session.LastActivity = DateTime.UtcNow;
 
+        // 90-second hard timeout per user turn — prevents the agent from hanging silently
+        // if the LLM provider is slow or unresponsive.
+        using var turnCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        turnCts.CancelAfter(TimeSpan.FromSeconds(90));
+
         try
         {
             _logger.LogInformation("Telegram: dispatching to agent for user {UserId}", link.JellyfinUserId);
@@ -341,12 +346,24 @@ public sealed class TelegramBotService : IHostedService
                 }
             }, typingCts.Token);
 
-            var reply = await _agent.RunAsync(
-                link.JellyfinUserId,
-                text,
-                session.History,
-                async status => await SendMessageAsync(chatId, status, ct).ConfigureAwait(false),
-                ct).ConfigureAwait(false);
+            string reply;
+            try
+            {
+                reply = await _agent.RunAsync(
+                    link.JellyfinUserId,
+                    text,
+                    session.History,
+                    async status => await SendMessageAsync(chatId, status, ct).ConfigureAwait(false),
+                    turnCts.Token).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+            {
+                typingCts.Cancel();
+                _logger.LogWarning("TelegramBotService: agent timed out (90 s) for chat {ChatId}", chatId);
+                await SendMessageAsync(chatId, "The AI took too long to respond — please try again.", ct)
+                    .ConfigureAwait(false);
+                return;
+            }
 
             typingCts.Cancel();
 
