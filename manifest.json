@@ -8,20 +8,20 @@
     "category": "General",
     "versions": [
       {
+        "version": "1.0.57.0",
+        "changelog": "Release 1.0.57",
+        "targetAbi": "10.11.9.0",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.57/Jellyfin.Plugin.AIRecommendations.zip",
+        "checksum": "d23857650af62d3f5bbaa4382b847305",
+        "timestamp": "2026-06-21T13:40:49Z"
+      },
+      {
         "version": "1.0.58.0",
         "changelog": "Build 1.0.58",
         "targetAbi": "10.11.9.0",
         "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.58/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "",
         "timestamp": "2026-06-21T13:40:48Z"
-      },
-      {
-        "version": "1.0.57.0",
-        "changelog": "Build 1.0.57",
-        "targetAbi": "10.11.9.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.57/Jellyfin.Plugin.AIRecommendations.zip",
-        "checksum": "",
-        "timestamp": "2026-06-21T13:40:39Z"
       },
       {
         "version": "1.0.56.0",
