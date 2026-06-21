@@ -92,11 +92,40 @@ public sealed class TelegramBotService : IHostedService
         catch { }
     }
 
+    // Telegram HTML only supports: <b> <i> <u> <s> <code> <pre> <a href="...">
+    // Strip/replace everything else so Telegram doesn't reject the message.
+    private static string SanitizeTelegramHtml(string html)
+    {
+        // Convert common semantic tags to Telegram equivalents
+        html = html.Replace("<strong>", "<b>", StringComparison.OrdinalIgnoreCase)
+                   .Replace("</strong>", "</b>", StringComparison.OrdinalIgnoreCase)
+                   .Replace("<em>", "<i>", StringComparison.OrdinalIgnoreCase)
+                   .Replace("</em>", "</i>", StringComparison.OrdinalIgnoreCase);
+
+        // Convert block tags to newlines
+        html = System.Text.RegularExpressions.Regex.Replace(html, @"<br\s*/?>", "\n", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        html = System.Text.RegularExpressions.Regex.Replace(html, @"</p>", "\n", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        html = System.Text.RegularExpressions.Regex.Replace(html, @"</li>", "\n", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+        // Strip all remaining tags except Telegram's allowed set
+        html = System.Text.RegularExpressions.Regex.Replace(
+            html,
+            @"<(?!/?(?:b|i|u|s|code|pre|a)(?:\s[^>]*)?>)[^>]+>",
+            string.Empty,
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+        // Collapse runs of 3+ newlines to 2
+        html = System.Text.RegularExpressions.Regex.Replace(html, @"\n{3,}", "\n\n");
+
+        return html.Trim();
+    }
+
     public async Task SendMessageAsync(long chatId, string html, CancellationToken ct = default)
     {
         var token = Plugin.Instance?.Configuration.TelegramBotToken;
         if (string.IsNullOrWhiteSpace(token)) return;
 
+        html = SanitizeTelegramHtml(html);
         var payload = new { chat_id = chatId, text = html, parse_mode = "HTML" };
         var client = _httpClientFactory.CreateClient(ClientName);
         using var req = new HttpRequestMessage(
