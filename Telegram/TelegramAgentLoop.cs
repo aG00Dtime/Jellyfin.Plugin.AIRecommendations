@@ -151,7 +151,7 @@ public sealed class TelegramAgentLoop
                         && fn2.TryGetProperty("arguments", out var fnArgs)
                         ? fnArgs.GetString() ?? "{}" : "{}";
 
-                    _logger.LogDebug("TelegramAgentLoop: tool {Tool}({Args})", tcName, tcArgs);
+                    _logger.LogInformation("TelegramAgentLoop: tool call {Tool}({Args})", tcName, tcArgs.Length > 200 ? tcArgs[..200] : tcArgs);
 
                     string toolResult;
                     try
@@ -307,6 +307,12 @@ public sealed class TelegramAgentLoop
         var title    = args.TryGetProperty("title", out var tt) ? tt.GetString() ?? "" : "";
         var type     = args.TryGetProperty("type",  out var ty) ? ty.GetString() ?? "movie" : "movie";
         var isSeries = type == "tv" || type == "series";
+
+        _logger.LogInformation("RequestMedia: tmdb={TmdbId} title={Title} type={Type} jellyseerr={Jelly} radarr={Radarr} sonarr={Sonarr}",
+            tmdbId, title, type,
+            !string.IsNullOrWhiteSpace(Plugin.Instance?.Configuration.JellyseerrBaseUrl),
+            !string.IsNullOrWhiteSpace(Plugin.Instance?.Configuration.RadarrBaseUrl),
+            !string.IsNullOrWhiteSpace(Plugin.Instance?.Configuration.SonarrBaseUrl));
 
         // Track in RequestedTmdbIds so it's excluded from future stub recommendations
         var config = Plugin.Instance!.Configuration;
