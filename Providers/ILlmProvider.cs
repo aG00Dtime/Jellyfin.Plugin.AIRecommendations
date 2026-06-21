@@ -15,5 +15,6 @@ public interface ILlmProvider
         int count,
         CancellationToken cancellationToken,
         IReadOnlyList<string>? notFoundTitles = null,
-        IReadOnlyList<TmdbCandidate>? catalog = null);
+        IReadOnlyList<TmdbCandidate>? catalog = null,
+        string? tasteProfileText = null);
 }

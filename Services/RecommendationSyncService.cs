@@ -159,7 +159,8 @@ public class RecommendationSyncService
         IReadOnlyList<ResolvedRecommendation> all;
         if (shouldGenerate)
         {
-            all = await _engine.GenerateForUserAsync(user, extraExcludeIds, cancellationToken)
+            all = await _engine.GenerateForUserAsync(user, extraExcludeIds, cancellationToken,
+                    string.IsNullOrWhiteSpace(registration.TasteProfileText) ? null : registration.TasteProfileText)
                 .ConfigureAwait(false);
         }
         else

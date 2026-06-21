@@ -22,18 +22,27 @@ public static class LlmProviderHelpers
         IReadOnlyList<string> excludeTitles,
         int count,
         IReadOnlyList<string>? notFoundTitles = null,
-        IReadOnlyList<TmdbCandidate>? catalog = null)
+        IReadOnlyList<TmdbCandidate>? catalog = null,
+        string? tasteProfileText = null)
     {
-        var genres = profile.TopGenres.Count > 0
-            ? string.Join(", ", profile.TopGenres.Select(g => $"{g.Genre} ({g.Count})"))
-            : "varied";
-
-        var mix = $"{profile.MoviePercent}% movies, {100 - profile.MoviePercent}% series";
-        var samples = string.Join(", ", profile.SampleTitles);
-
-        var favSection = profile.FavoriteTitles.Count > 0
-            ? $"\nFavourites: {string.Join(", ", profile.FavoriteTitles)}"
-            : string.Empty;
+        // Use the stored LLM narrative if available; otherwise fall back to raw stats
+        string tasteSection;
+        if (!string.IsNullOrWhiteSpace(tasteProfileText))
+        {
+            tasteSection = tasteProfileText;
+        }
+        else
+        {
+            var genres = profile.TopGenres.Count > 0
+                ? string.Join(", ", profile.TopGenres.Select(g => $"{g.Genre} ({g.Count})"))
+                : "varied";
+            var mix = $"{profile.MoviePercent}% movies, {100 - profile.MoviePercent}% series";
+            var samples = string.Join(", ", profile.SampleTitles);
+            var favs = profile.FavoriteTitles.Count > 0
+                ? $"\nFavourites: {string.Join(", ", profile.FavoriteTitles)}"
+                : string.Empty;
+            tasteSection = $"Genres: {genres}\nEra preference: {profile.EraPreference}\nContent mix: {mix}\nEnjoys: {samples}{favs}";
+        }
 
         if (catalog is { Count: > 0 })
         {
@@ -54,10 +63,7 @@ public static class LlmProviderHelpers
                 You MUST use the exact tmdbId values from the catalog. Return ONLY valid JSON — no prose.
 
                 TASTE PROFILE:
-                Genres: {{genres}}
-                Era preference: {{profile.EraPreference}}
-                Content mix: {{mix}}
-                Enjoys: {{samples}}{{favSection}}
+                {{tasteSection}}
 
                 SKIP any catalog items whose title matches these (user already has them):
                 {{exclude}}
@@ -80,10 +86,7 @@ public static class LlmProviderHelpers
             Suggest exactly {{count}} movies/shows for this user. Return ONLY valid JSON — no prose.
 
             TASTE PROFILE:
-            Genres: {{genres}}
-            Era preference: {{profile.EraPreference}}
-            Content mix: {{mix}}
-            Enjoys: {{samples}}{{favSection}}
+            {{tasteSection}}
 
             MUST NOT recommend any of these (user already has them — absolute rule, no exceptions):
             {{excludeStr}}{{notFoundSection}}
@@ -157,7 +160,8 @@ public class OpenAiProvider : ILlmProvider
         int count,
         CancellationToken cancellationToken,
         IReadOnlyList<string>? notFoundTitles = null,
-        IReadOnlyList<TmdbCandidate>? catalog = null)
+        IReadOnlyList<TmdbCandidate>? catalog = null,
+        string? tasteProfileText = null)
     {
         var config = Plugin.Instance?.Configuration
             ?? throw new InvalidOperationException("Plugin not initialized");
@@ -167,7 +171,7 @@ public class OpenAiProvider : ILlmProvider
             throw new InvalidOperationException("OpenAI API key is not configured.");
         }
 
-        var prompt = LlmProviderHelpers.BuildPrompt(profile, excludeTitles, count, notFoundTitles, catalog);
+        var prompt = LlmProviderHelpers.BuildPrompt(profile, excludeTitles, count, notFoundTitles, catalog, tasteProfileText);
         var body = new
         {
             model = config.OpenAiModel,
@@ -226,7 +230,8 @@ public class OpenRouterProvider : ILlmProvider
         int count,
         CancellationToken cancellationToken,
         IReadOnlyList<string>? notFoundTitles = null,
-        IReadOnlyList<TmdbCandidate>? catalog = null)
+        IReadOnlyList<TmdbCandidate>? catalog = null,
+        string? tasteProfileText = null)
     {
         var config = Plugin.Instance?.Configuration
             ?? throw new InvalidOperationException("Plugin not initialized");
@@ -236,7 +241,7 @@ public class OpenRouterProvider : ILlmProvider
             throw new InvalidOperationException("OpenRouter API key is not configured.");
         }
 
-        var prompt = LlmProviderHelpers.BuildPrompt(profile, excludeTitles, count, notFoundTitles, catalog);
+        var prompt = LlmProviderHelpers.BuildPrompt(profile, excludeTitles, count, notFoundTitles, catalog, tasteProfileText);
         var body = new
         {
             model = config.OpenRouterModel,

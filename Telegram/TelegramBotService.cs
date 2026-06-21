@@ -290,6 +290,24 @@ public sealed class TelegramBotService : IHostedService
             return;
         }
 
+        if (text == "/profile")
+        {
+            var profileLink = config.TelegramUserLinks.FirstOrDefault(l => l.ChatId == chatId);
+            if (profileLink is null)
+            {
+                await SendMessageAsync(chatId, "Your Telegram account isn't linked yet. Send /link to get started.", ct).ConfigureAwait(false);
+                return;
+            }
+            var reg = config.UserLibraries.FirstOrDefault(r => r.UserId == profileLink.JellyfinUserId);
+            if (reg is null || string.IsNullOrWhiteSpace(reg.TasteProfileText))
+            {
+                await SendMessageAsync(chatId, "No taste profile has been generated yet. It will be created on your next sync.", ct).ConfigureAwait(false);
+                return;
+            }
+            await SendMessageAsync(chatId, $"<b>Your Taste Profile</b>\n\n{reg.TasteProfileText}", ct).ConfigureAwait(false);
+            return;
+        }
+
         // ── Must be linked ────────────────────────────────────────────────────
 
         var link = config.TelegramUserLinks.FirstOrDefault(l => l.ChatId == chatId);

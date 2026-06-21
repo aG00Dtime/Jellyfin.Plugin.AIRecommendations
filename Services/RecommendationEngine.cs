@@ -47,7 +47,8 @@ public class RecommendationEngine
     public async Task<IReadOnlyList<ResolvedRecommendation>> GenerateForUserAsync(
         User user,
         IReadOnlyCollection<int> extraExcludeIds,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        string? tasteProfileText = null)
     {
         var config = Plugin.Instance?.Configuration
             ?? throw new InvalidOperationException("Plugin not initialized");
@@ -154,7 +155,8 @@ public class RecommendationEngine
                 candidates = await llm.GetRecommendationsAsync(
                     profile, allExclude, ask, cancellationToken,
                     round > 0 ? notFoundTitles : null,
-                    roundCatalog)
+                    roundCatalog,
+                    tasteProfileText)
                     .ConfigureAwait(false);
             }
             catch (Exception ex)
