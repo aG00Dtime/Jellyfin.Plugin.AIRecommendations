@@ -107,6 +107,12 @@ public sealed class TelegramBotService : IHostedService
         html = System.Text.RegularExpressions.Regex.Replace(html, @"</p>", "\n", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
         html = System.Text.RegularExpressions.Regex.Replace(html, @"</li>", "\n", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
 
+        // Strip attributes from allowed tags — Telegram only accepts bare tags (e.g. <b> not <b style="...">)
+        html = System.Text.RegularExpressions.Regex.Replace(html, @"<(b|i|u|s|code|pre)\s[^>]*>", "<$1>", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        // For <a>, preserve only href
+        html = System.Text.RegularExpressions.Regex.Replace(html, @"<a\s+[^>]*href=""([^""]*)""[^>]*>", "<a href=\"$1\">", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        html = System.Text.RegularExpressions.Regex.Replace(html, @"<a(?!\s+href=)[^>]*>", string.Empty, System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
         // Strip all remaining tags except Telegram's allowed set
         html = System.Text.RegularExpressions.Regex.Replace(
             html,
@@ -114,10 +120,45 @@ public sealed class TelegramBotService : IHostedService
             string.Empty,
             System.Text.RegularExpressions.RegexOptions.IgnoreCase);
 
+        // Close any dangling open tags (e.g. <b> without </b>) to prevent Telegram parse errors
+        html = CloseDanglingTags(html);
+
         // Collapse runs of 3+ newlines to 2
         html = System.Text.RegularExpressions.Regex.Replace(html, @"\n{3,}", "\n\n");
 
         return html.Trim();
+    }
+
+    private static readonly string[] _balancedTags = ["b", "i", "u", "s", "code", "pre"];
+
+    private static string CloseDanglingTags(string html)
+    {
+        var open = new Stack<string>();
+        var i = 0;
+        while (i < html.Length)
+        {
+            var lt = html.IndexOf('<', i);
+            if (lt < 0) break;
+            var gt = html.IndexOf('>', lt);
+            if (gt < 0) break;
+
+            var inner = html[(lt + 1)..gt].Trim();
+            var isClose = inner.StartsWith('/');
+            var name = (isClose ? inner[1..] : inner.Split(' ', 2)[0]).ToLowerInvariant();
+
+            if (Array.Exists(_balancedTags, t => t == name))
+            {
+                if (isClose) { if (open.Count > 0 && open.Peek() == name) open.Pop(); }
+                else open.Push(name);
+            }
+
+            i = gt + 1;
+        }
+
+        if (open.Count == 0) return html;
+        var sb = new System.Text.StringBuilder(html);
+        while (open.Count > 0) sb.Append($"</{open.Pop()}>");
+        return sb.ToString();
     }
 
     public async Task SendMessageAsync(long chatId, string html, CancellationToken ct = default)
