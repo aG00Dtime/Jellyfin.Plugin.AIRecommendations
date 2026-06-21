@@ -157,6 +157,9 @@ public sealed class TelegramBotService : IHostedService
     {
         var chatId = message.Chat.Id;
         var text   = (message.Text ?? string.Empty).Trim();
+
+        _logger.LogInformation("Telegram message from chat {ChatId}: {Text}", chatId, text.Length > 80 ? text[..80] + "…" : text);
+
         var config = Plugin.Instance?.Configuration;
         if (config is null) return;
 
@@ -221,6 +224,7 @@ public sealed class TelegramBotService : IHostedService
 
         try
         {
+            _logger.LogInformation("Telegram: dispatching to agent for user {UserId}", link.JellyfinUserId);
             var reply = await _agent.RunAsync(link.JellyfinUserId, text, session.History, ct)
                 .ConfigureAwait(false);
 
@@ -228,6 +232,7 @@ public sealed class TelegramBotService : IHostedService
             while (session.History.Count > MaxHistoryMessages)
                 session.History.RemoveAt(0);
 
+            _logger.LogInformation("Telegram: sending reply ({Len} chars) to chat {ChatId}", reply.Length, chatId);
             await SendMessageAsync(chatId, reply, ct).ConfigureAwait(false);
         }
         catch (Exception ex)
