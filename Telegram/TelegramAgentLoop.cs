@@ -231,6 +231,7 @@ public sealed class TelegramAgentLoop
         if (result is null)
             return JsonSerializer.Serialize(new { found = false, message = $"No TMDB result for '{query}'" });
 
+        var inLibrary = _libraryFilter.GetOwnedTmdbIds().Contains(result.TmdbId);
         return JsonSerializer.Serialize(new
         {
             found = true,
@@ -238,7 +239,8 @@ public sealed class TelegramAgentLoop
             title = result.Title,
             year = result.Year,
             type = result.IsSeries ? "tv" : "movie",
-            overview = result.Overview
+            overview = result.Overview,
+            in_library = inLibrary
         });
     }
 
@@ -270,9 +272,10 @@ public sealed class TelegramAgentLoop
 
         var config = Plugin.Instance!.Configuration;
         var reg = config.UserLibraries.FirstOrDefault(r => r.UserId == user.Id.ToString("N"));
+        var ownedIds = _libraryFilter.GetOwnedTmdbIds();
         var excludeIds = reg is not null
-            ? new HashSet<int>(reg.RejectedTmdbIds.Concat(reg.RequestedTmdbIds))
-            : [];
+            ? new HashSet<int>(reg.RejectedTmdbIds.Concat(reg.RequestedTmdbIds).Concat(ownedIds))
+            : new HashSet<int>(ownedIds);
 
         var results = await _tmdb.DiscoverAsync(genres, isMovie, excludeIds, count * 2, ct).ConfigureAwait(false);
         var top = results.Take(count).Select(r => new
@@ -481,10 +484,12 @@ TOOLS:
 
 RULES:
 1. For "recommend me" or "what should I watch" requests, call discover_content — never call sync_to_jellyfin unless explicitly asked.
-2. Always call search_content before request_media to get the real TMDB ID — never guess it.
-3. Confirm what you're about to request before calling request_media, unless the user already said "yes", "sure", or "request it".
-4. Be concise. Use <b>bold</b> for titles (Telegram HTML). No markdown asterisks or bullet dashes.
-5. If no download services are configured, say so when the user tries to request something.
+2. discover_content already excludes items in the user's Jellyfin library — only suggest what is returned.
+3. Always call search_content before request_media to get the real TMDB ID — never guess it.
+4. If search_content returns in_library: true, tell the user that title is already in their Jellyfin library — do NOT offer to request it.
+5. Confirm what you're about to request before calling request_media, unless the user already said "yes", "sure", or "request it".
+6. Be concise. Use <b>bold</b> for titles (Telegram HTML). No markdown asterisks or bullet dashes.
+7. If no download services are configured, say so when the user tries to request something.
 """;
     }
 
