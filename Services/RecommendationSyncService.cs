@@ -20,6 +20,7 @@ public class RecommendationSyncService
     private readonly RecommendationEngine _engine;
     private readonly VirtualItemWriter _itemWriter;
     private readonly JellyseerrService _jellyseerr;
+    private readonly TasteProfileService _tasteProfile;
     private readonly IUserManager _userManager;
     private readonly IUserDataManager _userDataManager;
     private readonly ILibraryManager _libraryManager;
@@ -31,6 +32,7 @@ public class RecommendationSyncService
         RecommendationEngine engine,
         VirtualItemWriter itemWriter,
         JellyseerrService jellyseerr,
+        TasteProfileService tasteProfile,
         IUserManager userManager,
         IUserDataManager userDataManager,
         ILibraryManager libraryManager,
@@ -41,6 +43,7 @@ public class RecommendationSyncService
         _engine = engine;
         _itemWriter = itemWriter;
         _jellyseerr = jellyseerr;
+        _tasteProfile = tasteProfile;
         _userManager = userManager;
         _userDataManager = userDataManager;
         _libraryManager = libraryManager;
@@ -132,6 +135,10 @@ public class RecommendationSyncService
         // Process ❤️ feedback the user left on existing stubs
         await ProcessUserFeedbackAsync(user, registration, cancellationToken).ConfigureAwait(false);
         Plugin.Instance!.SaveConfiguration();
+
+        // Generate or refresh taste profile (skips if profile is fresh per the configured interval)
+        if (await _tasteProfile.RefreshIfNeededAsync(user, registration, config, cancellationToken).ConfigureAwait(false))
+            Plugin.Instance!.SaveConfiguration();
 
         // Exclude rejected + already-requested IDs from new recommendations
         var extraExcludeIds = registration.RejectedTmdbIds

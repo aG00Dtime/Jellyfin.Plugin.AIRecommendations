@@ -33,6 +33,8 @@ public class PluginServiceRegistrator : IPluginServiceRegistrator
             .ConfigureHttpClient(c => c.Timeout = TimeSpan.FromMinutes(3));
         services.AddHttpClient("ArrService")
             .ConfigureHttpClient(c => c.Timeout = TimeSpan.FromSeconds(30));
+        services.AddHttpClient("TasteProfile")
+            .ConfigureHttpClient(c => c.Timeout = TimeSpan.FromMinutes(3));
 
         services.AddSingleton<WatchHistoryService>();
         services.AddSingleton<LibraryFilterService>();
@@ -42,6 +44,7 @@ public class PluginServiceRegistrator : IPluginServiceRegistrator
         services.AddSingleton<LlmProviderFactory>();
         services.AddSingleton<TmdbMetadataService>();
         services.AddSingleton<RecommendationEngine>();
+        services.AddSingleton<TasteProfileService>();
         services.AddSingleton<VirtualItemWriter>();
         services.AddSingleton<LibraryPermissionManager>();
         services.AddSingleton<VirtualLibraryManager>();

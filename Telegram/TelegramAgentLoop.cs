@@ -325,6 +325,8 @@ public sealed class TelegramAgentLoop
 
         var results = new List<string>();
 
+        // Jellyseerr is the primary request method — it routes internally to Radarr/Sonarr.
+        // Direct arr integration is only used when Jellyseerr is not configured.
         if (!string.IsNullOrWhiteSpace(config.JellyseerrBaseUrl))
         {
             try
@@ -338,25 +340,27 @@ public sealed class TelegramAgentLoop
                 results.Add($"Jellyseerr error: {ex.Message}");
             }
         }
-
-        if (!string.IsNullOrWhiteSpace(config.RadarrBaseUrl) && !isSeries)
+        else
         {
-            try
+            if (!string.IsNullOrWhiteSpace(config.RadarrBaseUrl) && !isSeries)
             {
-                var ok = await _arr.RequestMovieAsync(tmdbId, title, ct).ConfigureAwait(false);
-                results.Add(ok ? "submitted to Radarr" : "already in Radarr");
+                try
+                {
+                    var ok = await _arr.RequestMovieAsync(tmdbId, title, ct).ConfigureAwait(false);
+                    results.Add(ok ? "submitted to Radarr" : "already in Radarr");
+                }
+                catch (Exception ex) { results.Add($"Radarr error: {ex.Message}"); }
             }
-            catch (Exception ex) { results.Add($"Radarr error: {ex.Message}"); }
-        }
 
-        if (!string.IsNullOrWhiteSpace(config.SonarrBaseUrl) && isSeries)
-        {
-            try
+            if (!string.IsNullOrWhiteSpace(config.SonarrBaseUrl) && isSeries)
             {
-                var ok = await _arr.RequestShowAsync(tmdbId, title, ct).ConfigureAwait(false);
-                results.Add(ok ? "submitted to Sonarr" : "already in Sonarr");
+                try
+                {
+                    var ok = await _arr.RequestShowAsync(tmdbId, title, ct).ConfigureAwait(false);
+                    results.Add(ok ? "submitted to Sonarr" : "already in Sonarr");
+                }
+                catch (Exception ex) { results.Add($"Sonarr error: {ex.Message}"); }
             }
-            catch (Exception ex) { results.Add($"Sonarr error: {ex.Message}"); }
         }
 
         if (results.Count == 0)
@@ -417,27 +421,38 @@ public sealed class TelegramAgentLoop
 
     private string BuildSystemPrompt(User user, Configuration.PluginConfiguration config)
     {
-        var profile = _watchHistory.BuildTasteProfile(user, Math.Min(config.MaxWatchedItems, 30));
-
         var services = new List<string>();
         if (!string.IsNullOrWhiteSpace(config.JellyseerrBaseUrl)) services.Add("Jellyseerr");
-        if (!string.IsNullOrWhiteSpace(config.RadarrBaseUrl)) services.Add("Radarr");
-        if (!string.IsNullOrWhiteSpace(config.SonarrBaseUrl)) services.Add("Sonarr");
+        else
+        {
+            if (!string.IsNullOrWhiteSpace(config.RadarrBaseUrl)) services.Add("Radarr");
+            if (!string.IsNullOrWhiteSpace(config.SonarrBaseUrl)) services.Add("Sonarr");
+        }
         var serviceList = services.Count > 0 ? string.Join(", ", services) : "none configured";
 
+        // Prefer the stored LLM-generated taste profile; fall back to live stats summary
+        var reg = config.UserLibraries.FirstOrDefault(r => r.UserId == user.Id.ToString("N"));
         string tasteSection;
-        if (profile.TotalWatched == 0)
+        if (reg is not null && !string.IsNullOrWhiteSpace(reg.TasteProfileText))
         {
-            tasteSection = "Watch history: No data yet — ask the user what genres or titles they enjoy before making recommendations.";
+            tasteSection = reg.TasteProfileText;
         }
         else
         {
-            var genres  = string.Join(", ", profile.TopGenres.Select(g => g.Genre));
-            var samples = profile.SampleTitles.Count > 0 ? string.Join(", ", profile.SampleTitles) : "none recorded";
-            var favs    = profile.FavoriteTitles.Count > 0 ? string.Join(", ", profile.FavoriteTitles) : "none recorded";
-            tasteSection = $"Top genres: {genres}\n- Era preference: {profile.EraPreference}\n" +
-                           $"- Content mix: {profile.MoviePercent}% movies, {100 - profile.MoviePercent}% shows\n" +
-                           $"- Enjoyed: {samples}\n- Favourites: {favs}";
+            var profile = _watchHistory.BuildTasteProfile(user, Math.Min(config.MaxWatchedItems, 30));
+            if (profile.TotalWatched == 0)
+            {
+                tasteSection = "Watch history: No data yet — ask the user what genres or titles they enjoy before making recommendations.";
+            }
+            else
+            {
+                var genres  = string.Join(", ", profile.TopGenres.Select(g => g.Genre));
+                var samples = profile.SampleTitles.Count > 0 ? string.Join(", ", profile.SampleTitles) : "none recorded";
+                var favs    = profile.FavoriteTitles.Count > 0 ? string.Join(", ", profile.FavoriteTitles) : "none recorded";
+                tasteSection = $"Top genres: {genres}\nEra preference: {profile.EraPreference}\n" +
+                               $"Content mix: {profile.MoviePercent}% movies, {100 - profile.MoviePercent}% shows\n" +
+                               $"Enjoyed: {samples}\nFavourites: {favs}";
+            }
         }
 
         return $"""

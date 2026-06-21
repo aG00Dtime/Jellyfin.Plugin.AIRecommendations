@@ -144,180 +144,193 @@
                     </div>
 
                     <!-- Jellyseerr -->
-                    <h3>Jellyseerr <span style="font-weight:normal;font-size:.8em;color:#888">(optional)</span></h3>
-                    <p style="font-size:.85em;color:#aaa;margin:0 0 10px">
-                        When configured, ❤️ <strong>favouriting</strong> a recommendation stub submits a Jellyseerr request on the next sync.
-                        To dismiss a recommendation permanently, simply <strong>delete</strong> it from your AI library in Jellyfin — it will never be suggested again.
-                        Get your API key from your Jellyseerr profile page.
-                    </p>
-                    <div class="inputContainer">
-                        <input is="emby-input" type="text" id="jellyseerrBaseUrl" label="Jellyseerr URL" />
-                        <div class="fieldDescription">e.g. http://192.168.1.100:5055 or https://requests.yourdomain.com</div>
-                    </div>
-                    <div class="inputContainer">
-                        <input is="emby-input" type="password" id="jellyseerrApiKey" label="Jellyseerr API Key" />
-                        <div class="fieldDescription">Jellyseerr → your profile (top-right) → API Key tab</div>
-                    </div>
-                    <button is="emby-button" type="button" id="btn-test-jellyseerr" class="raised button-alt">Test Connection</button>
-                    <div class="test-result" id="test-jellyseerr"></div>
+                    <details open style="margin-top:14px">
+                        <summary style="cursor:pointer;font-size:1.1em;font-weight:bold;padding:6px 0;border-bottom:1px solid #333;margin-bottom:10px">Jellyseerr <span style="font-weight:normal;font-size:.8em;color:#888">(optional)</span></summary>
+                        <p style="font-size:.85em;color:#aaa;margin:0 0 10px">
+                            Preferred request method — routes to Radarr/Sonarr internally. When configured, ❤️ <strong>favouriting</strong> a recommendation stub also submits a Jellyseerr request on the next sync.
+                        </p>
+                        <div class="inputContainer">
+                            <input is="emby-input" type="text" id="jellyseerrBaseUrl" label="Jellyseerr URL" />
+                            <div class="fieldDescription">e.g. http://192.168.1.100:5055 or https://requests.yourdomain.com</div>
+                        </div>
+                        <div class="inputContainer">
+                            <input is="emby-input" type="password" id="jellyseerrApiKey" label="Jellyseerr API Key" />
+                            <div class="fieldDescription">Jellyseerr → your profile (top-right) → API Key tab</div>
+                        </div>
+                        <button is="emby-button" type="button" id="btn-test-jellyseerr" class="raised button-alt">Test Connection</button>
+                        <div class="test-result" id="test-jellyseerr"></div>
+                    </details>
 
                     <!-- Radarr -->
-                    <h3>Radarr <span style="font-weight:normal;font-size:.8em;color:#888">(optional, direct)</span></h3>
-                    <p style="font-size:.85em;color:#aaa;margin:0 0 10px">
-                        Direct Radarr integration for the Telegram agent. Leave blank if you use Jellyseerr (which already connects to Radarr).
-                    </p>
-                    <div class="inputContainer">
-                        <input is="emby-input" type="text" id="radarrBaseUrl" label="Radarr URL" />
-                        <div class="fieldDescription">e.g. http://192.168.1.100:7878</div>
-                    </div>
-                    <div class="inputContainer">
-                        <input is="emby-input" type="password" id="radarrApiKey" label="Radarr API Key" />
-                        <div class="fieldDescription">Settings → General → Security → API Key</div>
-                    </div>
-                    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-bottom:6px">
-                        <div class="selectContainer" style="flex:1;min-width:160px;margin:0">
-                            <label class="selectLabel" for="radarrQualityProfileId">Quality Profile</label>
-                            <select is="emby-select" id="radarrQualityProfileId" class="emby-select-withcolor"></select>
+                    <details style="margin-top:14px">
+                        <summary style="cursor:pointer;font-size:1.1em;font-weight:bold;padding:6px 0;border-bottom:1px solid #333;margin-bottom:10px">Radarr <span style="font-weight:normal;font-size:.8em;color:#888">(optional, direct)</span></summary>
+                        <p style="font-size:.85em;color:#aaa;margin:0 0 10px">
+                            Only configure if you are <strong>not</strong> using Jellyseerr. When Jellyseerr is configured it handles movie requests internally.
+                        </p>
+                        <div class="inputContainer">
+                            <input is="emby-input" type="text" id="radarrBaseUrl" label="Radarr URL" />
+                            <div class="fieldDescription">e.g. http://192.168.1.100:7878</div>
                         </div>
-                        <button is="emby-button" type="button" id="btn-fetch-radarr-profiles" class="raised button-alt" style="margin-bottom:4px">Fetch Profiles</button>
-                    </div>
-                    <div class="inputContainer">
-                        <input is="emby-input" type="text" id="radarrRootFolderPath" label="Root Folder Path" />
-                        <div class="fieldDescription">e.g. /movies — must match a root folder in Radarr. <button type="button" id="btn-fetch-radarr-folders" style="background:none;border:none;color:#7eb4db;cursor:pointer;padding:0;font-size:.9em">Fetch folders</button></div>
-                    </div>
-                    <button is="emby-button" type="button" id="btn-test-radarr" class="raised button-alt">Test Connection</button>
-                    <div class="test-result" id="test-radarr"></div>
+                        <div class="inputContainer">
+                            <input is="emby-input" type="password" id="radarrApiKey" label="Radarr API Key" />
+                            <div class="fieldDescription">Settings → General → Security → API Key</div>
+                        </div>
+                        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-bottom:6px">
+                            <div class="selectContainer" style="flex:1;min-width:160px;margin:0">
+                                <label class="selectLabel" for="radarrQualityProfileId">Quality Profile</label>
+                                <select is="emby-select" id="radarrQualityProfileId" class="emby-select-withcolor"></select>
+                            </div>
+                            <button is="emby-button" type="button" id="btn-fetch-radarr-profiles" class="raised button-alt" style="margin-bottom:4px">Fetch Profiles</button>
+                        </div>
+                        <div class="inputContainer">
+                            <input is="emby-input" type="text" id="radarrRootFolderPath" label="Root Folder Path" />
+                            <div class="fieldDescription">e.g. /movies — must match a root folder in Radarr. <button type="button" id="btn-fetch-radarr-folders" style="background:none;border:none;color:#7eb4db;cursor:pointer;padding:0;font-size:.9em">Fetch folders</button></div>
+                        </div>
+                        <button is="emby-button" type="button" id="btn-test-radarr" class="raised button-alt">Test Connection</button>
+                        <div class="test-result" id="test-radarr"></div>
+                    </details>
 
                     <!-- Sonarr -->
-                    <h3>Sonarr <span style="font-weight:normal;font-size:.8em;color:#888">(optional, direct)</span></h3>
-                    <p style="font-size:.85em;color:#aaa;margin:0 0 10px">
-                        Direct Sonarr integration for the Telegram agent. Leave blank if you use Jellyseerr.
-                    </p>
-                    <div class="inputContainer">
-                        <input is="emby-input" type="text" id="sonarrBaseUrl" label="Sonarr URL" />
-                        <div class="fieldDescription">e.g. http://192.168.1.100:8989</div>
-                    </div>
-                    <div class="inputContainer">
-                        <input is="emby-input" type="password" id="sonarrApiKey" label="Sonarr API Key" />
-                        <div class="fieldDescription">Settings → General → Security → API Key</div>
-                    </div>
-                    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-bottom:6px">
-                        <div class="selectContainer" style="flex:1;min-width:160px;margin:0">
-                            <label class="selectLabel" for="sonarrQualityProfileId">Quality Profile</label>
-                            <select is="emby-select" id="sonarrQualityProfileId" class="emby-select-withcolor"></select>
+                    <details style="margin-top:14px">
+                        <summary style="cursor:pointer;font-size:1.1em;font-weight:bold;padding:6px 0;border-bottom:1px solid #333;margin-bottom:10px">Sonarr <span style="font-weight:normal;font-size:.8em;color:#888">(optional, direct)</span></summary>
+                        <p style="font-size:.85em;color:#aaa;margin:0 0 10px">
+                            Only configure if you are <strong>not</strong> using Jellyseerr. When Jellyseerr is configured it handles TV show requests internally.
+                        </p>
+                        <div class="inputContainer">
+                            <input is="emby-input" type="text" id="sonarrBaseUrl" label="Sonarr URL" />
+                            <div class="fieldDescription">e.g. http://192.168.1.100:8989</div>
                         </div>
-                        <button is="emby-button" type="button" id="btn-fetch-sonarr-profiles" class="raised button-alt" style="margin-bottom:4px">Fetch Profiles</button>
-                    </div>
-                    <div class="inputContainer">
-                        <input is="emby-input" type="text" id="sonarrRootFolderPath" label="Root Folder Path" />
-                        <div class="fieldDescription">e.g. /tv — must match a root folder in Sonarr. <button type="button" id="btn-fetch-sonarr-folders" style="background:none;border:none;color:#7eb4db;cursor:pointer;padding:0;font-size:.9em">Fetch folders</button></div>
-                    </div>
-                    <button is="emby-button" type="button" id="btn-test-sonarr" class="raised button-alt">Test Connection</button>
-                    <div class="test-result" id="test-sonarr"></div>
+                        <div class="inputContainer">
+                            <input is="emby-input" type="password" id="sonarrApiKey" label="Sonarr API Key" />
+                            <div class="fieldDescription">Settings → General → Security → API Key</div>
+                        </div>
+                        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-bottom:6px">
+                            <div class="selectContainer" style="flex:1;min-width:160px;margin:0">
+                                <label class="selectLabel" for="sonarrQualityProfileId">Quality Profile</label>
+                                <select is="emby-select" id="sonarrQualityProfileId" class="emby-select-withcolor"></select>
+                            </div>
+                            <button is="emby-button" type="button" id="btn-fetch-sonarr-profiles" class="raised button-alt" style="margin-bottom:4px">Fetch Profiles</button>
+                        </div>
+                        <div class="inputContainer">
+                            <input is="emby-input" type="text" id="sonarrRootFolderPath" label="Root Folder Path" />
+                            <div class="fieldDescription">e.g. /tv — must match a root folder in Sonarr. <button type="button" id="btn-fetch-sonarr-folders" style="background:none;border:none;color:#7eb4db;cursor:pointer;padding:0;font-size:.9em">Fetch folders</button></div>
+                        </div>
+                        <button is="emby-button" type="button" id="btn-test-sonarr" class="raised button-alt">Test Connection</button>
+                        <div class="test-result" id="test-sonarr"></div>
+                    </details>
 
                     <!-- Telegram Bot -->
-                    <h3>Telegram Bot <span style="font-weight:normal;font-size:.8em;color:#888">(optional)</span></h3>
-                    <p style="font-size:.85em;color:#aaa;margin:0 0 10px">
-                        Create a bot via <a href="https://t.me/BotFather" target="_blank" style="color:#7eb4db">@BotFather</a> → /newbot, then paste the token below.
-                        Users send /link to the bot and enter the code here to connect their Jellyfin account.
-                    </p>
-                    <div class="inputContainer">
-                        <input is="emby-input" type="password" id="telegramBotToken" label="Bot Token" />
-                        <div class="fieldDescription">Format: 123456789:AAF... (from @BotFather)</div>
-                    </div>
-                    <button is="emby-button" type="button" id="btn-test-telegram" class="raised button-alt">Test Token</button>
-                    <div class="test-result" id="test-telegram"></div>
-
-                    <!-- Telegram link panel -->
-                    <div style="margin-top:14px">
-                        <h4 style="margin-bottom:6px">Link a Telegram Account</h4>
-                        <p style="font-size:.82em;color:#888;margin:0 0 8px">Have the user send /link to the bot, then enter the code they receive:</p>
-                        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
-                            <div class="inputContainer" style="flex:0 0 120px;margin:0">
-                                <input is="emby-input" type="text" id="telegramLinkCode" label="6-digit code" maxlength="6" />
-                            </div>
-                            <div class="selectContainer" style="flex:1;min-width:140px;margin:0">
-                                <label class="selectLabel" for="telegramLinkUserId">Jellyfin User</label>
-                                <select is="emby-select" id="telegramLinkUserId" class="emby-select-withcolor"></select>
-                            </div>
-                            <button is="emby-button" type="button" id="btn-link-telegram" class="raised button-submit" style="margin-bottom:4px">Link</button>
+                    <details style="margin-top:14px">
+                        <summary style="cursor:pointer;font-size:1.1em;font-weight:bold;padding:6px 0;border-bottom:1px solid #333;margin-bottom:10px">Telegram Bot <span style="font-weight:normal;font-size:.8em;color:#888">(optional)</span></summary>
+                        <p style="font-size:.85em;color:#aaa;margin:0 0 10px">
+                            Create a bot via <a href="https://t.me/BotFather" target="_blank" style="color:#7eb4db">@BotFather</a> → /newbot, then paste the token below.
+                            Users send /link to the bot and enter the code here to connect their Jellyfin account.
+                        </p>
+                        <div class="inputContainer">
+                            <input is="emby-input" type="password" id="telegramBotToken" label="Bot Token" />
+                            <div class="fieldDescription">Format: 123456789:AAF... (from @BotFather)</div>
                         </div>
-                        <div class="test-result" id="link-result"></div>
-                    </div>
+                        <button is="emby-button" type="button" id="btn-test-telegram" class="raised button-alt">Test Token</button>
+                        <div class="test-result" id="test-telegram"></div>
 
-                    <!-- Linked accounts table -->
-                    <div id="telegramLinksPanel" style="display:none;margin-top:14px">
-                        <h4 style="margin-bottom:6px">Linked Accounts</h4>
-                        <table style="width:100%;border-collapse:collapse;font-size:.85em" id="telegramLinksTable">
-                            <thead>
-                                <tr style="color:#888;text-align:left">
-                                    <th style="padding:4px 8px">Jellyfin User</th>
-                                    <th style="padding:4px 8px">Telegram</th>
-                                    <th style="padding:4px 8px">Linked</th>
-                                    <th style="padding:4px 8px"></th>
-                                </tr>
-                            </thead>
-                            <tbody id="telegramLinksBody"></tbody>
-                        </table>
-                    </div>
-
-                    <!-- Agent test panel -->
-                    <div style="margin-top:18px">
-                        <h4 style="margin-bottom:4px">Test Agent</h4>
-                        <p style="font-size:.82em;color:#888;margin:0 0 8px">Chat with the agent directly — no Telegram needed.</p>
-                        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-bottom:6px">
-                            <div class="selectContainer" style="flex:0 0 160px;margin:0">
-                                <label class="selectLabel" for="agentTestUserId">As user</label>
-                                <select is="emby-select" id="agentTestUserId" class="emby-select-withcolor"></select>
+                        <!-- Telegram link panel -->
+                        <div style="margin-top:14px">
+                            <h4 style="margin-bottom:6px">Link a Telegram Account</h4>
+                            <p style="font-size:.82em;color:#888;margin:0 0 8px">Have the user send /link to the bot, then enter the code they receive:</p>
+                            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
+                                <div class="inputContainer" style="flex:0 0 120px;margin:0">
+                                    <input is="emby-input" type="text" id="telegramLinkCode" label="6-digit code" maxlength="6" />
+                                </div>
+                                <div class="selectContainer" style="flex:1;min-width:140px;margin:0">
+                                    <label class="selectLabel" for="telegramLinkUserId">Jellyfin User</label>
+                                    <select is="emby-select" id="telegramLinkUserId" class="emby-select-withcolor"></select>
+                                </div>
+                                <button is="emby-button" type="button" id="btn-link-telegram" class="raised button-submit" style="margin-bottom:4px">Link</button>
                             </div>
-                            <div class="inputContainer" style="flex:1;min-width:180px;margin:0">
-                                <input is="emby-input" type="text" id="agentTestMessage" label="Message" />
-                            </div>
-                            <button is="emby-button" type="button" id="btn-agent-send" class="raised button-submit" style="margin-bottom:4px">Send</button>
-                            <button is="emby-button" type="button" id="btn-agent-reset" class="raised button-cancel" style="margin-bottom:4px" title="Clear conversation">Reset</button>
+                            <div class="test-result" id="link-result"></div>
                         </div>
-                        <div id="agent-chat-log" style="display:none;background:#0d0d0d;border:1px solid #2a2a2a;border-radius:4px;padding:10px;font-size:.84em;max-height:320px;overflow-y:auto"></div>
-                    </div>
 
-                    <div class="inputContainer" style="margin-top:12px">
-                        <input is="emby-input" type="number" id="telegramDownloadPollIntervalMinutes" min="5" max="120" label="Download status check interval (minutes)" />
-                        <div class="fieldDescription">How often the bot checks Jellyseerr/Radarr/Sonarr for completed downloads (default 15).</div>
-                    </div>
+                        <!-- Linked accounts table -->
+                        <div id="telegramLinksPanel" style="display:none;margin-top:14px">
+                            <h4 style="margin-bottom:6px">Linked Accounts</h4>
+                            <table style="width:100%;border-collapse:collapse;font-size:.85em" id="telegramLinksTable">
+                                <thead>
+                                    <tr style="color:#888;text-align:left">
+                                        <th style="padding:4px 8px">Jellyfin User</th>
+                                        <th style="padding:4px 8px">Telegram</th>
+                                        <th style="padding:4px 8px">Linked</th>
+                                        <th style="padding:4px 8px"></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="telegramLinksBody"></tbody>
+                            </table>
+                        </div>
+
+                        <!-- Agent test panel -->
+                        <div style="margin-top:18px">
+                            <h4 style="margin-bottom:4px">Test Agent</h4>
+                            <p style="font-size:.82em;color:#888;margin:0 0 8px">Chat with the agent directly — no Telegram needed.</p>
+                            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-bottom:6px">
+                                <div class="selectContainer" style="flex:0 0 160px;margin:0">
+                                    <label class="selectLabel" for="agentTestUserId">As user</label>
+                                    <select is="emby-select" id="agentTestUserId" class="emby-select-withcolor"></select>
+                                </div>
+                                <div class="inputContainer" style="flex:1;min-width:180px;margin:0">
+                                    <input is="emby-input" type="text" id="agentTestMessage" label="Message" />
+                                </div>
+                                <button is="emby-button" type="button" id="btn-agent-send" class="raised button-submit" style="margin-bottom:4px">Send</button>
+                                <button is="emby-button" type="button" id="btn-agent-reset" class="raised button-cancel" style="margin-bottom:4px" title="Clear conversation">Reset</button>
+                            </div>
+                            <div id="agent-chat-log" style="display:none;background:#0d0d0d;border:1px solid #2a2a2a;border-radius:4px;padding:10px;font-size:.84em;max-height:320px;overflow-y:auto"></div>
+                        </div>
+
+                        <div class="inputContainer" style="margin-top:12px">
+                            <input is="emby-input" type="number" id="telegramDownloadPollIntervalMinutes" min="5" max="120" label="Download status check interval (minutes)" />
+                            <div class="fieldDescription">How often the bot checks Jellyseerr/Radarr/Sonarr for completed downloads (default 15).</div>
+                        </div>
+                    </details>
 
                     <!-- TMDB -->
-                    <h3>TMDB</h3>
-                    <div class="inputContainer">
-                        <input is="emby-input" type="password" id="tmdbApiKey" label="TMDB API Key" />
-                        <div class="fieldDescription">Required for posters and metadata. Free key at themoviedb.org.</div>
-                    </div>
+                    <details style="margin-top:14px">
+                        <summary style="cursor:pointer;font-size:1.1em;font-weight:bold;padding:6px 0;border-bottom:1px solid #333;margin-bottom:10px">TMDB</summary>
+                        <div class="inputContainer">
+                            <input is="emby-input" type="password" id="tmdbApiKey" label="TMDB API Key" />
+                            <div class="fieldDescription">Required for posters and metadata. Free key at themoviedb.org.</div>
+                        </div>
+                    </details>
 
-                    <!-- Discover settings -->
-                    <h3>Recommendations</h3>
-                    <div class="inputContainer">
-                        <input is="emby-input" type="text" id="discoverLanguage" label="Content language (ISO 639-1)" />
-                        <div class="fieldDescription">Filters catalog to content originally produced in this language. <strong>en</strong> = English only. Leave blank for all languages.</div>
-                    </div>
-
-                    <!-- Limits -->
-                    <h3>Limits</h3>
-                    <div class="inputContainer">
-                        <input is="emby-input" type="number" id="maxRecommendationsPerType" min="5" max="100" label="Max recommendations per type (movies + shows)" />
-                    </div>
-                    <div class="inputContainer">
-                        <input is="emby-input" type="number" id="syncIntervalHours" min="1" max="168" label="Sync interval (hours)" />
-                    </div>
-                    <div class="checkboxContainer checkboxContainer-withDescription">
-                        <label>
-                            <input is="emby-checkbox" type="checkbox" id="limitShowsToSeasonOne" />
-                            <span>Only create Season 1 stubs for TV shows</span>
-                        </label>
-                    </div>
-                    <div class="checkboxContainer checkboxContainer-withDescription">
-                        <label>
-                            <input is="emby-checkbox" type="checkbox" id="alwaysRefreshRecommendations" />
-                            <span>Always refresh recommendations (replace existing stubs each sync instead of accumulating)</span>
-                        </label>
-                    </div>
+                    <!-- Recommendations + Limits -->
+                    <details style="margin-top:14px">
+                        <summary style="cursor:pointer;font-size:1.1em;font-weight:bold;padding:6px 0;border-bottom:1px solid #333;margin-bottom:10px">Recommendations &amp; Limits</summary>
+                        <div class="inputContainer">
+                            <input is="emby-input" type="text" id="discoverLanguage" label="Content language (ISO 639-1)" />
+                            <div class="fieldDescription">Filters catalog to content originally produced in this language. <strong>en</strong> = English only. Leave blank for all languages.</div>
+                        </div>
+                        <div class="inputContainer">
+                            <input is="emby-input" type="number" id="maxRecommendationsPerType" min="5" max="100" label="Max recommendations per type (movies + shows)" />
+                        </div>
+                        <div class="inputContainer">
+                            <input is="emby-input" type="number" id="syncIntervalHours" min="1" max="168" label="Sync interval (hours)" />
+                        </div>
+                        <div class="checkboxContainer checkboxContainer-withDescription">
+                            <label>
+                                <input is="emby-checkbox" type="checkbox" id="limitShowsToSeasonOne" />
+                                <span>Only create Season 1 stubs for TV shows</span>
+                            </label>
+                        </div>
+                        <div class="checkboxContainer checkboxContainer-withDescription">
+                            <label>
+                                <input is="emby-checkbox" type="checkbox" id="alwaysRefreshRecommendations" />
+                                <span>Always refresh recommendations (replace existing stubs each sync instead of accumulating)</span>
+                            </label>
+                        </div>
+                        <div class="inputContainer" style="margin-top:10px">
+                            <input is="emby-input" type="number" id="tasteProfileRegenerationIntervalDays" min="0" max="365" label="Taste profile auto-regeneration interval (days, 0 = never)" />
+                            <div class="fieldDescription">The AI analyses your full watch history and writes a personal taste profile used to improve recommendations. Set to 0 to disable automatic regeneration.</div>
+                        </div>
+                        <button is="emby-button" type="button" id="btn-refresh-profiles" class="raised button-alt" style="margin-top:4px">Refresh All Taste Profiles Now</button>
+                        <div class="test-result" id="taste-profile-result"></div>
+                    </details>
 
                     <br />
                     <div>
@@ -714,6 +727,7 @@
                     document.getElementById('syncIntervalHours').value = config.SyncIntervalHours || 24;
                     document.getElementById('limitShowsToSeasonOne').checked = config.LimitShowsToSeasonOne !== false;
                     document.getElementById('alwaysRefreshRecommendations').checked = !!config.AlwaysRefreshRecommendations;
+                    document.getElementById('tasteProfileRegenerationIntervalDays').value = config.TasteProfileRegenerationIntervalDays !== undefined ? config.TasteProfileRegenerationIntervalDays : 7;
                     showProviderSection(config.ActiveProvider || 'OpenAI');
                     // Radarr
                     document.getElementById('radarrBaseUrl').value = config.RadarrBaseUrl || '';
@@ -823,6 +837,23 @@
                     document.getElementById('stubViewerPanel').style.display = 'none';
                 });
 
+                document.getElementById('btn-refresh-profiles').addEventListener('click', function () {
+                    var btn = document.getElementById('btn-refresh-profiles');
+                    var result = document.getElementById('taste-profile-result');
+                    btn.disabled = true;
+                    result.className = 'test-result loading';
+                    result.textContent = 'Generating taste profiles… this may take a minute.';
+                    apiPost('AIRecommendations/TasteProfile/Refresh', {}).then(function () {
+                        result.className = 'test-result ok';
+                        result.textContent = 'Taste profiles refreshed successfully.';
+                        btn.disabled = false;
+                    }).catch(function (err) {
+                        result.className = 'test-result err';
+                        result.textContent = 'Failed: ' + (err.message || String(err));
+                        btn.disabled = false;
+                    });
+                });
+
                 // Agent test panel
                 document.getElementById('btn-agent-send').addEventListener('click', sendAgentMessage);
                 document.getElementById('btn-agent-reset').addEventListener('click', resetAgentSession);
@@ -864,6 +895,7 @@
                     config.SonarrRootFolderPath = document.getElementById('sonarrRootFolderPath').value;
                     config.TelegramBotToken = document.getElementById('telegramBotToken').value;
                     config.TelegramDownloadPollIntervalMinutes = parseInt(document.getElementById('telegramDownloadPollIntervalMinutes').value, 10) || 15;
+                    config.TasteProfileRegenerationIntervalDays = parseInt(document.getElementById('tasteProfileRegenerationIntervalDays').value, 10) || 7;
                     ApiClient.updatePluginConfiguration(PLUGIN_ID, config).then(function () {
                         Dashboard.processPluginConfigurationUpdateResult();
                     });
