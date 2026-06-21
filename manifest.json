@@ -9,11 +9,11 @@
     "versions": [
       {
         "version": "1.0.81.0",
-        "changelog": "Build 1.0.81",
+        "changelog": "fix: sanitize LLM replies before sending to Telegram",
         "targetAbi": "10.11.9.0",
         "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.81/Jellyfin.Plugin.AIRecommendations.zip",
-        "checksum": "",
-        "timestamp": "2026-06-21T20:15:29Z"
+        "checksum": "1ae18ec1c8de9d2f51ea6d817d139f71",
+        "timestamp": "2026-06-21T20:15:38Z"
       },
       {
         "version": "1.0.80.0",
