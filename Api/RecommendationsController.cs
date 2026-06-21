@@ -25,19 +25,22 @@ public class RecommendationsController : ControllerBase
     private readonly ILibraryManager _libraryManager;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly TelegramBotService _telegramBot;
+    private readonly TelegramAgentLoop _telegramAgent;
 
     public RecommendationsController(
         RecommendationSyncService syncService,
         IUserManager userManager,
         ILibraryManager libraryManager,
         IHttpClientFactory httpClientFactory,
-        TelegramBotService telegramBot)
+        TelegramBotService telegramBot,
+        TelegramAgentLoop telegramAgent)
     {
         _syncService = syncService;
         _userManager = userManager;
         _libraryManager = libraryManager;
         _httpClientFactory = httpClientFactory;
         _telegramBot = telegramBot;
+        _telegramAgent = telegramAgent;
     }
 
     /// <summary>
@@ -56,7 +59,7 @@ public class RecommendationsController : ControllerBase
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> SyncAll(CancellationToken cancellationToken)
     {
-        await _syncService.SyncAllUsersAsync(null, cancellationToken).ConfigureAwait(false);
+        await _syncService.SyncAllUsersAsync(null, cancellationToken, force: true).ConfigureAwait(false);
         return NoContent();
     }
 
@@ -75,7 +78,7 @@ public class RecommendationsController : ControllerBase
             return NotFound();
         }
 
-        await _syncService.SyncUserAsync(user, cancellationToken).ConfigureAwait(false);
+        await _syncService.SyncUserAsync(user, cancellationToken, force: true).ConfigureAwait(false);
         return NoContent();
     }
 
@@ -230,6 +233,36 @@ public class RecommendationsController : ControllerBase
                 return;
             }
         }
+    }
+
+    // ── Telegram agent test ────────────────────────────────────────────────────
+
+    /// <summary>Sends a message to the agent and returns its reply. Maintains per-user session state.</summary>
+    [HttpPost("Telegram/TestAgent")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> TestAgent(
+        [FromBody] TestAgentRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (!Guid.TryParse(request.JellyfinUserId, out var userId)
+            || _userManager.GetUserById(userId) is null)
+            return NotFound(new { error = "Jellyfin user not found" });
+
+        var reply = await _telegramAgent
+            .TestAsync(request.JellyfinUserId, request.Message, cancellationToken)
+            .ConfigureAwait(false);
+
+        return Ok(new { reply });
+    }
+
+    /// <summary>Clears the test session for a user so the next message starts fresh.</summary>
+    [HttpDelete("Telegram/TestAgent/{userId}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public IActionResult ResetTestAgent([FromRoute] string userId)
+    {
+        _telegramAgent.ResetTestSession(userId);
+        return NoContent();
     }
 
     // ── Telegram link management ───────────────────────────────────────────────
@@ -564,4 +597,10 @@ public class TelegramLinkRequest
 {
     public string Code { get; set; } = string.Empty;
     public string JellyfinUserId { get; set; } = string.Empty;
+}
+
+public class TestAgentRequest
+{
+    public string JellyfinUserId { get; set; } = string.Empty;
+    public string Message { get; set; } = string.Empty;
 }

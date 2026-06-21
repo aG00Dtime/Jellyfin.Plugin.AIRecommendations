@@ -261,6 +261,24 @@
                         </table>
                     </div>
 
+                    <!-- Agent test panel -->
+                    <div style="margin-top:18px">
+                        <h4 style="margin-bottom:4px">Test Agent</h4>
+                        <p style="font-size:.82em;color:#888;margin:0 0 8px">Chat with the agent directly — no Telegram needed.</p>
+                        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-bottom:6px">
+                            <div class="selectContainer" style="flex:0 0 160px;margin:0">
+                                <label class="selectLabel" for="agentTestUserId">As user</label>
+                                <select is="emby-select" id="agentTestUserId" class="emby-select-withcolor"></select>
+                            </div>
+                            <div class="inputContainer" style="flex:1;min-width:180px;margin:0">
+                                <input is="emby-input" type="text" id="agentTestMessage" label="Message" />
+                            </div>
+                            <button is="emby-button" type="button" id="btn-agent-send" class="raised button-submit" style="margin-bottom:4px">Send</button>
+                            <button is="emby-button" type="button" id="btn-agent-reset" class="raised button-cancel" style="margin-bottom:4px" title="Clear conversation">Reset</button>
+                        </div>
+                        <div id="agent-chat-log" style="display:none;background:#0d0d0d;border:1px solid #2a2a2a;border-radius:4px;padding:10px;font-size:.84em;max-height:320px;overflow-y:auto"></div>
+                    </div>
+
                     <div class="inputContainer" style="margin-top:12px">
                         <input is="emby-input" type="number" id="telegramDownloadPollIntervalMinutes" min="5" max="120" label="Download status check interval (minutes)" />
                         <div class="fieldDescription">How often the bot checks Jellyseerr/Radarr/Sonarr for completed downloads (default 15).</div>
@@ -396,13 +414,65 @@
                     headers: { 'X-Emby-Token': token, 'X-MediaBrowser-Token': token }
                 }).then(function (r) { return r.json(); }).then(function (users) {
                     var sel = document.getElementById('telegramLinkUserId');
+                    var agentSel = document.getElementById('agentTestUserId');
                     sel.innerHTML = '';
+                    agentSel.innerHTML = '';
                     (users || []).forEach(function (u) {
                         var opt = document.createElement('option');
                         opt.value = u.Id;
                         opt.textContent = u.Name;
                         sel.appendChild(opt);
+                        agentSel.appendChild(opt.cloneNode(true));
                     });
+                }).catch(function () {});
+            }
+
+            function appendToChat(role, text) {
+                var log = document.getElementById('agent-chat-log');
+                log.style.display = 'block';
+                var div = document.createElement('div');
+                div.style.cssText = 'padding:6px 0;border-bottom:1px solid #1a1a1a';
+                div.innerHTML = '<span style="color:' + (role === 'user' ? '#7eb4db' : '#7edb7e') + ';font-weight:bold">' +
+                    (role === 'user' ? 'You' : 'Agent') + '</span>: <span style="color:#ccc">' +
+                    String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</span>';
+                log.appendChild(div);
+                log.scrollTop = log.scrollHeight;
+            }
+
+            function sendAgentMessage() {
+                var userId = document.getElementById('agentTestUserId').value;
+                var msgInput = document.getElementById('agentTestMessage');
+                var msg = (msgInput.value || '').trim();
+                if (!userId || !msg) return;
+                var btn = document.getElementById('btn-agent-send');
+                btn.disabled = true;
+                appendToChat('user', msg);
+                msgInput.value = '';
+                var token = ApiClient.accessToken();
+                fetch(ApiClient.getUrl('AIRecommendations/Telegram/TestAgent'), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-Emby-Token': token, 'X-MediaBrowser-Token': token },
+                    body: JSON.stringify({ JellyfinUserId: userId, Message: msg })
+                }).then(function (r) { return r.json(); }).then(function (data) {
+                    appendToChat('agent', data.reply || '(no reply)');
+                    btn.disabled = false;
+                }).catch(function (e) {
+                    appendToChat('agent', 'Error: ' + (e.message || String(e)));
+                    btn.disabled = false;
+                });
+            }
+
+            function resetAgentSession() {
+                var userId = document.getElementById('agentTestUserId').value;
+                if (!userId) return;
+                var token = ApiClient.accessToken();
+                fetch(ApiClient.getUrl('AIRecommendations/Telegram/TestAgent/' + userId), {
+                    method: 'DELETE',
+                    headers: { 'X-Emby-Token': token, 'X-MediaBrowser-Token': token }
+                }).then(function () {
+                    var log = document.getElementById('agent-chat-log');
+                    log.innerHTML = '';
+                    log.style.display = 'none';
                 }).catch(function () {});
             }
 
@@ -751,6 +821,13 @@
 
                 document.getElementById('btn-close-stubs').addEventListener('click', function () {
                     document.getElementById('stubViewerPanel').style.display = 'none';
+                });
+
+                // Agent test panel
+                document.getElementById('btn-agent-send').addEventListener('click', sendAgentMessage);
+                document.getElementById('btn-agent-reset').addEventListener('click', resetAgentSession);
+                document.getElementById('agentTestMessage').addEventListener('keydown', function (e) {
+                    if (e.key === 'Enter') sendAgentMessage();
                 });
             });
 
