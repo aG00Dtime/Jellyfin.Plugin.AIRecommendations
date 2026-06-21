@@ -8,20 +8,20 @@
     "category": "General",
     "versions": [
       {
+        "version": "1.0.73.0",
+        "changelog": "fix: promote tool call and request_media logs to INFO for visibility",
+        "targetAbi": "10.11.9.0",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.73/Jellyfin.Plugin.AIRecommendations.zip",
+        "checksum": "767f9e70b8551bf2ffb40bf7e192d2b1",
+        "timestamp": "2026-06-21T18:37:04Z"
+      },
+      {
         "version": "1.0.74.0",
         "changelog": "Build 1.0.74",
         "targetAbi": "10.11.9.0",
         "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.74/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "",
         "timestamp": "2026-06-21T18:37:03Z"
-      },
-      {
-        "version": "1.0.73.0",
-        "changelog": "Build 1.0.73",
-        "targetAbi": "10.11.9.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.73/Jellyfin.Plugin.AIRecommendations.zip",
-        "checksum": "",
-        "timestamp": "2026-06-21T18:36:55Z"
       },
       {
         "version": "1.0.72.0",
