@@ -277,4 +277,40 @@ public class LibraryFilterService
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
     }
+
+    public IReadOnlyList<LibrarySearchResult> SearchByTitle(User user, string query, int limit = 10)
+    {
+        var items = _libraryManager.GetItemList(new InternalItemsQuery(user)
+        {
+            IncludeItemTypes = [BaseItemKind.Movie, BaseItemKind.Series],
+            Recursive = true,
+            IsVirtualItem = false
+        });
+
+        return items
+            .Where(i => i.Name != null
+                && i.Name.Contains(query, StringComparison.OrdinalIgnoreCase))
+            .Take(limit)
+            .Select(i =>
+            {
+                i.TryGetProviderId(MediaBrowser.Model.Entities.MetadataProvider.Tmdb, out var tmdbIdStr);
+                _ = int.TryParse(tmdbIdStr, out var tmdbId);
+                return new LibrarySearchResult
+                {
+                    Title  = i.Name ?? string.Empty,
+                    Year   = i.ProductionYear,
+                    Type   = i is MediaBrowser.Controller.Entities.TV.Series ? "tv" : "movie",
+                    TmdbId = tmdbId > 0 ? tmdbId : null
+                };
+            })
+            .ToList();
+    }
+}
+
+public sealed class LibrarySearchResult
+{
+    public string Title  { get; init; } = string.Empty;
+    public int?   Year   { get; init; }
+    public string Type   { get; init; } = "movie";
+    public int?   TmdbId { get; init; }
 }

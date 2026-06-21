@@ -239,6 +239,76 @@ public class TmdbMetadataService
         return results;
     }
 
+    /// <summary>
+    /// Searches TMDB across movies AND TV simultaneously using the multi-search endpoint.
+    /// Returns up to <paramref name="limit"/> results, optionally sorted so the preferred type comes first.
+    /// </summary>
+    public async Task<IReadOnlyList<TmdbCandidate>> SearchMultiAsync(
+        string query,
+        string? preferType,
+        int? year,
+        int limit,
+        CancellationToken cancellationToken)
+    {
+        var config = Plugin.Instance?.Configuration;
+        if (config is null || string.IsNullOrWhiteSpace(config.TmdbApiKey))
+            return Array.Empty<TmdbCandidate>();
+
+        var q = Uri.EscapeDataString(query);
+        var url = $"https://api.themoviedb.org/3/search/multi?api_key={config.TmdbApiKey}" +
+                  $"&query={q}&include_adult={config.IncludeAdult.ToString().ToLowerInvariant()}";
+
+        var client = _httpClientFactory.CreateClient(nameof(TmdbMetadataService));
+        using var response = await client.GetAsync(new Uri(url), cancellationToken).ConfigureAwait(false);
+        if (!response.IsSuccessStatusCode) return Array.Empty<TmdbCandidate>();
+
+        var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+        using var doc = JsonDocument.Parse(json);
+        if (!doc.RootElement.TryGetProperty("results", out var results))
+            return Array.Empty<TmdbCandidate>();
+
+        var list = new List<TmdbCandidate>();
+        foreach (var item in results.EnumerateArray())
+        {
+            if (!item.TryGetProperty("media_type", out var mt)) continue;
+            var mediaType = mt.GetString();
+            if (mediaType != "movie" && mediaType != "tv") continue;
+
+            var isMovie = mediaType == "movie";
+            var title = isMovie
+                ? (item.TryGetProperty("title",    out var t) ? t.GetString() : null)
+                : (item.TryGetProperty("name",     out var n) ? n.GetString() : null);
+            if (string.IsNullOrWhiteSpace(title)) continue;
+
+            var resultYear = isMovie
+                ? ParseYear(item, "release_date")
+                : ParseYear(item, "first_air_date");
+
+            // If year specified, skip results more than 1 year off
+            if (year.HasValue && resultYear.HasValue && Math.Abs(resultYear.Value - year.Value) > 1)
+                continue;
+
+            list.Add(new TmdbCandidate
+            {
+                TmdbId   = item.GetProperty("id").GetInt32(),
+                Title    = title,
+                Year     = resultYear,
+                IsSeries = !isMovie,
+                Overview = item.TryGetProperty("overview", out var ov) ? ov.GetString() : null
+            });
+        }
+
+        // Sort preferred type first, then by position (TMDB already ranks by relevance)
+        if (!string.IsNullOrEmpty(preferType))
+        {
+            var preferSeries = preferType.Equals("tv", StringComparison.OrdinalIgnoreCase)
+                            || preferType.Equals("series", StringComparison.OrdinalIgnoreCase);
+            list = [.. list.OrderBy(r => r.IsSeries == preferSeries ? 0 : 1)];
+        }
+
+        return list.Take(limit).ToList();
+    }
+
     private static int? ParseYear(JsonElement element, string property)
     {
         if (!element.TryGetProperty(property, out var dateProp))

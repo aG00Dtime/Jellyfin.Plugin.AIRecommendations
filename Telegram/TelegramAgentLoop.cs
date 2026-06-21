@@ -211,6 +211,7 @@ public sealed class TelegramAgentLoop
         return toolName switch
         {
             "search_content"    => await SearchContentAsync(args, ct).ConfigureAwait(false),
+            "search_library"    => SearchLibrary(args, user),
             "discover_content"  => await DiscoverContentAsync(args, user, ct).ConfigureAwait(false),
             "request_media"     => await RequestMediaAsync(args, jellyfinUserId, ct).ConfigureAwait(false),
             "check_status"      => await CheckStatusAsync(args, ct).ConfigureAwait(false),
@@ -222,25 +223,49 @@ public sealed class TelegramAgentLoop
     private async Task<string> SearchContentAsync(JsonElement args, CancellationToken ct)
     {
         var query = args.TryGetProperty("query", out var q) ? q.GetString() ?? "" : "";
-        var type  = args.TryGetProperty("type",  out var t) ? t.GetString() ?? "movie" : "movie";
+        var type  = args.TryGetProperty("type",  out var t) ? t.GetString() : null; // null = search both
         var year  = args.TryGetProperty("year",  out var y) && y.TryGetInt32(out var yr) ? (int?)yr : null;
 
-        var item = new LlmRecommendationItem { Title = query, Year = year, Type = type };
-        var result = await _tmdb.ResolveAsync(item, ct).ConfigureAwait(false);
+        var results = await _tmdb.SearchMultiAsync(query, type, year, 5, ct).ConfigureAwait(false);
 
-        if (result is null)
-            return JsonSerializer.Serialize(new { found = false, message = $"No TMDB result for '{query}'" });
+        if (results.Count == 0)
+            return JsonSerializer.Serialize(new { found = false, message = $"No TMDB results for '{query}'" });
 
-        var inLibrary = _libraryFilter.GetOwnedTmdbIds().Contains(result.TmdbId);
+        var ownedIds = _libraryFilter.GetOwnedTmdbIds();
+        var matches = results.Select(r => new
+        {
+            tmdb_id    = r.TmdbId,
+            title      = r.Title,
+            year       = r.Year,
+            type       = r.IsSeries ? "tv" : "movie",
+            overview   = r.Overview,
+            in_library = ownedIds.Contains(r.TmdbId)
+        }).ToList();
+
+        return JsonSerializer.Serialize(new { found = true, results = matches });
+    }
+
+    private string SearchLibrary(JsonElement args, User user)
+    {
+        var query = args.TryGetProperty("query", out var q) ? q.GetString() ?? "" : "";
+        if (string.IsNullOrWhiteSpace(query))
+            return JsonSerializer.Serialize(new { error = "query is required" });
+
+        var results = _libraryFilter.SearchByTitle(user, query);
+        if (results.Count == 0)
+            return JsonSerializer.Serialize(new { found = false, message = $"Nothing in the library matching '{query}'" });
+
         return JsonSerializer.Serialize(new
         {
             found = true,
-            tmdb_id = result.TmdbId,
-            title = result.Title,
-            year = result.Year,
-            type = result.IsSeries ? "tv" : "movie",
-            overview = result.Overview,
-            in_library = inLibrary
+            count = results.Count,
+            results = results.Select(r => new
+            {
+                title   = r.Title,
+                year    = r.Year,
+                type    = r.Type,
+                tmdb_id = r.TmdbId
+            })
         });
     }
 
@@ -485,8 +510,9 @@ USER TASTE PROFILE:
 DOWNLOAD SERVICES: {serviceList}
 
 TOOLS:
+- search_library: search the user's actual Jellyfin library by title — use this when they ask what's in their library or if a specific title is there
 - discover_content: browse TMDB by genre/type — fast, use this for any "recommend me" request
-- search_content: find a specific title on TMDB to get its verified TMDB ID
+- search_content: find a specific title on TMDB (searches movies + TV simultaneously) to get its verified TMDB ID
 - request_media: submit a download request to Jellyseerr/Radarr/Sonarr
 - check_status: check if something is already downloaded or queued
 - sync_to_jellyfin: refresh the AI recommendation stubs in the user's Jellyfin library (only if they ask)
@@ -586,6 +612,24 @@ RULES:
             type = "function",
             function = new
             {
+                name = "search_library",
+                description = "Search the user's Jellyfin library by title. Use this when they ask what's in their library, whether a specific title is available, or to browse what they already have.",
+                parameters = new
+                {
+                    type = "object",
+                    properties = new Dictionary<string, object>
+                    {
+                        ["query"] = new { type = "string", description = "Title or partial title to search for" }
+                    },
+                    required = new[] { "query" }
+                }
+            }
+        },
+        new
+        {
+            type = "function",
+            function = new
+            {
                 name = "discover_content",
                 description = "Browse TMDB for popular movies or TV shows matching given genres. Use this for any 'recommend me' or 'what should I watch' request. Fast — no extra AI call needed.",
                 parameters = new
@@ -607,17 +651,17 @@ RULES:
             function = new
             {
                 name = "search_content",
-                description = "Search TMDB for a specific movie or TV show by title to get its verified TMDB ID. Always call this before request_media.",
+                description = "Search TMDB for a specific movie or TV show by title. Searches both movies and TV simultaneously — omit type if unsure. Returns up to 5 matches with in_library flag. Always call this before request_media.",
                 parameters = new
                 {
                     type = "object",
                     properties = new Dictionary<string, object>
                     {
                         ["query"] = new { type = "string", description = "Title to search for" },
-                        ["type"]  = new { type = "string", @enum = new[] { "movie", "tv" }, description = "Movie or TV show" },
+                        ["type"]  = new { type = "string", @enum = new[] { "movie", "tv" }, description = "Optional — omit to search both movies and TV at once" },
                         ["year"]  = new { type = "integer", description = "Optional release year to narrow results" }
                     },
-                    required = new[] { "query", "type" }
+                    required = new[] { "query" }
                 }
             }
         },
@@ -687,6 +731,11 @@ RULES:
             var args = doc.RootElement;
             return toolName switch
             {
+                "search_library" =>
+                    args.TryGetProperty("query", out var lq) && lq.GetString() is { Length: > 0 } ltitle
+                        ? $"📚 Searching library for <b>{EscapeHtml(ltitle)}</b>..."
+                        : "📚 Searching your library...",
+
                 "search_content" =>
                     args.TryGetProperty("query", out var q) && q.GetString() is { Length: > 0 } title
                         ? $"🔍 Searching for <b>{EscapeHtml(title)}</b>..."
