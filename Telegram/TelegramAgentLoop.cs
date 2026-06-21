@@ -26,6 +26,7 @@ public sealed class TelegramAgentLoop
     private readonly ArrRequestService _arr;
     private readonly RecommendationSyncService _syncService;
     private readonly WatchHistoryService _watchHistory;
+    private readonly LibraryFilterService _libraryFilter;
     private readonly IUserManager _userManager;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly ILogger<TelegramAgentLoop> _logger;
@@ -39,6 +40,7 @@ public sealed class TelegramAgentLoop
         ArrRequestService arr,
         RecommendationSyncService syncService,
         WatchHistoryService watchHistory,
+        LibraryFilterService libraryFilter,
         IUserManager userManager,
         IHttpClientFactory httpClientFactory,
         ILogger<TelegramAgentLoop> logger)
@@ -48,6 +50,7 @@ public sealed class TelegramAgentLoop
         _arr = arr;
         _syncService = syncService;
         _watchHistory = watchHistory;
+        _libraryFilter = libraryFilter;
         _userManager = userManager;
         _httpClientFactory = httpClientFactory;
         _logger = logger;
@@ -375,6 +378,10 @@ public sealed class TelegramAgentLoop
         var isSeries = type == "tv" || type == "series";
         var config   = Plugin.Instance!.Configuration;
         var statuses = new List<string>();
+
+        // Check Jellyfin library first — this is the only ground-truth signal that something is watchable
+        var ownedIds = _libraryFilter.GetOwnedTmdbIds();
+        statuses.Add(ownedIds.Contains(tmdbId) ? "Jellyfin: available to watch now" : "Jellyfin: not in library");
 
         if (!string.IsNullOrWhiteSpace(config.JellyseerrBaseUrl))
         {
