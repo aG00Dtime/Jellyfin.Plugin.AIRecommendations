@@ -235,26 +235,97 @@ Each recommendation is a folder containing a `.strm` file and a `.nfo` file. Jel
 The Telegram agent is a tool-calling loop implemented as a lightweight harness around any OpenAI-compatible chat completions endpoint. It does not use the Anthropic API or any agent SDK — it's a plain while-loop that dispatches tool calls to existing plugin services.
 
 ```
-User message
+User sends Telegram message
+          │
+          ▼
+TelegramBotService.HandleUpdateAsync()
   │
-  ▼
-TelegramBotService (polling loop)
-  │  looks up linked Jellyfin user
-  │  manages session history
-  │  sends "typing..." indicator every 4s
+  ├─ /link /unlink /reset /profile → handle directly, return
   │
-  ▼
-TelegramAgentLoop.RunAsync()
+  ├─ not linked → "Send /link to get started"
   │
-  ├─ Build system prompt (taste profile + service list + rules)
-  ├─ Append user message to history
-  │
-  └─ while (round < 5):
-       POST /chat/completions with system + history + tool defs
+  └─ linked user found
        │
-       ├─ tool_calls → execute tools → append results → continue loop
+       ├─ Start typing indicator loop (every 4 s)
+       ├─ Start 90 s turn timeout (turnCts)
        │
-       └─ content → sanitize HTML → return to user
+       ▼
+  TelegramAgentLoop.RunAsync()
+       │
+       ├─ Build system prompt (taste profile + services + rules)
+       ├─ Append user message → history
+       │
+       └─ for round in 0..4 (MaxToolRounds = 5):
+              │
+              ▼
+         POST /chat/completions
+         (system + history + 7 tool defs, temp=0.5)
+         80 s HTTP timeout per call
+              │
+              ├─ OperationCanceledException → re-throw
+              │   (turn timeout or shutdown — caller handles it)
+              │
+              ├─ HttpRequestException → log status + body
+              │   → "I had trouble reaching the AI provider"
+              │
+              └─ 200 OK
+                   │
+                   ├─ tool_calls present
+                   │    │
+                   │    ├─ Append assistant msg (with tool_calls) → history
+                   │    │
+                   │    └─ for each tool call:
+                   │         │
+                   │         ├─ Send status message to Telegram
+                   │         │   ("🔍 Searching for X...", "📤 Requesting Y...")
+                   │         │
+                   │         ├─ ExecuteToolAsync(name, args)
+                   │         │    ├─ search_library         → LibraryFilterService.SearchByTitle
+                   │         │    ├─ search_content         → TmdbMetadataService.SearchMultiAsync
+                   │         │    ├─ discover_content       → TmdbMetadataService.DiscoverAsync
+                   │         │    │                           (post-filter owned IDs)
+                   │         │    ├─ request_media          → GetMovieAvailabilityAsync (movies)
+                   │         │    │                           → JellyseerrService (primary)
+                   │         │    │                           → ArrRequestService (fallback)
+                   │         │    │                           → add to RequestedTmdbIds
+                   │         │    ├─ check_status           → Jellyfin + Jellyseerr + Radarr/Sonarr
+                   │         │    ├─ sync_to_jellyfin       → RecommendationSyncService.SyncUserAsync
+                   │         │    └─ refresh_taste_profile  → TasteProfileService.ForceRefreshAsync
+                   │         │
+                   │         └─ Append tool result → history
+                   │
+                   │    → continue to next round
+                   │
+                   └─ content (no tool calls)
+                        │
+                        ├─ Append assistant reply → history
+                        └─ return reply text
+                             │
+                             ▼
+                    SanitizeTelegramHtml()
+                      ├─ semantic tags  → <b> <i>
+                      ├─ block tags     → \n
+                      ├─ strip disallowed tags / attributes
+                      └─ CloseDanglingTags() (stack-based balancer)
+                             │
+                             ▼
+                    SendMessageAsync() → Telegram API
+                    Cancel typing indicator
+                    Trim history → 20 messages max
+
+  ── timeout path ──────────────────────────────────────────────
+  turnCts fires after 90 s
+       │
+       └─ OperationCanceledException propagates out of RunAsync
+            │
+            └─ HandleUpdateAsync catches it
+                 → "The AI took too long to respond — please try again."
+
+  ── session state (in-memory, per chat) ───────────────────────
+  ConversationSession
+    ├─ JellyfinUserId
+    ├─ History [ ConversationMessage, ... ]  ← capped at 20, lost on restart
+    └─ LastActivity                          ← evicted after 60 min idle
 ```
 
 ### Session management
