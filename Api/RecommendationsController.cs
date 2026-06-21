@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json;
 using Jellyfin.Plugin.AIRecommendations.Models;
 using Jellyfin.Plugin.AIRecommendations.Services;
+using Jellyfin.Plugin.AIRecommendations.Telegram;
 using MediaBrowser.Controller.Library;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -23,17 +24,20 @@ public class RecommendationsController : ControllerBase
     private readonly IUserManager _userManager;
     private readonly ILibraryManager _libraryManager;
     private readonly IHttpClientFactory _httpClientFactory;
+    private readonly TelegramBotService _telegramBot;
 
     public RecommendationsController(
         RecommendationSyncService syncService,
         IUserManager userManager,
         ILibraryManager libraryManager,
-        IHttpClientFactory httpClientFactory)
+        IHttpClientFactory httpClientFactory,
+        TelegramBotService telegramBot)
     {
         _syncService = syncService;
         _userManager = userManager;
         _libraryManager = libraryManager;
         _httpClientFactory = httpClientFactory;
+        _telegramBot = telegramBot;
     }
 
     /// <summary>
@@ -228,6 +232,175 @@ public class RecommendationsController : ControllerBase
         }
     }
 
+    // ── Telegram link management ───────────────────────────────────────────────
+
+    /// <summary>
+    /// Links a Telegram chat to a Jellyfin user via a one-time code generated
+    /// by the bot's /link command.
+    /// </summary>
+    [HttpPost("Telegram/Link")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public IActionResult LinkTelegramAccount([FromBody] TelegramLinkRequest request)
+    {
+        var pending = _telegramBot.ConsumePendingCode(request.Code?.Trim() ?? string.Empty);
+        if (pending is null)
+            return BadRequest(new { error = "Invalid or expired code. Have the user send /link to the bot again." });
+
+        var config = Plugin.Instance!.Configuration;
+        config.TelegramUserLinks.RemoveAll(l => l.ChatId == pending.ChatId
+                                              || l.JellyfinUserId == request.JellyfinUserId);
+        config.TelegramUserLinks.Add(new TelegramUserLink
+        {
+            ChatId          = pending.ChatId,
+            JellyfinUserId  = request.JellyfinUserId,
+            TelegramUsername= pending.Username,
+            LinkedAt        = DateTime.UtcNow
+        });
+        Plugin.Instance!.SaveConfiguration();
+
+        // Confirm in Telegram
+        _ = _telegramBot.SendMessageAsync(
+            pending.ChatId,
+            "✅ Linked to Jellyfin! Ask me what to watch.",
+            CancellationToken.None);
+
+        return Ok(new { message = $"Linked chat {pending.ChatId} to Jellyfin user {request.JellyfinUserId}" });
+    }
+
+    /// <summary>Returns all linked Telegram accounts (for the admin UI).</summary>
+    [HttpGet("Telegram/Links")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public ActionResult<IEnumerable<object>> GetTelegramLinks()
+    {
+        var config = Plugin.Instance!.Configuration;
+        return Ok(config.TelegramUserLinks.Select(l =>
+        {
+            var user = _userManager.GetUserById(Guid.TryParse(l.JellyfinUserId, out var uid) ? uid : Guid.Empty);
+            return new
+            {
+                l.ChatId,
+                l.JellyfinUserId,
+                Username         = user?.Username ?? l.JellyfinUserId,
+                l.TelegramUsername,
+                l.LinkedAt,
+                NotifiedCount    = l.NotifiedAvailableTmdbIds.Count
+            };
+        }));
+    }
+
+    /// <summary>Unlinks a Telegram account by chat ID.</summary>
+    [HttpDelete("Telegram/Links/{chatId:long}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public IActionResult UnlinkTelegramAccount([FromRoute] long chatId)
+    {
+        var config = Plugin.Instance!.Configuration;
+        config.TelegramUserLinks.RemoveAll(l => l.ChatId == chatId);
+        Plugin.Instance!.SaveConfiguration();
+        return NoContent();
+    }
+
+    // ── Arr profile helpers ────────────────────────────────────────────────────
+
+    /// <summary>Returns available quality profiles from Radarr or Sonarr (for the config UI dropdowns).</summary>
+    [HttpGet("ArrProfiles")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public async Task<ActionResult<IEnumerable<object>>> GetArrProfiles(
+        [FromQuery] string service,
+        CancellationToken cancellationToken)
+    {
+        var config = Plugin.Instance!.Configuration;
+        string baseUrl, apiKey;
+
+        if (service.Equals("Radarr", StringComparison.OrdinalIgnoreCase))
+        {
+            baseUrl = config.RadarrBaseUrl.TrimEnd('/');
+            apiKey  = config.RadarrApiKey;
+        }
+        else if (service.Equals("Sonarr", StringComparison.OrdinalIgnoreCase))
+        {
+            baseUrl = config.SonarrBaseUrl.TrimEnd('/');
+            apiKey  = config.SonarrApiKey;
+        }
+        else
+        {
+            return BadRequest(new { error = "service must be Radarr or Sonarr" });
+        }
+
+        if (string.IsNullOrWhiteSpace(baseUrl))
+            return BadRequest(new { error = $"{service} base URL is not configured" });
+
+        try
+        {
+            var client = _httpClientFactory.CreateClient("ProviderTest");
+            using var req = new HttpRequestMessage(HttpMethod.Get, $"{baseUrl}/api/v3/qualityprofile");
+            req.Headers.Add("X-Api-Key", apiKey);
+            using var resp = await client.SendAsync(req, cancellationToken).ConfigureAwait(false);
+            resp.EnsureSuccessStatusCode();
+            var json = await resp.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+            using var doc = JsonDocument.Parse(json);
+            var profiles = doc.RootElement.EnumerateArray().Select(p => new
+            {
+                id   = p.GetProperty("id").GetInt32(),
+                name = p.TryGetProperty("name", out var n) ? n.GetString() : null
+            }).ToList();
+            return Ok(profiles);
+        }
+        catch (Exception ex)
+        {
+            return Ok(new[] { new { id = 0, name = $"Error: {ex.Message}" } });
+        }
+    }
+
+    /// <summary>Returns root folders from Radarr or Sonarr.</summary>
+    [HttpGet("ArrRootFolders")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public async Task<ActionResult<IEnumerable<object>>> GetArrRootFolders(
+        [FromQuery] string service,
+        CancellationToken cancellationToken)
+    {
+        var config = Plugin.Instance!.Configuration;
+        string baseUrl, apiKey;
+
+        if (service.Equals("Radarr", StringComparison.OrdinalIgnoreCase))
+        {
+            baseUrl = config.RadarrBaseUrl.TrimEnd('/');
+            apiKey  = config.RadarrApiKey;
+        }
+        else if (service.Equals("Sonarr", StringComparison.OrdinalIgnoreCase))
+        {
+            baseUrl = config.SonarrBaseUrl.TrimEnd('/');
+            apiKey  = config.SonarrApiKey;
+        }
+        else
+        {
+            return BadRequest(new { error = "service must be Radarr or Sonarr" });
+        }
+
+        if (string.IsNullOrWhiteSpace(baseUrl))
+            return BadRequest(new { error = $"{service} base URL is not configured" });
+
+        try
+        {
+            var client = _httpClientFactory.CreateClient("ProviderTest");
+            using var req = new HttpRequestMessage(HttpMethod.Get, $"{baseUrl}/api/v3/rootfolder");
+            req.Headers.Add("X-Api-Key", apiKey);
+            using var resp = await client.SendAsync(req, cancellationToken).ConfigureAwait(false);
+            resp.EnsureSuccessStatusCode();
+            var json = await resp.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+            using var doc = JsonDocument.Parse(json);
+            var folders = doc.RootElement.EnumerateArray().Select(f => new
+            {
+                path = f.TryGetProperty("path", out var p) ? p.GetString() : null
+            }).ToList();
+            return Ok(folders);
+        }
+        catch (Exception ex)
+        {
+            return Ok(new[] { new { path = $"Error: {ex.Message}" } });
+        }
+    }
+
     /// <summary>
     /// Tests connectivity for a given provider using supplied credentials.
     /// </summary>
@@ -294,6 +467,49 @@ public class RecommendationsController : ControllerBase
                     .ConfigureAwait(false);
             }
 
+            case "Telegram":
+            {
+                var token = req.ApiKey;
+                if (string.IsNullOrWhiteSpace(token))
+                    throw new InvalidOperationException("Bot token is required.");
+                using var tgReq = new HttpRequestMessage(
+                    HttpMethod.Get, $"https://api.telegram.org/bot{token}/getMe");
+                using var tgResp = await client.SendAsync(tgReq, cancellationToken).ConfigureAwait(false);
+                tgResp.EnsureSuccessStatusCode();
+                var body = await tgResp.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+                using var doc = System.Text.Json.JsonDocument.Parse(body);
+                var botUsername = doc.RootElement.TryGetProperty("result", out var r)
+                    && r.TryGetProperty("username", out var un)
+                    ? un.GetString() : "bot";
+                return $"Connected as @{botUsername}";
+            }
+
+            case "Radarr":
+            {
+                var baseUrl = req.BaseUrl.TrimEnd('/');
+                using var arrReq = new HttpRequestMessage(HttpMethod.Get, $"{baseUrl}/api/v3/system/status");
+                arrReq.Headers.Add("X-Api-Key", req.ApiKey);
+                using var arrResp = await client.SendAsync(arrReq, cancellationToken).ConfigureAwait(false);
+                arrResp.EnsureSuccessStatusCode();
+                var body = await arrResp.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+                using var doc = System.Text.Json.JsonDocument.Parse(body);
+                var version = doc.RootElement.TryGetProperty("version", out var v) ? v.GetString() : "?";
+                return $"Connected to Radarr v{version}";
+            }
+
+            case "Sonarr":
+            {
+                var baseUrl = req.BaseUrl.TrimEnd('/');
+                using var arrReq = new HttpRequestMessage(HttpMethod.Get, $"{baseUrl}/api/v3/system/status");
+                arrReq.Headers.Add("X-Api-Key", req.ApiKey);
+                using var arrResp = await client.SendAsync(arrReq, cancellationToken).ConfigureAwait(false);
+                arrResp.EnsureSuccessStatusCode();
+                var body = await arrResp.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+                using var doc = System.Text.Json.JsonDocument.Parse(body);
+                var version = doc.RootElement.TryGetProperty("version", out var v) ? v.GetString() : "?";
+                return $"Connected to Sonarr v{version}";
+            }
+
             default: // OpenAI
             {
                 var baseUrl = string.IsNullOrWhiteSpace(req.BaseUrl)
@@ -342,4 +558,10 @@ public class TestProviderResult
 {
     public bool Success { get; set; }
     public string Message { get; set; } = string.Empty;
+}
+
+public class TelegramLinkRequest
+{
+    public string Code { get; set; } = string.Empty;
+    public string JellyfinUserId { get; set; } = string.Empty;
 }

@@ -12,10 +12,15 @@ namespace Jellyfin.Plugin.AIRecommendations.Services;
 /// </summary>
 internal sealed class NtfyNotifierSuppressor : IDisposable
 {
+    // Try several known property names used across different Ntfy plugin versions
     private static readonly string[] NotificationFlags =
     [
         "EnableMovieNotifications",
-        "EnableSeriesNotifications"
+        "EnableSeriesNotifications",
+        "NotifyOnMovieAdd",
+        "NotifyOnSeriesAdd",
+        "MovieAdded",
+        "SeriesAdded"
     ];
 
     private readonly object? _ntfyConfig;
@@ -104,12 +109,17 @@ internal sealed class NtfyNotifierSuppressor : IDisposable
                 })
                 .FirstOrDefault(t =>
                     t.Name == "Plugin"
-                    && t.Namespace?.Contains("NtfyNotifier", StringComparison.Ordinal) == true);
+                    && t.Namespace?.IndexOf("Ntfy", StringComparison.OrdinalIgnoreCase) >= 0);
 
             if (ntfyPluginType is null)
             {
+                logger.LogDebug("NtfyNotifierSuppressor: no Ntfy plugin found in loaded assemblies");
                 return null;
             }
+
+            logger.LogDebug(
+                "NtfyNotifierSuppressor: found Ntfy plugin type {Type}",
+                ntfyPluginType.FullName);
 
             // BasePlugin<TConfiguration> exposes a static Instance property
             var instanceProp = ntfyPluginType.GetProperty(
