@@ -53,7 +53,7 @@ jobs:
 
     - name: Update .csproj version
       run: |
-        VERSION=${{ steps.version.outputs.version }}
+        VERSION="${{ steps.version.outputs.version }}"
         sed -i "s/<AssemblyVersion>.*<\/AssemblyVersion>/<AssemblyVersion>$VERSION.0<\/AssemblyVersion>/" Jellyfin.Plugin.AIRecommendations.csproj
         sed -i "s/<FileVersion>.*<\/FileVersion>/<FileVersion>$VERSION.0<\/FileVersion>/" Jellyfin.Plugin.AIRecommendations.csproj
 
@@ -65,9 +65,9 @@ jobs:
 
     - name: Create ZIP with meta.json
       run: |
-        VERSION=${{ steps.version.outputs.version }}
-        TARGET_ABI=${{ steps.meta.outputs.targetAbi }}
-        TIMESTAMP=${{ steps.meta.outputs.timestamp }}
+        VERSION="${{ steps.version.outputs.version }}"
+        TARGET_ABI="${{ steps.meta.outputs.targetAbi }}"
+        TIMESTAMP="${{ steps.meta.outputs.timestamp }}"
 
         cat > bin/Release/net9.0/meta.json << EOF
         {
@@ -119,11 +119,11 @@ jobs:
 
     - name: Update manifest on main and push
       run: |
-        VERSION=${{ steps.version.outputs.version }}
-        CHECKSUM=${{ steps.checksum.outputs.checksum }}
-        TARGET_ABI=${{ steps.meta.outputs.targetAbi }}
-        TIMESTAMP=${{ steps.meta.outputs.timestamp }}
-        CHANGELOG=${{ steps.meta.outputs.changelog }}
+        VERSION="${{ steps.version.outputs.version }}"
+        CHECKSUM="${{ steps.checksum.outputs.checksum }}"
+        TARGET_ABI="${{ steps.meta.outputs.targetAbi }}"
+        TIMESTAMP="${{ steps.meta.outputs.timestamp }}"
+        CHANGELOG="${{ steps.meta.outputs.changelog }}"
 
         git config user.name "github-actions[bot]"
         git config user.email "github-actions[bot]@users.noreply.github.com"
