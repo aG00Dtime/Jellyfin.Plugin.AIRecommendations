@@ -27,6 +27,7 @@ public sealed class TelegramAgentLoop
     private readonly RecommendationSyncService _syncService;
     private readonly WatchHistoryService _watchHistory;
     private readonly LibraryFilterService _libraryFilter;
+    private readonly TasteProfileService _tasteProfile;
     private readonly IUserManager _userManager;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly ILogger<TelegramAgentLoop> _logger;
@@ -41,6 +42,7 @@ public sealed class TelegramAgentLoop
         RecommendationSyncService syncService,
         WatchHistoryService watchHistory,
         LibraryFilterService libraryFilter,
+        TasteProfileService tasteProfile,
         IUserManager userManager,
         IHttpClientFactory httpClientFactory,
         ILogger<TelegramAgentLoop> logger)
@@ -51,6 +53,7 @@ public sealed class TelegramAgentLoop
         _syncService = syncService;
         _watchHistory = watchHistory;
         _libraryFilter = libraryFilter;
+        _tasteProfile = tasteProfile;
         _userManager = userManager;
         _httpClientFactory = httpClientFactory;
         _logger = logger;
@@ -210,12 +213,13 @@ public sealed class TelegramAgentLoop
 
         return toolName switch
         {
-            "search_content"    => await SearchContentAsync(args, ct).ConfigureAwait(false),
-            "search_library"    => SearchLibrary(args, user),
-            "discover_content"  => await DiscoverContentAsync(args, user, ct).ConfigureAwait(false),
-            "request_media"     => await RequestMediaAsync(args, jellyfinUserId, ct).ConfigureAwait(false),
-            "check_status"      => await CheckStatusAsync(args, ct).ConfigureAwait(false),
-            "sync_to_jellyfin"  => await SyncToJellyfinAsync(user, ct).ConfigureAwait(false),
+            "search_content"          => await SearchContentAsync(args, ct).ConfigureAwait(false),
+            "search_library"          => SearchLibrary(args, user),
+            "discover_content"        => await DiscoverContentAsync(args, user, ct).ConfigureAwait(false),
+            "request_media"           => await RequestMediaAsync(args, jellyfinUserId, ct).ConfigureAwait(false),
+            "check_status"            => await CheckStatusAsync(args, ct).ConfigureAwait(false),
+            "sync_to_jellyfin"        => await SyncToJellyfinAsync(user, ct).ConfigureAwait(false),
+            "refresh_taste_profile"   => await RefreshTasteProfileAsync(user, ct).ConfigureAwait(false),
             _ => JsonSerializer.Serialize(new { error = $"Unknown tool: {toolName}" })
         };
     }
@@ -338,6 +342,36 @@ public sealed class TelegramAgentLoop
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "TelegramAgentLoop: sync_to_jellyfin failed for {User}", user.Username);
+            return JsonSerializer.Serialize(new { success = false, error = ex.Message });
+        }
+    }
+
+    private async Task<string> RefreshTasteProfileAsync(User user, CancellationToken ct)
+    {
+        var config = Plugin.Instance!.Configuration;
+        var reg = config.UserLibraries.FirstOrDefault(r => r.UserId == user.Id.ToString("N"));
+        if (reg is null)
+            return JsonSerializer.Serialize(new { success = false, error = "No library registration found for this user." });
+
+        try
+        {
+            await _tasteProfile.ForceRefreshAsync(user, reg, config, ct).ConfigureAwait(false);
+            Plugin.Instance!.SaveConfiguration();
+
+            var preview = reg.TasteProfileText is { Length: > 0 }
+                ? reg.TasteProfileText[..Math.Min(200, reg.TasteProfileText.Length)] + "..."
+                : "(empty)";
+
+            return JsonSerializer.Serialize(new
+            {
+                success = true,
+                message = "Taste profile regenerated.",
+                profile_preview = preview
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "TelegramAgentLoop: refresh_taste_profile failed for {User}", user.Username);
             return JsonSerializer.Serialize(new { success = false, error = ex.Message });
         }
     }
@@ -516,6 +550,7 @@ TOOLS:
 - request_media: submit a download request to Jellyseerr/Radarr/Sonarr
 - check_status: check if something is already downloaded or queued
 - sync_to_jellyfin: refresh the AI recommendation stubs in the user's Jellyfin library (only if they ask)
+- refresh_taste_profile: regenerate the user's taste profile from their watch history (only if they ask)
 
 RULES:
 1. For any "recommend", "what should I watch", or "find me something" request, call discover_content with count=5 — do not suggest titles from memory.
@@ -718,6 +753,21 @@ RULES:
                     required = Array.Empty<string>()
                 }
             }
+        },
+        new
+        {
+            type = "function",
+            function = new
+            {
+                name = "refresh_taste_profile",
+                description = "Regenerate the user's taste profile from their watch history. Only call this when the user explicitly asks to refresh or update their taste profile.",
+                parameters = new
+                {
+                    type = "object",
+                    properties = new Dictionary<string, object>(),
+                    required = Array.Empty<string>()
+                }
+            }
         }
     ];
 
@@ -758,6 +808,8 @@ RULES:
                         : "📊 Checking download status...",
 
                 "sync_to_jellyfin" => "🔄 Syncing your Jellyfin library...",
+
+                "refresh_taste_profile" => "🧠 Regenerating your taste profile from watch history...",
 
                 _ => null
             };
