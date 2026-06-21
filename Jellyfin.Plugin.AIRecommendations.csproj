@@ -4,8 +4,8 @@
     <TargetFramework>net9.0</TargetFramework>
     <RootNamespace>Jellyfin.Plugin.AIRecommendations</RootNamespace>
     <AssemblyName>Jellyfin.Plugin.AIRecommendations</AssemblyName>
-    <AssemblyVersion>1.0.66.0</AssemblyVersion>
-    <FileVersion>1.0.66.0</FileVersion>
+    <AssemblyVersion>1.0.67.0</AssemblyVersion>
+    <FileVersion>1.0.67.0</FileVersion>
     <Nullable>enable</Nullable>
     <LangVersion>latest</LangVersion>
     <ImplicitUsings>enable</ImplicitUsings>
