@@ -1,3 +1,4 @@
+using Jellyfin.Plugin.AIRecommendations.Telegram;
 using MediaBrowser.Model.Plugins;
 
 namespace Jellyfin.Plugin.AIRecommendations.Configuration;
@@ -83,6 +84,37 @@ public class PluginConfiguration : BasePluginConfiguration
     public DateTime? LastSyncUtc { get; set; }
 
     public string LastSyncMessage { get; set; } = string.Empty;
+
+    // ── Telegram Bot ──────────────────────────────────────────────────────────
+
+    /// <summary>Telegram Bot API token from @BotFather. Leave blank to disable.</summary>
+    public string TelegramBotToken { get; set; } = string.Empty;
+
+    /// <summary>Minutes between Jellyseerr/Radarr/Sonarr download-status polls for notifications.</summary>
+    public int TelegramDownloadPollIntervalMinutes { get; set; } = 15;
+
+    /// <summary>Linked Telegram accounts.</summary>
+    public List<TelegramUserLink> TelegramUserLinks { get; set; } = new();
+
+    // ── Radarr (direct, optional) ─────────────────────────────────────────────
+
+    public string RadarrBaseUrl { get; set; } = string.Empty;
+
+    public string RadarrApiKey { get; set; } = string.Empty;
+
+    public int RadarrQualityProfileId { get; set; }
+
+    public string RadarrRootFolderPath { get; set; } = string.Empty;
+
+    // ── Sonarr (direct, optional) ─────────────────────────────────────────────
+
+    public string SonarrBaseUrl { get; set; } = string.Empty;
+
+    public string SonarrApiKey { get; set; } = string.Empty;
+
+    public int SonarrQualityProfileId { get; set; }
+
+    public string SonarrRootFolderPath { get; set; } = string.Empty;
 }
 
 /// <summary>

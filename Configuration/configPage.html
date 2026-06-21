@@ -161,6 +161,111 @@
                     <button is="emby-button" type="button" id="btn-test-jellyseerr" class="raised button-alt">Test Connection</button>
                     <div class="test-result" id="test-jellyseerr"></div>
 
+                    <!-- Radarr -->
+                    <h3>Radarr <span style="font-weight:normal;font-size:.8em;color:#888">(optional, direct)</span></h3>
+                    <p style="font-size:.85em;color:#aaa;margin:0 0 10px">
+                        Direct Radarr integration for the Telegram agent. Leave blank if you use Jellyseerr (which already connects to Radarr).
+                    </p>
+                    <div class="inputContainer">
+                        <input is="emby-input" type="text" id="radarrBaseUrl" label="Radarr URL" />
+                        <div class="fieldDescription">e.g. http://192.168.1.100:7878</div>
+                    </div>
+                    <div class="inputContainer">
+                        <input is="emby-input" type="password" id="radarrApiKey" label="Radarr API Key" />
+                        <div class="fieldDescription">Settings → General → Security → API Key</div>
+                    </div>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-bottom:6px">
+                        <div class="selectContainer" style="flex:1;min-width:160px;margin:0">
+                            <label class="selectLabel" for="radarrQualityProfileId">Quality Profile</label>
+                            <select is="emby-select" id="radarrQualityProfileId" class="emby-select-withcolor"></select>
+                        </div>
+                        <button is="emby-button" type="button" id="btn-fetch-radarr-profiles" class="raised button-alt" style="margin-bottom:4px">Fetch Profiles</button>
+                    </div>
+                    <div class="inputContainer">
+                        <input is="emby-input" type="text" id="radarrRootFolderPath" label="Root Folder Path" />
+                        <div class="fieldDescription">e.g. /movies — must match a root folder in Radarr. <button type="button" id="btn-fetch-radarr-folders" style="background:none;border:none;color:#7eb4db;cursor:pointer;padding:0;font-size:.9em">Fetch folders</button></div>
+                    </div>
+                    <button is="emby-button" type="button" id="btn-test-radarr" class="raised button-alt">Test Connection</button>
+                    <div class="test-result" id="test-radarr"></div>
+
+                    <!-- Sonarr -->
+                    <h3>Sonarr <span style="font-weight:normal;font-size:.8em;color:#888">(optional, direct)</span></h3>
+                    <p style="font-size:.85em;color:#aaa;margin:0 0 10px">
+                        Direct Sonarr integration for the Telegram agent. Leave blank if you use Jellyseerr.
+                    </p>
+                    <div class="inputContainer">
+                        <input is="emby-input" type="text" id="sonarrBaseUrl" label="Sonarr URL" />
+                        <div class="fieldDescription">e.g. http://192.168.1.100:8989</div>
+                    </div>
+                    <div class="inputContainer">
+                        <input is="emby-input" type="password" id="sonarrApiKey" label="Sonarr API Key" />
+                        <div class="fieldDescription">Settings → General → Security → API Key</div>
+                    </div>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-bottom:6px">
+                        <div class="selectContainer" style="flex:1;min-width:160px;margin:0">
+                            <label class="selectLabel" for="sonarrQualityProfileId">Quality Profile</label>
+                            <select is="emby-select" id="sonarrQualityProfileId" class="emby-select-withcolor"></select>
+                        </div>
+                        <button is="emby-button" type="button" id="btn-fetch-sonarr-profiles" class="raised button-alt" style="margin-bottom:4px">Fetch Profiles</button>
+                    </div>
+                    <div class="inputContainer">
+                        <input is="emby-input" type="text" id="sonarrRootFolderPath" label="Root Folder Path" />
+                        <div class="fieldDescription">e.g. /tv — must match a root folder in Sonarr. <button type="button" id="btn-fetch-sonarr-folders" style="background:none;border:none;color:#7eb4db;cursor:pointer;padding:0;font-size:.9em">Fetch folders</button></div>
+                    </div>
+                    <button is="emby-button" type="button" id="btn-test-sonarr" class="raised button-alt">Test Connection</button>
+                    <div class="test-result" id="test-sonarr"></div>
+
+                    <!-- Telegram Bot -->
+                    <h3>Telegram Bot <span style="font-weight:normal;font-size:.8em;color:#888">(optional)</span></h3>
+                    <p style="font-size:.85em;color:#aaa;margin:0 0 10px">
+                        Create a bot via <a href="https://t.me/BotFather" target="_blank" style="color:#7eb4db">@BotFather</a> → /newbot, then paste the token below.
+                        Users send /link to the bot and enter the code here to connect their Jellyfin account.
+                    </p>
+                    <div class="inputContainer">
+                        <input is="emby-input" type="password" id="telegramBotToken" label="Bot Token" />
+                        <div class="fieldDescription">Format: 123456789:AAF... (from @BotFather)</div>
+                    </div>
+                    <button is="emby-button" type="button" id="btn-test-telegram" class="raised button-alt">Test Token</button>
+                    <div class="test-result" id="test-telegram"></div>
+
+                    <!-- Telegram link panel -->
+                    <div style="margin-top:14px">
+                        <h4 style="margin-bottom:6px">Link a Telegram Account</h4>
+                        <p style="font-size:.82em;color:#888;margin:0 0 8px">Have the user send /link to the bot, then enter the code they receive:</p>
+                        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
+                            <div class="inputContainer" style="flex:0 0 120px;margin:0">
+                                <input is="emby-input" type="text" id="telegramLinkCode" label="6-digit code" maxlength="6" />
+                            </div>
+                            <div class="selectContainer" style="flex:1;min-width:140px;margin:0">
+                                <label class="selectLabel" for="telegramLinkUserId">Jellyfin User</label>
+                                <select is="emby-select" id="telegramLinkUserId" class="emby-select-withcolor"></select>
+                            </div>
+                            <button is="emby-button" type="button" id="btn-link-telegram" class="raised button-submit" style="margin-bottom:4px">Link</button>
+                        </div>
+                        <div class="test-result" id="link-result"></div>
+                    </div>
+
+                    <!-- Linked accounts table -->
+                    <div id="telegramLinksPanel" style="display:none;margin-top:14px">
+                        <h4 style="margin-bottom:6px">Linked Accounts</h4>
+                        <table style="width:100%;border-collapse:collapse;font-size:.85em" id="telegramLinksTable">
+                            <thead>
+                                <tr style="color:#888;text-align:left">
+                                    <th style="padding:4px 8px">Jellyfin User</th>
+                                    <th style="padding:4px 8px">Telegram</th>
+                                    <th style="padding:4px 8px">Linked</th>
+                                    <th style="padding:4px 8px"></th>
+                                </tr>
+                            </thead>
+                            <tbody id="telegramLinksBody"></tbody>
+                        </table>
+                    </div>
+
+                    <div class="inputContainer" style="margin-top:12px">
+                        <input is="emby-input" type="number" id="telegramDownloadPollIntervalMinutes" min="5" max="120" label="Download status check interval (minutes)" />
+                        <div class="fieldDescription">How often the bot checks Jellyseerr/Radarr/Sonarr for completed downloads (default 15).</div>
+                    </div>
+
                     <!-- TMDB -->
                     <h3>TMDB</h3>
                     <div class="inputContainer">
@@ -246,6 +351,98 @@
                 }).then(function (r) { return r.json(); });
             }
 
+            function apiDelete(path) {
+                var url = ApiClient.getUrl(path);
+                var token = ApiClient.accessToken();
+                return fetch(url, {
+                    method: 'DELETE',
+                    headers: { 'X-Emby-Token': token, 'X-MediaBrowser-Token': token }
+                });
+            }
+
+            function loadTelegramLinks() {
+                apiGet('AIRecommendations/Telegram/Links').then(function (links) {
+                    var panel = document.getElementById('telegramLinksPanel');
+                    var tbody = document.getElementById('telegramLinksBody');
+                    if (!links || !links.length) { panel.style.display = 'none'; return; }
+                    tbody.innerHTML = '';
+                    links.forEach(function (link) {
+                        var tr = document.createElement('tr');
+                        var tgHandle = link.TelegramUsername ? '@' + link.TelegramUsername : '—';
+                        var linkedAt = link.LinkedAt ? new Date(link.LinkedAt).toLocaleDateString() : '—';
+                        tr.innerHTML =
+                            '<td style="padding:4px 8px">' + (link.Username || link.JellyfinUserId) + '</td>' +
+                            '<td style="padding:4px 8px;color:#aaa">' + tgHandle + '</td>' +
+                            '<td style="padding:4px 8px;color:#888">' + linkedAt + '</td>' +
+                            '<td style="padding:4px 8px"><button type="button" class="btn-unlink" data-chatid="' + link.ChatId + '" style="background:#3a1a1a;border:1px solid #5a2a2a;color:#db7e7e;border-radius:3px;padding:2px 8px;font-size:.78em;cursor:pointer">Unlink</button></td>';
+                        tbody.appendChild(tr);
+                    });
+                    panel.style.display = 'block';
+                    tbody.querySelectorAll('.btn-unlink').forEach(function (btn) {
+                        btn.addEventListener('click', function () {
+                            btn.disabled = true;
+                            btn.textContent = '…';
+                            apiDelete('AIRecommendations/Telegram/Links/' + btn.dataset.chatid).then(function () {
+                                loadTelegramLinks();
+                            }).catch(function () { btn.disabled = false; btn.textContent = 'Unlink'; });
+                        });
+                    });
+                }).catch(function () {});
+            }
+
+            function loadJellyfinUsers() {
+                var token = ApiClient.accessToken();
+                fetch(ApiClient.getUrl('Users'), {
+                    headers: { 'X-Emby-Token': token, 'X-MediaBrowser-Token': token }
+                }).then(function (r) { return r.json(); }).then(function (users) {
+                    var sel = document.getElementById('telegramLinkUserId');
+                    sel.innerHTML = '';
+                    (users || []).forEach(function (u) {
+                        var opt = document.createElement('option');
+                        opt.value = u.Id;
+                        opt.textContent = u.Name;
+                        sel.appendChild(opt);
+                    });
+                }).catch(function () {});
+            }
+
+            function fetchArrProfiles(service) {
+                var selectId = service === 'Radarr' ? 'radarrQualityProfileId' : 'sonarrQualityProfileId';
+                var sel = document.getElementById(selectId);
+                var savedId = sel.dataset.saved;
+                sel.innerHTML = '<option value="">Loading…</option>';
+                apiGet('AIRecommendations/ArrProfiles?service=' + service).then(function (profiles) {
+                    sel.innerHTML = '';
+                    if (!profiles || !profiles.length) {
+                        sel.innerHTML = '<option value="">No profiles found</option>';
+                        return;
+                    }
+                    profiles.forEach(function (p) {
+                        var opt = document.createElement('option');
+                        opt.value = p.id;
+                        opt.textContent = p.name || ('Profile ' + p.id);
+                        sel.appendChild(opt);
+                    });
+                    if (savedId) sel.value = savedId;
+                }).catch(function () {
+                    sel.innerHTML = '<option value="">Error fetching profiles</option>';
+                });
+            }
+
+            function fetchArrRootFolders(service) {
+                var inputId = service === 'Radarr' ? 'radarrRootFolderPath' : 'sonarrRootFolderPath';
+                apiGet('AIRecommendations/ArrRootFolders?service=' + service).then(function (folders) {
+                    if (!folders || !folders.length) { alert('No root folders found in ' + service); return; }
+                    if (folders.length === 1) {
+                        document.getElementById(inputId).value = folders[0].path || '';
+                    } else {
+                        var choices = folders.map(function (f, i) { return (i + 1) + '. ' + f.path; }).join('\n');
+                        var chosen = prompt(service + ' root folders:\n' + choices + '\n\nPaste the path:', folders[0].path || '');
+                        if (chosen !== null) document.getElementById(inputId).value = chosen;
+                    }
+                }).catch(function () { alert('Could not fetch ' + service + ' root folders.'); });
+            }
+
             function testProvider(provider) {
                 var req = { Provider: provider };
                 var resultEl;
@@ -264,6 +461,17 @@
                     req.BaseUrl = document.getElementById('jellyseerrBaseUrl').value;
                     req.ApiKey = document.getElementById('jellyseerrApiKey').value;
                     resultEl = document.getElementById('test-jellyseerr');
+                } else if (provider === 'Radarr') {
+                    req.BaseUrl = document.getElementById('radarrBaseUrl').value;
+                    req.ApiKey = document.getElementById('radarrApiKey').value;
+                    resultEl = document.getElementById('test-radarr');
+                } else if (provider === 'Sonarr') {
+                    req.BaseUrl = document.getElementById('sonarrBaseUrl').value;
+                    req.ApiKey = document.getElementById('sonarrApiKey').value;
+                    resultEl = document.getElementById('test-sonarr');
+                } else if (provider === 'Telegram') {
+                    req.ApiKey = document.getElementById('telegramBotToken').value;
+                    resultEl = document.getElementById('test-telegram');
                 } else {
                     req.BaseUrl = document.getElementById('ollamaBaseUrl').value;
                     req.ApiKey = document.getElementById('ollamaApiKey').value;
@@ -406,7 +614,7 @@
                 }).then(function (text) {
                     if (!text) return;
                     var lines = text.split('\n').filter(function (l) {
-                        return l.indexOf('AIRecommendations') !== -1 || l.indexOf('Jellyseerr') !== -1 || l.indexOf('Recommendation') !== -1;
+                        return l.indexOf('AIRecommendations') !== -1 || l.indexOf('Jellyseerr') !== -1 || l.indexOf('Recommendation') !== -1 || l.indexOf('Telegram') !== -1 || l.indexOf('Radarr') !== -1 || l.indexOf('Sonarr') !== -1;
                     }).slice(-80);
                     box.textContent = lines.length ? lines.join('\n') : 'No AI Recommendations log entries yet.';
                     box.scrollTop = box.scrollHeight;
@@ -437,10 +645,33 @@
                     document.getElementById('limitShowsToSeasonOne').checked = config.LimitShowsToSeasonOne !== false;
                     document.getElementById('alwaysRefreshRecommendations').checked = !!config.AlwaysRefreshRecommendations;
                     showProviderSection(config.ActiveProvider || 'OpenAI');
+                    // Radarr
+                    document.getElementById('radarrBaseUrl').value = config.RadarrBaseUrl || '';
+                    document.getElementById('radarrApiKey').value = config.RadarrApiKey || '';
+                    document.getElementById('radarrRootFolderPath').value = config.RadarrRootFolderPath || '';
+                    var radarrSel = document.getElementById('radarrQualityProfileId');
+                    radarrSel.dataset.saved = config.RadarrQualityProfileId || '';
+                    radarrSel.innerHTML = config.RadarrQualityProfileId
+                        ? '<option value="' + config.RadarrQualityProfileId + '">Profile ' + config.RadarrQualityProfileId + ' — click Fetch to load names</option>'
+                        : '<option value="">— click Fetch Profiles —</option>';
+                    // Sonarr
+                    document.getElementById('sonarrBaseUrl').value = config.SonarrBaseUrl || '';
+                    document.getElementById('sonarrApiKey').value = config.SonarrApiKey || '';
+                    document.getElementById('sonarrRootFolderPath').value = config.SonarrRootFolderPath || '';
+                    var sonarrSel = document.getElementById('sonarrQualityProfileId');
+                    sonarrSel.dataset.saved = config.SonarrQualityProfileId || '';
+                    sonarrSel.innerHTML = config.SonarrQualityProfileId
+                        ? '<option value="' + config.SonarrQualityProfileId + '">Profile ' + config.SonarrQualityProfileId + ' — click Fetch to load names</option>'
+                        : '<option value="">— click Fetch Profiles —</option>';
+                    // Telegram
+                    document.getElementById('telegramBotToken').value = config.TelegramBotToken || '';
+                    document.getElementById('telegramDownloadPollIntervalMinutes').value = config.TelegramDownloadPollIntervalMinutes || 15;
                     Dashboard.hideLoadingMsg();
                     loadStatus();
                     loadUsers();
                     loadLogs();
+                    loadJellyfinUsers();
+                    loadTelegramLinks();
                 });
 
                 document.getElementById('activeProvider').addEventListener('change', function () {
@@ -474,6 +705,50 @@
 
                 document.getElementById('btn-refresh-logs').addEventListener('click', loadLogs);
 
+                document.getElementById('btn-test-radarr').addEventListener('click', function () { testProvider('Radarr'); });
+                document.getElementById('btn-test-sonarr').addEventListener('click', function () { testProvider('Sonarr'); });
+                document.getElementById('btn-test-telegram').addEventListener('click', function () { testProvider('Telegram'); });
+                document.getElementById('btn-fetch-radarr-profiles').addEventListener('click', function () { fetchArrProfiles('Radarr'); });
+                document.getElementById('btn-fetch-sonarr-profiles').addEventListener('click', function () { fetchArrProfiles('Sonarr'); });
+                document.getElementById('btn-fetch-radarr-folders').addEventListener('click', function () { fetchArrRootFolders('Radarr'); });
+                document.getElementById('btn-fetch-sonarr-folders').addEventListener('click', function () { fetchArrRootFolders('Sonarr'); });
+                document.getElementById('btn-link-telegram').addEventListener('click', function () {
+                    var code = document.getElementById('telegramLinkCode').value.trim();
+                    var userId = document.getElementById('telegramLinkUserId').value;
+                    var resultEl = document.getElementById('link-result');
+                    if (!code || !userId) {
+                        resultEl.className = 'test-result err';
+                        resultEl.textContent = 'Enter a 6-digit code and select a user.';
+                        return;
+                    }
+                    resultEl.className = 'test-result loading';
+                    resultEl.textContent = 'Linking…';
+                    var token = ApiClient.accessToken();
+                    fetch(ApiClient.getUrl('AIRecommendations/Telegram/Link'), {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-Emby-Token': token, 'X-MediaBrowser-Token': token },
+                        body: JSON.stringify({ Code: code, JellyfinUserId: userId })
+                    }).then(function (r) {
+                        if (r.ok) {
+                            resultEl.className = 'test-result ok';
+                            resultEl.textContent = 'Linked successfully!';
+                            document.getElementById('telegramLinkCode').value = '';
+                            loadTelegramLinks();
+                        } else {
+                            return r.json().then(function (err) {
+                                resultEl.className = 'test-result err';
+                                resultEl.textContent = (err && err.error) || 'Link failed — code may be invalid or expired.';
+                            }).catch(function () {
+                                resultEl.className = 'test-result err';
+                                resultEl.textContent = 'Link failed — code may be invalid or expired.';
+                            });
+                        }
+                    }).catch(function (err) {
+                        resultEl.className = 'test-result err';
+                        resultEl.textContent = 'Request failed: ' + (err.message || String(err));
+                    });
+                });
+
                 document.getElementById('btn-close-stubs').addEventListener('click', function () {
                     document.getElementById('stubViewerPanel').style.display = 'none';
                 });
@@ -502,6 +777,16 @@
                     config.SyncIntervalHours = parseInt(document.getElementById('syncIntervalHours').value, 10);
                     config.LimitShowsToSeasonOne = document.getElementById('limitShowsToSeasonOne').checked;
                     config.AlwaysRefreshRecommendations = document.getElementById('alwaysRefreshRecommendations').checked;
+                    config.RadarrBaseUrl = document.getElementById('radarrBaseUrl').value;
+                    config.RadarrApiKey = document.getElementById('radarrApiKey').value;
+                    config.RadarrQualityProfileId = parseInt(document.getElementById('radarrQualityProfileId').value, 10) || 0;
+                    config.RadarrRootFolderPath = document.getElementById('radarrRootFolderPath').value;
+                    config.SonarrBaseUrl = document.getElementById('sonarrBaseUrl').value;
+                    config.SonarrApiKey = document.getElementById('sonarrApiKey').value;
+                    config.SonarrQualityProfileId = parseInt(document.getElementById('sonarrQualityProfileId').value, 10) || 0;
+                    config.SonarrRootFolderPath = document.getElementById('sonarrRootFolderPath').value;
+                    config.TelegramBotToken = document.getElementById('telegramBotToken').value;
+                    config.TelegramDownloadPollIntervalMinutes = parseInt(document.getElementById('telegramDownloadPollIntervalMinutes').value, 10) || 15;
                     ApiClient.updatePluginConfiguration(PLUGIN_ID, config).then(function () {
                         Dashboard.processPluginConfigurationUpdateResult();
                     });
