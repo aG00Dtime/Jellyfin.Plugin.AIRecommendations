@@ -2,7 +2,9 @@ using Jellyfin.Database.Implementations.Entities;
 using Jellyfin.Plugin.AIRecommendations.Models;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Library;
+using MediaBrowser.Controller.Session;
 using MediaBrowser.Model.Entities;
+using MediaBrowser.Model.Session;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
@@ -17,17 +19,20 @@ public class FavouriteWatcher : IHostedService
     private readonly IUserDataManager _userDataManager;
     private readonly IUserManager _userManager;
     private readonly JellyseerrService _jellyseerr;
+    private readonly ISessionManager _sessionManager;
     private readonly ILogger<FavouriteWatcher> _logger;
 
     public FavouriteWatcher(
         IUserDataManager userDataManager,
         IUserManager userManager,
         JellyseerrService jellyseerr,
+        ISessionManager sessionManager,
         ILogger<FavouriteWatcher> logger)
     {
         _userDataManager = userDataManager;
         _userManager = userManager;
         _jellyseerr = jellyseerr;
+        _sessionManager = sessionManager;
         _logger = logger;
     }
 
@@ -269,6 +274,11 @@ public class FavouriteWatcher : IHostedService
                 _logger.LogDebug(
                     "FavouriteWatcher: \"{Title}\" already requested — heart cleared, Jellyseerr skipped",
                     item.Name);
+                await NotifyUserAsync(
+                    user.Id,
+                    "Already Requested",
+                    $"\"{item.Name}\" is already on your download list.",
+                    ct).ConfigureAwait(false);
                 return;
             }
 
@@ -295,11 +305,48 @@ public class FavouriteWatcher : IHostedService
                 _logger.LogInformation(
                     "Jellyseerr request sent for \"{Title}\" (tmdb {Id}) on behalf of {User}",
                     item.Name, tmdbId, user.Username);
+
+                await NotifyUserAsync(
+                    user.Id,
+                    "Download Requested",
+                    $"\"{item.Name}\" has been queued — you'll be notified when it's ready.",
+                    ct).ConfigureAwait(false);
+            }
+            else
+            {
+                // Jellyseerr knew about it already (status >= pending) but it wasn't in our local list
+                await NotifyUserAsync(
+                    user.Id,
+                    "Already Queued",
+                    $"\"{item.Name}\" is already pending or available in Jellyseerr.",
+                    ct).ConfigureAwait(false);
             }
         }
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "FavouriteWatcher: Jellyseerr request failed for \"{Title}\"", item.Name);
+            await NotifyUserAsync(
+                user.Id,
+                "Request Failed",
+                $"Could not request \"{item.Name}\" — check server logs.",
+                CancellationToken.None).ConfigureAwait(false);
+        }
+    }
+
+    private async Task NotifyUserAsync(Guid userId, string header, string text, CancellationToken ct)
+    {
+        try
+        {
+            var command = new MessageCommand { Header = header, Text = text, TimeoutMs = 7000 };
+            foreach (var session in _sessionManager.GetSessions(userId, null!, null, null, false))
+            {
+                await _sessionManager.SendMessageCommand(string.Empty, session.Id, command, ct)
+                    .ConfigureAwait(false);
+            }
+        }
+        catch
+        {
+            // non-critical
         }
     }
 
