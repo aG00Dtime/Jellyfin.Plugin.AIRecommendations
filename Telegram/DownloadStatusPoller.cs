@@ -7,23 +7,27 @@ namespace Jellyfin.Plugin.AIRecommendations.Telegram;
 /// <summary>
 /// Periodically polls all configured download services (Jellyseerr, Radarr, Sonarr)
 /// and sends a Telegram notification when a requested title becomes available.
+/// Confirms availability against Jellyfin's own library before notifying.
 /// No-ops completely if the bot token or all download services are unconfigured.
 /// </summary>
 public sealed class DownloadStatusPoller : IHostedService
 {
     private readonly ArrRequestService _arr;
     private readonly TelegramBotService _bot;
+    private readonly LibraryFilterService _libraryFilter;
     private readonly ILogger<DownloadStatusPoller> _logger;
     private Timer? _timer;
 
     public DownloadStatusPoller(
         ArrRequestService arr,
         TelegramBotService bot,
+        LibraryFilterService libraryFilter,
         ILogger<DownloadStatusPoller> logger)
     {
-        _arr    = arr;
-        _bot    = bot;
-        _logger = logger;
+        _arr           = arr;
+        _bot           = bot;
+        _libraryFilter = libraryFilter;
+        _logger        = logger;
     }
 
     public Task StartAsync(CancellationToken cancellationToken)
@@ -100,35 +104,40 @@ public sealed class DownloadStatusPoller : IHostedService
         int tmdbId,
         CancellationToken ct)
     {
-        // Jellyseerr: try movie, then TV (we don't know the type from the TMDB ID alone)
+        // Ground truth: item must be in Jellyfin's real library (not just in a download service)
+        var ownedIds = _libraryFilter.GetOwnedTmdbIds();
+        if (!ownedIds.Contains(tmdbId))
+            return (false, null);
+
+        // It's in Jellyfin — retrieve the display title from the first download service that knows it
+        string? title = null;
+
         if (!string.IsNullOrWhiteSpace(config.JellyseerrBaseUrl))
         {
             var (movieCode, _, movieTitle) = await _arr
                 .CheckJellyseerrStatusAsync(tmdbId, isSeries: false, ct).ConfigureAwait(false);
-            if (movieCode == 5) return (true, movieTitle);
-
-            var (tvCode, _, tvTitle) = await _arr
-                .CheckJellyseerrStatusAsync(tmdbId, isSeries: true, ct).ConfigureAwait(false);
-            if (tvCode == 5) return (true, tvTitle);
+            if (movieCode > 0 && movieTitle is not null) { title = movieTitle; }
+            else
+            {
+                var (tvCode, _, tvTitle) = await _arr
+                    .CheckJellyseerrStatusAsync(tmdbId, isSeries: true, ct).ConfigureAwait(false);
+                if (tvCode > 0 && tvTitle is not null) title = tvTitle;
+            }
         }
 
-        // Radarr (movies)
-        if (!string.IsNullOrWhiteSpace(config.RadarrBaseUrl))
+        if (title is null && !string.IsNullOrWhiteSpace(config.RadarrBaseUrl))
         {
-            var (exists, hasFile, radarrTitle) = await _arr
-                .CheckRadarrStatusAsync(tmdbId, ct).ConfigureAwait(false);
-            if (exists && hasFile) return (true, radarrTitle);
+            var (_, _, radarrTitle) = await _arr.CheckRadarrStatusAsync(tmdbId, ct).ConfigureAwait(false);
+            if (radarrTitle is not null) title = radarrTitle;
         }
 
-        // Sonarr (TV shows, 100% downloaded)
-        if (!string.IsNullOrWhiteSpace(config.SonarrBaseUrl))
+        if (title is null && !string.IsNullOrWhiteSpace(config.SonarrBaseUrl))
         {
-            var (exists, pct, sonarrTitle) = await _arr
-                .CheckSonarrStatusAsync(tmdbId, ct).ConfigureAwait(false);
-            if (exists && pct >= 100) return (true, sonarrTitle);
+            var (_, _, sonarrTitle) = await _arr.CheckSonarrStatusAsync(tmdbId, ct).ConfigureAwait(false);
+            if (sonarrTitle is not null) title = sonarrTitle;
         }
 
-        return (false, null);
+        return (true, title);
     }
 
     private static string EscapeHtml(string text) =>
