@@ -79,6 +79,9 @@ public class PluginConfiguration : BasePluginConfiguration
     /// </summary>
     public bool JellyseerrAutoRequest { get; set; }
 
+    /// <summary>How many days between automatic taste-profile regenerations. 0 = never auto-refresh.</summary>
+    public int TasteProfileRegenerationIntervalDays { get; set; } = 7;
+
     public List<UserLibraryRegistration> UserLibraries { get; set; } = new();
 
     public DateTime? LastSyncUtc { get; set; }
@@ -147,4 +150,10 @@ public class UserLibraryRegistration
     /// stubs the user deleted via Jellyfin's native UI, which are then auto-rejected.
     /// </summary>
     public List<int> PlacedTmdbIds { get; set; } = new();
+
+    /// <summary>LLM-generated taste profile narrative for this user.</summary>
+    public string TasteProfileText { get; set; } = string.Empty;
+
+    /// <summary>When the taste profile was last generated.</summary>
+    public DateTime? TasteProfileGeneratedAt { get; set; }
 }

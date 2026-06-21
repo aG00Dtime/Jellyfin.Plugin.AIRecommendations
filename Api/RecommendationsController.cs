@@ -21,6 +21,7 @@ namespace Jellyfin.Plugin.AIRecommendations.Api;
 public class RecommendationsController : ControllerBase
 {
     private readonly RecommendationSyncService _syncService;
+    private readonly TasteProfileService _tasteProfile;
     private readonly IUserManager _userManager;
     private readonly ILibraryManager _libraryManager;
     private readonly IHttpClientFactory _httpClientFactory;
@@ -29,6 +30,7 @@ public class RecommendationsController : ControllerBase
 
     public RecommendationsController(
         RecommendationSyncService syncService,
+        TasteProfileService tasteProfile,
         IUserManager userManager,
         ILibraryManager libraryManager,
         IHttpClientFactory httpClientFactory,
@@ -36,6 +38,7 @@ public class RecommendationsController : ControllerBase
         TelegramAgentLoop telegramAgent)
     {
         _syncService = syncService;
+        _tasteProfile = tasteProfile;
         _userManager = userManager;
         _libraryManager = libraryManager;
         _httpClientFactory = httpClientFactory;
@@ -79,6 +82,42 @@ public class RecommendationsController : ControllerBase
         }
 
         await _syncService.SyncUserAsync(user, cancellationToken, force: true).ConfigureAwait(false);
+        return NoContent();
+    }
+
+    /// <summary>
+    /// Force-regenerates the LLM taste profile for all users.
+    /// </summary>
+    [HttpPost("TasteProfile/Refresh")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> RefreshAllTasteProfiles(CancellationToken cancellationToken)
+    {
+        var config = Plugin.Instance!.Configuration;
+        foreach (var user in _userManager.GetUsers())
+        {
+            var reg = config.UserLibraries.FirstOrDefault(r => r.UserId == user.Id.ToString("N"));
+            if (reg is null) continue;
+            await _tasteProfile.ForceRefreshAsync(user, reg, config, cancellationToken).ConfigureAwait(false);
+        }
+        Plugin.Instance!.SaveConfiguration();
+        return NoContent();
+    }
+
+    /// <summary>
+    /// Force-regenerates the LLM taste profile for a single user.
+    /// </summary>
+    [HttpPost("TasteProfile/{userId:guid}/Refresh")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> RefreshTasteProfile([FromRoute] Guid userId, CancellationToken cancellationToken)
+    {
+        var user = _userManager.GetUserById(userId);
+        if (user is null) return NotFound();
+        var config = Plugin.Instance!.Configuration;
+        var reg = config.UserLibraries.FirstOrDefault(r => r.UserId == userId.ToString("N"));
+        if (reg is null) return NotFound();
+        await _tasteProfile.ForceRefreshAsync(user, reg, config, cancellationToken).ConfigureAwait(false);
+        Plugin.Instance!.SaveConfiguration();
         return NoContent();
     }
 
