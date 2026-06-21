@@ -42,16 +42,11 @@ public sealed class TelegramBotService : IHostedService
 
     public Task StartAsync(CancellationToken cancellationToken)
     {
-        var token = Plugin.Instance?.Configuration.TelegramBotToken;
-        if (string.IsNullOrWhiteSpace(token))
-        {
-            _logger.LogInformation("TelegramBotService: no bot token configured — Telegram integration disabled");
-            return Task.CompletedTask;
-        }
-
+        // Always start the loop — it waits internally until a token is configured,
+        // so adding/changing the token in settings takes effect without a restart.
         _cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         _pollTask = Task.Run(() => PollLoopAsync(_cts.Token), _cts.Token);
-        _logger.LogInformation("TelegramBotService: long-polling started");
+        _logger.LogInformation("TelegramBotService: started (polling begins once a bot token is configured)");
         return Task.CompletedTask;
     }
 
@@ -120,7 +115,11 @@ public sealed class TelegramBotService : IHostedService
             try
             {
                 var token = Plugin.Instance?.Configuration.TelegramBotToken;
-                if (string.IsNullOrWhiteSpace(token)) break;
+                if (string.IsNullOrWhiteSpace(token))
+                {
+                    await Task.Delay(5000, ct).ConfigureAwait(false);
+                    continue;
+                }
 
                 var url = $"https://api.telegram.org/bot{token}/getUpdates" +
                           $"?offset={_lastUpdateId + 1}&timeout={LongPollTimeoutSeconds}&allowed_updates=[\"message\"]";
