@@ -308,6 +308,21 @@ public sealed class TelegramBotService : IHostedService
             return;
         }
 
+        // ── Unknown slash commands (e.g. typos like /proflle) ─────────────────
+        // Intercept before reaching the agent so the scope guardrail doesn't fire.
+
+        if (text.StartsWith('/'))
+        {
+            await SendMessageAsync(chatId,
+                "Unknown command. Available commands:\n" +
+                "/link — link your Jellyfin account\n" +
+                "/profile — view your taste profile\n" +
+                "/reset — start a new conversation\n\n" +
+                "Or just ask me what you want to watch!",
+                ct).ConfigureAwait(false);
+            return;
+        }
+
         // ── Must be linked ────────────────────────────────────────────────────
 
         var link = config.TelegramUserLinks.FirstOrDefault(l => l.ChatId == chatId);
