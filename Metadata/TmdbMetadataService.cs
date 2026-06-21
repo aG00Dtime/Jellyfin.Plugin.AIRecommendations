@@ -309,6 +309,91 @@ public class TmdbMetadataService
         return list.Take(limit).ToList();
     }
 
+    /// <summary>
+    /// Checks TMDB release dates to determine if a movie is available digitally/physically,
+    /// currently in theaters only, or not yet released.
+    /// Uses US release dates by default (the most complete dataset on TMDB).
+    /// </summary>
+    public async Task<MovieAvailability> GetMovieAvailabilityAsync(int tmdbId, CancellationToken cancellationToken)
+    {
+        var config = Plugin.Instance?.Configuration;
+        if (config is null || string.IsNullOrWhiteSpace(config.TmdbApiKey))
+            return MovieAvailability.Unknown;
+
+        var url = $"https://api.themoviedb.org/3/movie/{tmdbId}/release_dates?api_key={config.TmdbApiKey}";
+        var client = _httpClientFactory.CreateClient(nameof(TmdbMetadataService));
+
+        try
+        {
+            using var response = await client.GetAsync(new Uri(url), cancellationToken).ConfigureAwait(false);
+            if (!response.IsSuccessStatusCode) return MovieAvailability.Unknown;
+
+            var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+            using var doc = JsonDocument.Parse(json);
+
+            if (!doc.RootElement.TryGetProperty("results", out var results))
+                return MovieAvailability.Unknown;
+
+            // Prefer US; fall back to first available country
+            JsonElement? countryDates = null;
+            foreach (var country in results.EnumerateArray())
+            {
+                var iso = country.TryGetProperty("iso_3166_1", out var c) ? c.GetString() : null;
+                if (iso == "US")
+                {
+                    countryDates = country;
+                    break;
+                }
+                countryDates ??= country;
+            }
+
+            if (countryDates is null) return MovieAvailability.Unknown;
+            if (!countryDates.Value.TryGetProperty("release_dates", out var dates))
+                return MovieAvailability.Unknown;
+
+            var now = DateTime.UtcNow;
+            bool hasTheatrical = false;
+            bool hasDigital    = false;
+            DateTime? digitalDate = null;
+
+            foreach (var d in dates.EnumerateArray())
+            {
+                // type: 1=Premiere, 2=Theatrical(limited), 3=Theatrical, 4=Digital, 5=Physical, 6=TV
+                if (!d.TryGetProperty("type", out var typeEl)) continue;
+                var type = typeEl.GetInt32();
+
+                var dateStr = d.TryGetProperty("release_date", out var rd) ? rd.GetString() : null;
+                if (!DateTime.TryParse(dateStr, out var releaseDate)) continue;
+
+                if (type is 3 or 2 && releaseDate <= now) hasTheatrical = true;
+                if (type is 4 or 5)
+                {
+                    if (releaseDate <= now)
+                        hasDigital = true;
+                    else if (digitalDate is null || releaseDate < digitalDate)
+                        digitalDate = releaseDate;
+                }
+            }
+
+            if (hasDigital)  return MovieAvailability.Digital;
+            if (hasTheatrical)
+            {
+                return digitalDate.HasValue
+                    ? MovieAvailability.TheatersOnly with { UpcomingDigitalDate = digitalDate }
+                    : MovieAvailability.TheatersOnly;
+            }
+
+            return digitalDate.HasValue
+                ? MovieAvailability.Upcoming with { UpcomingDigitalDate = digitalDate }
+                : MovieAvailability.NotReleased;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "GetMovieAvailabilityAsync failed for tmdbId {Id}", tmdbId);
+            return MovieAvailability.Unknown;
+        }
+    }
+
     private static int? ParseYear(JsonElement element, string property)
     {
         if (!element.TryGetProperty(property, out var dateProp))

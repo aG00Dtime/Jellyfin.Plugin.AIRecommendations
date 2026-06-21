@@ -100,6 +100,30 @@ public class TmdbCandidate
 }
 
 /// <summary>
+/// TMDB movie release availability — whether a movie is out digitally, in theaters only, or not yet released.
+/// </summary>
+public sealed record MovieAvailability
+{
+    public MovieReleaseStatus Status { get; init; }
+    public DateTime? UpcomingDigitalDate { get; init; }
+
+    public static readonly MovieAvailability Unknown      = new() { Status = MovieReleaseStatus.Unknown };
+    public static readonly MovieAvailability Digital      = new() { Status = MovieReleaseStatus.Digital };
+    public static readonly MovieAvailability NotReleased  = new() { Status = MovieReleaseStatus.NotReleased };
+    public static MovieAvailability TheatersOnly => new() { Status = MovieReleaseStatus.TheatersOnly };
+    public static MovieAvailability Upcoming     => new() { Status = MovieReleaseStatus.Upcoming };
+}
+
+public enum MovieReleaseStatus
+{
+    Unknown,
+    NotReleased,
+    Upcoming,
+    TheatersOnly,
+    Digital
+}
+
+/// <summary>
 /// Plugin status DTO.
 /// </summary>
 public class PluginStatusDto

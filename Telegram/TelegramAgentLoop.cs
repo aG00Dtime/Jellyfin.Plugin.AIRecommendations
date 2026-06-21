@@ -403,6 +403,28 @@ public sealed class TelegramAgentLoop
             Plugin.Instance!.SaveConfiguration();
         }
 
+        // Check movie release availability — warn if not yet out digitally so the user knows
+        // a download may not be possible until it leaves theaters or gets a digital release.
+        string? availabilityWarning = null;
+        if (!isSeries)
+        {
+            var avail = await _tmdb.GetMovieAvailabilityAsync(tmdbId, ct).ConfigureAwait(false);
+            availabilityWarning = avail.Status switch
+            {
+                MovieReleaseStatus.TheatersOnly =>
+                    avail.UpcomingDigitalDate.HasValue
+                        ? $"This movie is currently in theaters only. Digital release expected around {avail.UpcomingDigitalDate:MMMM yyyy}. It can be queued but may not download until then."
+                        : "This movie is currently in theaters only and has no confirmed digital release date yet. It can be queued but may not download for some time.",
+                MovieReleaseStatus.NotReleased =>
+                    "This movie hasn't been released yet. It can be queued but won't be available to download until it releases.",
+                MovieReleaseStatus.Upcoming =>
+                    avail.UpcomingDigitalDate.HasValue
+                        ? $"This movie is not yet released. Digital release expected around {avail.UpcomingDigitalDate:MMMM yyyy}."
+                        : "This movie is not yet released and has no confirmed digital release date.",
+                _ => null
+            };
+        }
+
         var results = new List<string>();
 
         // Jellyseerr is the primary request method — it routes internally to Radarr/Sonarr.
@@ -455,7 +477,8 @@ public sealed class TelegramAgentLoop
             success = true,
             message = string.Join("; ", results),
             title,
-            tmdb_id = tmdbId
+            tmdb_id = tmdbId,
+            availability_note = availabilityWarning
         });
     }
 
@@ -562,6 +585,7 @@ RULES:
 6. If search_content returns in_library: true, tell the user that title is already in their Jellyfin library — do NOT offer to request it.
 7. Confirm what you're about to request before calling request_media, unless the user already said "yes", "sure", or "request it".
 8. After a successful request_media call, always tell the user: "You'll get a Telegram notification here when it arrives in Jellyfin." The download status poller tracks all requests and sends automatic notifications — never tell the user you can't notify them.
+   If the result contains an availability_note (e.g. "in theaters only", "not yet released"), always include it in your reply so the user understands the download may be delayed.
 9. If the user asks to "search my library", "check my library", or "browse my library" without specifying a title, ask what specific title or genre they're looking for rather than calling search_library with no query.
 10. Be concise. Use <b>bold</b> for titles (Telegram HTML). No markdown asterisks or bullet dashes.
 11. If no download services are configured, say so when the user tries to request something.
