@@ -121,9 +121,22 @@ public sealed class TelegramAgentLoop
                 responseJson = await CallLlmAsync(config, payload, ct).ConfigureAwait(false);
                 _logger.LogInformation("TelegramAgentLoop: LLM round {Round} returned {Bytes} bytes", round + 1, responseJson.Length);
             }
+            catch (OperationCanceledException)
+            {
+                // Propagate cancellation — the caller (HandleUpdateAsync) handles the turn timeout
+                // and server shutdown cases. Never swallow this or the timeout message won't fire.
+                throw;
+            }
+            catch (HttpRequestException ex)
+            {
+                _logger.LogWarning(ex, "TelegramAgentLoop: LLM network error on round {Round} (provider={Provider}, status={Status})",
+                    round + 1, config.ActiveProvider, ex.StatusCode);
+                return "I had trouble reaching the AI provider. Please try again shortly.";
+            }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "TelegramAgentLoop: LLM call failed on round {Round}", round + 1);
+                _logger.LogWarning(ex, "TelegramAgentLoop: LLM call failed on round {Round} (provider={Provider})",
+                    round + 1, config.ActiveProvider);
                 return "I had trouble reaching the AI provider. Please try again shortly.";
             }
 
@@ -662,7 +675,13 @@ RULES:
         req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
         req.Content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
         using var resp = await client.SendAsync(req, ct).ConfigureAwait(false);
-        resp.EnsureSuccessStatusCode();
+        if (!resp.IsSuccessStatusCode)
+        {
+            var body = await resp.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
+            _logger.LogWarning("TelegramAgentLoop: provider returned {Status} — {Body}",
+                (int)resp.StatusCode, body.Length > 300 ? body[..300] : body);
+            resp.EnsureSuccessStatusCode(); // throws HttpRequestException with status code
+        }
         return await resp.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
     }
 
