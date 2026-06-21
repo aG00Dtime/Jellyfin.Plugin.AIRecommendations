@@ -273,19 +273,28 @@ public sealed class TelegramAgentLoop
         var config = Plugin.Instance!.Configuration;
         var reg = config.UserLibraries.FirstOrDefault(r => r.UserId == user.Id.ToString("N"));
         var ownedIds = _libraryFilter.GetOwnedTmdbIds();
-        var excludeIds = reg is not null
-            ? new HashSet<int>(reg.RejectedTmdbIds.Concat(reg.RequestedTmdbIds).Concat(ownedIds))
-            : new HashSet<int>(ownedIds);
 
-        var results = await _tmdb.DiscoverAsync(genres, isMovie, excludeIds, count * 2, ct).ConfigureAwait(false);
-        var top = results.Take(count).Select(r => new
-        {
-            tmdb_id  = r.TmdbId,
-            title    = r.Title,
-            year     = r.Year,
-            type     = r.IsSeries ? "tv" : "movie",
-            overview = r.Overview
-        }).ToList();
+        // Pre-exclude rejected/requested IDs at fetch time (these are rare).
+        // Owned IDs are post-filtered so TMDB's page-1 results aren't exhausted
+        // before we collect enough candidates.
+        var excludeForFetch = reg is not null
+            ? new HashSet<int>(reg.RejectedTmdbIds.Concat(reg.RequestedTmdbIds))
+            : [];
+
+        // Fetch 4× count per genre so there's room to absorb owned-item filtering
+        var fetchLimit = Math.Max(count * 4, 20);
+        var results = await _tmdb.DiscoverAsync(genres, isMovie, excludeForFetch, fetchLimit, ct).ConfigureAwait(false);
+        var top = results
+            .Where(r => !ownedIds.Contains(r.TmdbId))
+            .Take(count)
+            .Select(r => new
+            {
+                tmdb_id  = r.TmdbId,
+                title    = r.Title,
+                year     = r.Year,
+                type     = r.IsSeries ? "tv" : "movie",
+                overview = r.Overview
+            }).ToList();
 
         return JsonSerializer.Serialize(new { count = top.Count, genres_used = genres, results = top });
     }
@@ -483,13 +492,15 @@ TOOLS:
 - sync_to_jellyfin: refresh the AI recommendation stubs in the user's Jellyfin library (only if they ask)
 
 RULES:
-1. For "recommend me" or "what should I watch" requests, call discover_content — never call sync_to_jellyfin unless explicitly asked.
-2. discover_content already excludes items in the user's Jellyfin library — only suggest what is returned.
-3. Always call search_content before request_media to get the real TMDB ID — never guess it.
-4. If search_content returns in_library: true, tell the user that title is already in their Jellyfin library — do NOT offer to request it.
-5. Confirm what you're about to request before calling request_media, unless the user already said "yes", "sure", or "request it".
-6. Be concise. Use <b>bold</b> for titles (Telegram HTML). No markdown asterisks or bullet dashes.
-7. If no download services are configured, say so when the user tries to request something.
+1. For any "recommend", "what should I watch", or "find me something" request, call discover_content first — do not suggest titles from memory.
+2. Present ALL titles returned by discover_content. Use the exact TMDB title, year, and overview from the tool result. Never invent, substitute, or add titles not in the tool response.
+3. discover_content already excludes items already in the user's Jellyfin library — every result is something they don't have yet.
+4. If you want to refine or try different genres, call discover_content again with those genres — do not ask the user what to search for without doing it.
+5. Always call search_content before request_media to get the verified TMDB ID — never guess it.
+6. If search_content returns in_library: true, tell the user that title is already in their Jellyfin library — do NOT offer to request it.
+7. Confirm what you're about to request before calling request_media, unless the user already said "yes", "sure", or "request it".
+8. Be concise. Use <b>bold</b> for titles (Telegram HTML). No markdown asterisks or bullet dashes.
+9. If no download services are configured, say so when the user tries to request something.
 """;
     }
 
