@@ -20,6 +20,7 @@ public class TasteProfileService
 {
     private readonly WatchHistoryService _watchHistory;
     private readonly ILibraryManager _libraryManager;
+    private readonly IUserDataManager _userDataManager;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly ILogger<TasteProfileService> _logger;
 
@@ -28,13 +29,15 @@ public class TasteProfileService
     public TasteProfileService(
         WatchHistoryService watchHistory,
         ILibraryManager libraryManager,
+        IUserDataManager userDataManager,
         IHttpClientFactory httpClientFactory,
         ILogger<TasteProfileService> logger)
     {
-        _watchHistory    = watchHistory;
-        _libraryManager  = libraryManager;
+        _watchHistory      = watchHistory;
+        _libraryManager    = libraryManager;
+        _userDataManager   = userDataManager;
         _httpClientFactory = httpClientFactory;
-        _logger          = logger;
+        _logger            = logger;
     }
 
     /// <summary>
@@ -177,6 +180,35 @@ public class TasteProfileService
             .Where(i => i.Path is null || !aiPaths.Any(p => i.Path.StartsWith(p, StringComparison.OrdinalIgnoreCase)))
             .ToList();
 
+        // Completion-weighted tagging: loved = favorites, highly rated, or ≥90% position completion
+        var loved = new List<string>();
+        foreach (var item in allWatched)
+        {
+            var ud = _userDataManager.GetUserData(user, item);
+            if (ComputeCompletionPct(ud, item) >= 90.0)
+                loved.Add(FormatTitle(item));
+        }
+
+        // Abandoned: started (position > 0) but not played, < 30% through
+        var playedIdSet = allWatched.Select(i => i.Id).ToHashSet();
+        var resumableItems = _libraryManager.GetItemList(new InternalItemsQuery(user)
+        {
+            IncludeItemTypes = [BaseItemKind.Movie, BaseItemKind.Series],
+            Recursive = true,
+            IsResumable = true,
+            Limit = 100
+        });
+        var abandoned = new List<string>();
+        foreach (var item in resumableItems)
+        {
+            if (playedIdSet.Contains(item.Id)) continue;
+            if (item.Path is not null && aiPaths.Any(p => item.Path.StartsWith(p, StringComparison.OrdinalIgnoreCase))) continue;
+            var ud = _userDataManager.GetUserData(user, item);
+            var pct = ComputeCompletionPct(ud, item);
+            if (pct > 0 && pct < 30)
+                abandoned.Add(FormatTitle(item));
+        }
+
         var recentMovies  = movies.Take(15).Select(FormatTitle).Where(t => t.Length > 0).ToList();
         var recentSeries  = series.Take(15).Select(FormatTitle).Where(t => t.Length > 0).ToList();
 
@@ -202,16 +234,38 @@ public class TasteProfileService
 
         return new RichHistoryData
         {
-            TotalWatched  = allWatched.Count,
-            MovieCount    = movies.Count,
-            SeriesCount   = series.Count,
-            RecentMovies  = recentMovies,
-            RecentSeries  = recentSeries,
-            SpreadSample  = spread,
-            GenreCounts   = genres,
-            EraBreakdown  = eraBreakdown,
-            Favorites     = favorites.Select(FormatTitle).Where(t => t.Length > 0).Take(20).ToList()
+            TotalWatched   = allWatched.Count,
+            MovieCount     = movies.Count,
+            SeriesCount    = series.Count,
+            RecentMovies   = recentMovies,
+            RecentSeries   = recentSeries,
+            SpreadSample   = spread,
+            GenreCounts    = genres,
+            EraBreakdown   = eraBreakdown,
+            Favorites      = favorites.Select(FormatTitle).Where(t => t.Length > 0).Take(20).ToList(),
+            LovedTitles    = loved,
+            AbandonedTitles = abandoned
         };
+    }
+
+    private static double ComputeCompletionPct(UserItemData? ud, BaseItem item)
+    {
+        if (ud is null) return 0.0;
+        if (ud.IsFavorite || (ud.Rating.HasValue && ud.Rating.Value >= 7.0))
+            return 100.0;
+
+        var runTicks = item.RunTimeTicks ?? 0;
+
+        if (!ud.Played)
+        {
+            if (runTicks <= 0 || ud.PlaybackPositionTicks <= 0) return 0.0;
+            return Math.Min(99.0, ud.PlaybackPositionTicks * 100.0 / runTicks);
+        }
+
+        if (runTicks > 0 && ud.PlaybackPositionTicks > 0)
+            return Math.Min(100.0, ud.PlaybackPositionTicks * 100.0 / runTicks);
+
+        return 100.0;
     }
 
     private static string FormatTitle(BaseItem item)
@@ -242,6 +296,10 @@ public class TasteProfileService
         sb.AppendLine();
         if (d.Favorites.Count > 0)
             sb.AppendLine($"Favourited titles: {string.Join(", ", d.Favorites)}");
+        if (d.LovedTitles.Count > 0)
+            sb.AppendLine($"Watched to completion (≥90%): {string.Join(", ", d.LovedTitles.Take(20))}");
+        if (d.AbandonedTitles.Count > 0)
+            sb.AppendLine($"Started but abandoned (<30%): {string.Join(", ", d.AbandonedTitles.Take(10))}");
         sb.AppendLine($"Recently watched movies: {string.Join(", ", d.RecentMovies)}");
         sb.AppendLine($"Recently watched shows: {string.Join(", ", d.RecentSeries)}");
         sb.AppendLine($"Broader history sample: {string.Join(", ", d.SpreadSample)}");
@@ -249,8 +307,8 @@ public class TasteProfileService
         sb.AppendLine("Write a taste profile in 2-3 short paragraphs (third person, \"This user...\"). Cover:");
         sb.AppendLine("1. Genre and theme preferences with specific patterns from the titles");
         sb.AppendLine("2. Preferred tone/mood/style (e.g. dark vs light, procedural vs serialised, fast-paced vs slow-burn)");
-        sb.AppendLine("3. What to recommend more of and what to clearly avoid");
-        sb.AppendLine("Be specific and cite titles as evidence. Keep it under 250 words.");
+        sb.AppendLine("3. What to recommend more of and what to clearly avoid (use the abandoned list as negative signal)");
+        sb.AppendLine("Be specific and cite titles as evidence. Keep it under 300 words.");
         return sb.ToString();
     }
 
@@ -281,11 +339,13 @@ public class TasteProfileService
         public int TotalWatched  { get; init; }
         public int MovieCount    { get; init; }
         public int SeriesCount   { get; init; }
-        public List<string> RecentMovies { get; init; } = [];
-        public List<string> RecentSeries { get; init; } = [];
-        public List<string> SpreadSample { get; init; } = [];
-        public List<string> GenreCounts  { get; init; } = [];
-        public string EraBreakdown       { get; init; } = string.Empty;
-        public List<string> Favorites    { get; init; } = [];
+        public List<string> RecentMovies    { get; init; } = [];
+        public List<string> RecentSeries    { get; init; } = [];
+        public List<string> SpreadSample    { get; init; } = [];
+        public List<string> GenreCounts     { get; init; } = [];
+        public string EraBreakdown          { get; init; } = string.Empty;
+        public List<string> Favorites       { get; init; } = [];
+        public List<string> LovedTitles     { get; init; } = [];
+        public List<string> AbandonedTitles { get; init; } = [];
     }
 }

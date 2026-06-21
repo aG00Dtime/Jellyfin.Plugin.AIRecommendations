@@ -394,6 +394,68 @@ public class TmdbMetadataService
         }
     }
 
+    /// <summary>
+    /// Fetches TMDB's curated /recommendations list for a given title.
+    /// Better signal-to-noise than /similar — TMDB editorial picks based on the seed title.
+    /// </summary>
+    public async Task<IReadOnlyList<TmdbCandidate>> GetTmdbRecommendationsAsync(
+        int tmdbId,
+        bool isSeries,
+        HashSet<int> excludeIds,
+        int limit,
+        CancellationToken cancellationToken)
+    {
+        var config = Plugin.Instance?.Configuration;
+        if (config is null || string.IsNullOrWhiteSpace(config.TmdbApiKey))
+            return Array.Empty<TmdbCandidate>();
+
+        var type       = isSeries ? "tv" : "movie";
+        var titleField = isSeries ? "name" : "title";
+        var dateField  = isSeries ? "first_air_date" : "release_date";
+        var url = $"https://api.themoviedb.org/3/{type}/{tmdbId}/recommendations?api_key={config.TmdbApiKey}";
+
+        var client = _httpClientFactory.CreateClient(nameof(TmdbMetadataService));
+        try
+        {
+            using var response = await client.GetAsync(new Uri(url), cancellationToken).ConfigureAwait(false);
+            if (!response.IsSuccessStatusCode)
+                return Array.Empty<TmdbCandidate>();
+
+            var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+            using var doc = JsonDocument.Parse(json);
+            if (!doc.RootElement.TryGetProperty("results", out var results))
+                return Array.Empty<TmdbCandidate>();
+
+            var list = new List<TmdbCandidate>();
+            foreach (var item in results.EnumerateArray())
+            {
+                if (list.Count >= limit) break;
+
+                var id = item.GetProperty("id").GetInt32();
+                if (excludeIds.Contains(id)) continue;
+
+                var title = item.TryGetProperty(titleField, out var t) ? t.GetString() : null;
+                if (string.IsNullOrWhiteSpace(title)) continue;
+
+                list.Add(new TmdbCandidate
+                {
+                    TmdbId   = id,
+                    Title    = title,
+                    Year     = ParseYear(item, dateField),
+                    IsSeries = isSeries,
+                    Overview = item.TryGetProperty("overview", out var ov) ? ov.GetString() : null
+                });
+            }
+
+            return list;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "GetTmdbRecommendationsAsync failed for {Type} {Id}", type, tmdbId);
+            return Array.Empty<TmdbCandidate>();
+        }
+    }
+
     private static int? ParseYear(JsonElement element, string property)
     {
         if (!element.TryGetProperty(property, out var dateProp))
