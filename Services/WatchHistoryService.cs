@@ -291,26 +291,50 @@ public class LibraryFilterService
             .Where(i => i.Name != null
                 && i.Name.Contains(query, StringComparison.OrdinalIgnoreCase))
             .Take(limit)
-            .Select(i =>
-            {
-                i.TryGetProviderId(MediaBrowser.Model.Entities.MetadataProvider.Tmdb, out var tmdbIdStr);
-                _ = int.TryParse(tmdbIdStr, out var tmdbId);
-                return new LibrarySearchResult
-                {
-                    Title  = i.Name ?? string.Empty,
-                    Year   = i.ProductionYear,
-                    Type   = i is MediaBrowser.Controller.Entities.TV.Series ? "tv" : "movie",
-                    TmdbId = tmdbId > 0 ? tmdbId : null
-                };
-            })
+            .Select(i => ToSearchResult(i))
             .ToList();
+    }
+
+    public IReadOnlyList<LibrarySearchResult> GetRecentlyAdded(User user, string type, int limit = 15)
+    {
+        var kinds = type.Equals("movie", StringComparison.OrdinalIgnoreCase)
+            ? [BaseItemKind.Movie]
+            : type.Equals("tv", StringComparison.OrdinalIgnoreCase)
+                ? [BaseItemKind.Series]
+                : (BaseItemKind[])[BaseItemKind.Movie, BaseItemKind.Series];
+
+        return _libraryManager.GetItemList(new InternalItemsQuery(user)
+        {
+            IncludeItemTypes = kinds,
+            OrderBy = [(ItemSortBy.DateCreated, SortOrder.Descending)],
+            Limit = limit,
+            Recursive = true,
+            IsVirtualItem = false
+        })
+        .Select(i => ToSearchResult(i))
+        .ToList();
+    }
+
+    private static LibrarySearchResult ToSearchResult(BaseItem i)
+    {
+        i.TryGetProviderId(MediaBrowser.Model.Entities.MetadataProvider.Tmdb, out var tmdbIdStr);
+        _ = int.TryParse(tmdbIdStr, out var tmdbId);
+        return new LibrarySearchResult
+        {
+            Title      = i.Name ?? string.Empty,
+            Year       = i.ProductionYear,
+            Type       = i is MediaBrowser.Controller.Entities.TV.Series ? "tv" : "movie",
+            TmdbId     = tmdbId > 0 ? tmdbId : null,
+            DateAdded  = i.DateCreated == default ? null : i.DateCreated
+        };
     }
 }
 
 public sealed class LibrarySearchResult
 {
-    public string Title  { get; init; } = string.Empty;
-    public int?   Year   { get; init; }
-    public string Type   { get; init; } = "movie";
-    public int?   TmdbId { get; init; }
+    public string    Title     { get; init; } = string.Empty;
+    public int?      Year      { get; init; }
+    public string    Type      { get; init; } = "movie";
+    public int?      TmdbId    { get; init; }
+    public DateTime? DateAdded { get; init; }
 }

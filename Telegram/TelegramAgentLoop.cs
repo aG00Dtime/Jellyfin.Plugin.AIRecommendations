@@ -228,6 +228,7 @@ public sealed class TelegramAgentLoop
         {
             "search_content"          => await SearchContentAsync(args, ct).ConfigureAwait(false),
             "search_library"          => SearchLibrary(args, user),
+            "get_recently_added"      => GetRecentlyAdded(args, user),
             "discover_content"        => await DiscoverContentAsync(args, user, ct).ConfigureAwait(false),
             "request_media"           => await RequestMediaAsync(args, jellyfinUserId, ct).ConfigureAwait(false),
             "check_status"            => await CheckStatusAsync(args, ct).ConfigureAwait(false),
@@ -282,6 +283,33 @@ public sealed class TelegramAgentLoop
                 year    = r.Year,
                 type    = r.Type,
                 tmdb_id = r.TmdbId
+            })
+        });
+    }
+
+    private string GetRecentlyAdded(JsonElement args, User user)
+    {
+        var type  = args.TryGetProperty("type",  out var t) ? t.GetString() ?? "all" : "all";
+        var count = args.TryGetProperty("count", out var c) && c.TryGetInt32(out var n)
+            ? Math.Clamp(n, 1, 25) : 15;
+
+        var results = _libraryFilter.GetRecentlyAdded(user, type, count);
+        if (results.Count == 0)
+            return JsonSerializer.Serialize(new { found = false, message = "No items found in the library." });
+
+        return JsonSerializer.Serialize(new
+        {
+            found = true,
+            count = results.Count,
+            results = results.Select(r => new
+            {
+                title      = r.Title,
+                year       = r.Year,
+                type       = r.Type,
+                tmdb_id    = r.TmdbId,
+                date_added = r.DateAdded.HasValue
+                    ? r.DateAdded.Value.ToString("yyyy-MM-dd")
+                    : null
             })
         });
     }
@@ -581,6 +609,7 @@ DOWNLOAD SERVICES: {serviceList}
 
 TOOLS:
 - search_library: search the user's actual Jellyfin library by title — use this when they ask what's in their library or if a specific title is there
+- get_recently_added: list the most recently added movies/shows in the library, sorted by date added — use this for "what's new?", "recently added", "what did I get lately?" questions
 - discover_content: browse TMDB by genre/type — fast, use this for any "recommend me" request
 - search_content: find a specific title on TMDB (searches movies + TV simultaneously) to get its verified TMDB ID
 - request_media: submit a download request to Jellyseerr/Radarr/Sonarr
@@ -710,6 +739,25 @@ RULES:
             type = "function",
             function = new
             {
+                name = "get_recently_added",
+                description = "Returns the most recently added movies or TV shows from the user's Jellyfin library, sorted by date added (newest first). Use this for questions like 'what's new?', 'what was recently added?', 'what did I get lately?'.",
+                parameters = new
+                {
+                    type = "object",
+                    properties = new Dictionary<string, object>
+                    {
+                        ["type"]  = new { type = "string", @enum = new[] { "movie", "tv", "all" }, description = "Filter by type. Omit or use 'all' for both movies and shows." },
+                        ["count"] = new { type = "integer", description = "How many items to return (1-25, default 15)" }
+                    },
+                    required = Array.Empty<string>()
+                }
+            }
+        },
+        new
+        {
+            type = "function",
+            function = new
+            {
                 name = "discover_content",
                 description = "Browse TMDB for popular movies or TV shows matching given genres. Use this for any 'recommend me' or 'what should I watch' request. Fast — no extra AI call needed.",
                 parameters = new
@@ -830,6 +878,11 @@ RULES:
                     args.TryGetProperty("query", out var lq) && lq.GetString() is { Length: > 0 } ltitle
                         ? $"📚 Searching library for <b>{EscapeHtml(ltitle)}</b>..."
                         : "📚 Searching your library...",
+
+                "get_recently_added" =>
+                    args.TryGetProperty("type", out var rt) && rt.GetString() is { } rtype && rtype != "all"
+                        ? $"🆕 Getting recently added {rtype}s..."
+                        : "🆕 Getting recently added titles...",
 
                 "search_content" =>
                     args.TryGetProperty("query", out var q) && q.GetString() is { Length: > 0 } title
