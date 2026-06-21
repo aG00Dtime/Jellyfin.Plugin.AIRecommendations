@@ -48,7 +48,7 @@ public class RecommendationSyncService
         _logger = logger;
     }
 
-    public async Task SyncAllUsersAsync(IProgress<double>? progress, CancellationToken cancellationToken)
+    public async Task SyncAllUsersAsync(IProgress<double>? progress, CancellationToken cancellationToken, bool force = false)
     {
         var users = _userManager.GetUsers()
             .Where(u => !u.HasPermission(PermissionKind.IsDisabled))
@@ -70,7 +70,7 @@ public class RecommendationSyncService
 
             try
             {
-                await SyncUserAsync(user, cancellationToken).ConfigureAwait(false);
+                await SyncUserAsync(user, cancellationToken, force).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -105,7 +105,7 @@ public class RecommendationSyncService
         }
     }
 
-    public async Task SyncUserAsync(User user, CancellationToken cancellationToken)
+    public async Task SyncUserAsync(User user, CancellationToken cancellationToken, bool force = false)
     {
         var config = Plugin.Instance!.Configuration;
         var registration = await _virtualLibraryManager.EnsureUserLibrariesAsync(user, cancellationToken)
@@ -138,8 +138,30 @@ public class RecommendationSyncService
             .Concat(registration.RequestedTmdbIds)
             .ToHashSet();
 
-        var all = await _engine.GenerateForUserAsync(user, extraExcludeIds, cancellationToken)
-            .ConfigureAwait(false);
+        // Skip LLM generation if stubs already exist and the sync interval hasn't elapsed.
+        // This prevents a full AI call on every Jellyfin restart when recommendations are current.
+        var hasExistingStubs = registration.PlacedTmdbIds.Count > 0;
+        var syncAgeHours = config.LastSyncUtc.HasValue
+            ? (DateTime.UtcNow - config.LastSyncUtc.Value).TotalHours
+            : double.MaxValue;
+        var shouldGenerate = force
+            || config.AlwaysRefreshRecommendations
+            || !hasExistingStubs
+            || syncAgeHours >= config.SyncIntervalHours;
+
+        IReadOnlyList<ResolvedRecommendation> all;
+        if (shouldGenerate)
+        {
+            all = await _engine.GenerateForUserAsync(user, extraExcludeIds, cancellationToken)
+                .ConfigureAwait(false);
+        }
+        else
+        {
+            _logger.LogInformation(
+                "Skipping recommendation generation for {User} — stubs exist and last sync was {Hours:F1}h ago (interval: {Interval}h)",
+                user.Username, syncAgeHours, config.SyncIntervalHours);
+            all = [];
+        }
 
         // Always remove rejected + requested stubs; in refresh mode also wipe everything on disk
         var removeIds = new HashSet<int>(registration.RejectedTmdbIds.Concat(registration.RequestedTmdbIds));
