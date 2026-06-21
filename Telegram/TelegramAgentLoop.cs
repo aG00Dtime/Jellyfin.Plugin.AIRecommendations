@@ -109,7 +109,9 @@ public sealed class TelegramAgentLoop
             string responseJson;
             try
             {
+                _logger.LogInformation("TelegramAgentLoop: calling LLM round {Round} for user {UserId}", round + 1, jellyfinUserId);
                 responseJson = await CallLlmAsync(config, payload, ct).ConfigureAwait(false);
+                _logger.LogInformation("TelegramAgentLoop: LLM round {Round} returned {Bytes} bytes", round + 1, responseJson.Length);
             }
             catch (Exception ex)
             {
@@ -117,8 +119,18 @@ public sealed class TelegramAgentLoop
                 return "I had trouble reaching the AI provider. Please try again shortly.";
             }
 
-            using var doc = JsonDocument.Parse(responseJson);
-            var choice = doc.RootElement.GetProperty("choices")[0].GetProperty("message");
+            JsonElement choice;
+            try
+            {
+                using var doc = JsonDocument.Parse(responseJson);
+                choice = doc.RootElement.GetProperty("choices")[0].GetProperty("message").Clone();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "TelegramAgentLoop: failed to parse LLM response on round {Round}. Response: {Json}",
+                    round + 1, responseJson.Length > 500 ? responseJson[..500] : responseJson);
+                return "The AI provider returned an unexpected response. Please try again.";
+            }
 
             if (choice.TryGetProperty("tool_calls", out var toolCalls) && toolCalls.GetArrayLength() > 0)
             {
