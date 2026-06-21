@@ -494,6 +494,7 @@ TOOLS:
 RULES:
 1. For any "recommend", "what should I watch", or "find me something" request, call discover_content with count=5 — do not suggest titles from memory.
 2. Present ALL titles returned by discover_content, exactly as returned, in order. Use the TMDB title, year, and overview from the tool result. Never invent, substitute, omit, or reorder titles. Never filter by era, prestige, mainstream vs art-house, or any other personal judgment — show everything the tool returns.
+3. For every recommendation set, include at least 1 wildcard — a genre or style clearly outside the user's usual taste. Call discover_content a second time with a different genre to get this wildcard pick. Label it lightly (e.g. "something different") so the user knows it's a stretch pick.
 3. discover_content already excludes items already in the user's Jellyfin library — every result is something they don't have yet.
 4. If you want to refine or try different genres, call discover_content again with those genres — do not ask the user what to search for without doing it.
 5. Always call search_content before request_media to get the verified TMDB ID — never guess it.

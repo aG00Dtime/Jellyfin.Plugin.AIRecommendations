@@ -71,6 +71,7 @@ public static class LlmProviderHelpers
                 CATALOG (pick from this list only — do NOT invent titles):
                 {{catalogJson}}
 
+                Include 1-2 wildcard picks from genres clearly outside the user's usual taste to broaden their horizons.
                 JSON: {"recommendations":[{"tmdbId":123,"title":"...","year":2020,"type":"movie","reason":"one line why"}]}
                 type must be "movie" or "series".
                 """;
@@ -92,6 +93,7 @@ public static class LlmProviderHelpers
             {{excludeStr}}{{notFoundSection}}
 
             Rules: real titles only (must exist on TMDB), mix movies+series, vary eras.
+            Include 1-2 wildcard picks from genres clearly outside the user's usual taste to broaden their horizons.
             {"recommendations":[{"title":"Name","year":2020,"type":"movie","reason":"one line why"}]}
             type must be "movie" or "series".
             """;
