@@ -53,6 +53,24 @@ public class RecommendationSyncService
 
     public async Task SyncAllUsersAsync(IProgress<double>? progress, CancellationToken cancellationToken, bool force = false)
     {
+        var config = Plugin.Instance!.Configuration;
+
+        // Guard: if the sync interval hasn't elapsed since the last successful run, skip entirely.
+        // This prevents the task from regenerating recommendations on every Jellyfin restart when
+        // the startup trigger is still configured (e.g. from a previous install).
+        if (!force && config.LastSyncUtc.HasValue)
+        {
+            var hoursSinceLast = (DateTime.UtcNow - config.LastSyncUtc.Value).TotalHours;
+            if (hoursSinceLast < config.SyncIntervalHours)
+            {
+                _logger.LogInformation(
+                    "AI Recommendations: last sync was {Hours:F1}h ago (interval {Interval}h) — skipping. Use manual sync to force.",
+                    hoursSinceLast, config.SyncIntervalHours);
+                progress?.Report(100);
+                return;
+            }
+        }
+
         var users = _userManager.GetUsers()
             .Where(u => !u.HasPermission(PermissionKind.IsDisabled))
             .ToList();
@@ -146,8 +164,11 @@ public class RecommendationSyncService
             .ToHashSet();
 
         // Skip LLM generation if stubs already exist and the sync interval hasn't elapsed.
-        // This prevents a full AI call on every Jellyfin restart when recommendations are current.
-        var hasExistingStubs = registration.PlacedTmdbIds.Count > 0;
+        // Check PlacedTmdbIds first; fall back to scanning actual disk files in case the config
+        // list got cleared (e.g. deserialization issue or plugin reinstall).
+        var hasExistingStubs = registration.PlacedTmdbIds.Count > 0
+            || VirtualItemWriter.ScanTmdbIds(registration.MoviePath).Count > 0
+            || VirtualItemWriter.ScanTmdbIds(registration.ShowPath).Count > 0;
         var syncAgeHours = config.LastSyncUtc.HasValue
             ? (DateTime.UtcNow - config.LastSyncUtc.Value).TotalHours
             : double.MaxValue;
