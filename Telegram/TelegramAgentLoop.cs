@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
@@ -17,22 +18,26 @@ namespace Jellyfin.Plugin.AIRecommendations.Telegram;
 public sealed class TelegramAgentLoop
 {
     private const int MaxToolRounds = 5;
+    private const int MaxHistoryMessages = 20;
     private const string AgentClientName = "TelegramAgent";
 
     private readonly TmdbMetadataService _tmdb;
     private readonly JellyseerrService _jellyseerr;
     private readonly ArrRequestService _arr;
-    private readonly RecommendationEngine _engine;
+    private readonly RecommendationSyncService _syncService;
     private readonly WatchHistoryService _watchHistory;
     private readonly IUserManager _userManager;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly ILogger<TelegramAgentLoop> _logger;
 
+    // Per-user test sessions (used by the admin test endpoint, not Telegram)
+    private readonly ConcurrentDictionary<string, List<ConversationMessage>> _testSessions = new();
+
     public TelegramAgentLoop(
         TmdbMetadataService tmdb,
         JellyseerrService jellyseerr,
         ArrRequestService arr,
-        RecommendationEngine engine,
+        RecommendationSyncService syncService,
         WatchHistoryService watchHistory,
         IUserManager userManager,
         IHttpClientFactory httpClientFactory,
@@ -41,12 +46,24 @@ public sealed class TelegramAgentLoop
         _tmdb = tmdb;
         _jellyseerr = jellyseerr;
         _arr = arr;
-        _engine = engine;
+        _syncService = syncService;
         _watchHistory = watchHistory;
         _userManager = userManager;
         _httpClientFactory = httpClientFactory;
         _logger = logger;
     }
+
+    /// <summary>Runs the agent for the admin test UI, maintaining a stateful per-user session.</summary>
+    public async Task<string> TestAsync(string jellyfinUserId, string message, CancellationToken ct)
+    {
+        var history = _testSessions.GetOrAdd(jellyfinUserId, _ => new List<ConversationMessage>());
+        var reply = await RunAsync(jellyfinUserId, message, history, ct).ConfigureAwait(false);
+        while (history.Count > MaxHistoryMessages) history.RemoveAt(0);
+        return reply;
+    }
+
+    public void ResetTestSession(string jellyfinUserId) =>
+        _testSessions.TryRemove(jellyfinUserId, out _);
 
     /// <summary>
     /// Processes one user turn. Appends the user message to <paramref name="history"/>,
@@ -169,10 +186,11 @@ public sealed class TelegramAgentLoop
 
         return toolName switch
         {
-            "search_content"     => await SearchContentAsync(args, ct).ConfigureAwait(false),
-            "get_recommendations"=> await GetRecommendationsAsync(args, jellyfinUserId, user, ct).ConfigureAwait(false),
-            "request_media"      => await RequestMediaAsync(args, jellyfinUserId, ct).ConfigureAwait(false),
-            "check_status"       => await CheckStatusAsync(args, ct).ConfigureAwait(false),
+            "search_content"    => await SearchContentAsync(args, ct).ConfigureAwait(false),
+            "discover_content"  => await DiscoverContentAsync(args, user, ct).ConfigureAwait(false),
+            "request_media"     => await RequestMediaAsync(args, jellyfinUserId, ct).ConfigureAwait(false),
+            "check_status"      => await CheckStatusAsync(args, ct).ConfigureAwait(false),
+            "sync_to_jellyfin"  => await SyncToJellyfinAsync(user, ct).ConfigureAwait(false),
             _ => JsonSerializer.Serialize(new { error = $"Unknown tool: {toolName}" })
         };
     }
@@ -200,33 +218,67 @@ public sealed class TelegramAgentLoop
         });
     }
 
-    private async Task<string> GetRecommendationsAsync(
-        JsonElement args,
-        string jellyfinUserId,
-        User user,
-        CancellationToken ct)
+    private async Task<string> DiscoverContentAsync(JsonElement args, User user, CancellationToken ct)
     {
-        var count = args.TryGetProperty("count", out var c) && c.TryGetInt32(out var n)
+        var type    = args.TryGetProperty("type",  out var t) ? t.GetString() ?? "movie" : "movie";
+        var isMovie = !type.Equals("tv", StringComparison.OrdinalIgnoreCase)
+                   && !type.Equals("series", StringComparison.OrdinalIgnoreCase);
+        var count   = args.TryGetProperty("count", out var c) && c.TryGetInt32(out var n)
             ? Math.Clamp(n, 1, 10) : 5;
 
+        // Use genres from args, or fall back to the user's taste profile
+        List<string> genres;
+        if (args.TryGetProperty("genres", out var genreEl) && genreEl.ValueKind == JsonValueKind.Array)
+        {
+            genres = genreEl.EnumerateArray()
+                .Select(g => g.GetString() ?? string.Empty)
+                .Where(g => !string.IsNullOrWhiteSpace(g))
+                .ToList();
+        }
+        else
+        {
+            var profile = _watchHistory.BuildTasteProfile(user, 30);
+            genres = profile.TopGenres.Take(3).Select(g => g.Genre).ToList();
+        }
+
+        if (genres.Count == 0)
+            genres = isMovie ? ["Drama", "Action"] : ["Drama", "Comedy"];
+
         var config = Plugin.Instance!.Configuration;
-        var reg = config.UserLibraries.FirstOrDefault(r => r.UserId == jellyfinUserId);
+        var reg = config.UserLibraries.FirstOrDefault(r => r.UserId == user.Id.ToString("N"));
         var excludeIds = reg is not null
             ? new HashSet<int>(reg.RejectedTmdbIds.Concat(reg.RequestedTmdbIds))
-            : new HashSet<int>();
+            : [];
 
-        var recs = await _engine.GenerateForUserAsync(user, excludeIds, ct).ConfigureAwait(false);
-        var top = recs.Take(count).Select(r => new
+        var results = await _tmdb.DiscoverAsync(genres, isMovie, excludeIds, count * 2, ct).ConfigureAwait(false);
+        var top = results.Take(count).Select(r => new
         {
             tmdb_id  = r.TmdbId,
             title    = r.Title,
             year     = r.Year,
             type     = r.IsSeries ? "tv" : "movie",
-            reason   = r.Reason,
             overview = r.Overview
         }).ToList();
 
-        return JsonSerializer.Serialize(new { count = top.Count, recommendations = top });
+        return JsonSerializer.Serialize(new { count = top.Count, genres_used = genres, results = top });
+    }
+
+    private async Task<string> SyncToJellyfinAsync(User user, CancellationToken ct)
+    {
+        try
+        {
+            await _syncService.SyncUserAsync(user, ct).ConfigureAwait(false);
+            return JsonSerializer.Serialize(new
+            {
+                success = true,
+                message = "Jellyfin AI library updated — new recommendation stubs are now available."
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "TelegramAgentLoop: sync_to_jellyfin failed for {User}", user.Username);
+            return JsonSerializer.Serialize(new { success = false, error = ex.Message });
+        }
     }
 
     private async Task<string> RequestMediaAsync(
@@ -341,9 +393,6 @@ public sealed class TelegramAgentLoop
     private string BuildSystemPrompt(User user, Configuration.PluginConfiguration config)
     {
         var profile = _watchHistory.BuildTasteProfile(user, Math.Min(config.MaxWatchedItems, 30));
-        var genres  = profile.TopGenres.Count > 0 ? string.Join(", ", profile.TopGenres.Select(g => g.Genre)) : "varied";
-        var favs    = profile.FavoriteTitles.Count > 0 ? string.Join(", ", profile.FavoriteTitles) : "none recorded";
-        var samples = profile.SampleTitles.Count > 0 ? string.Join(", ", profile.SampleTitles) : "none recorded";
 
         var services = new List<string>();
         if (!string.IsNullOrWhiteSpace(config.JellyseerrBaseUrl)) services.Add("Jellyseerr");
@@ -351,25 +400,42 @@ public sealed class TelegramAgentLoop
         if (!string.IsNullOrWhiteSpace(config.SonarrBaseUrl)) services.Add("Sonarr");
         var serviceList = services.Count > 0 ? string.Join(", ", services) : "none configured";
 
+        string tasteSection;
+        if (profile.TotalWatched == 0)
+        {
+            tasteSection = "Watch history: No data yet — ask the user what genres or titles they enjoy before making recommendations.";
+        }
+        else
+        {
+            var genres  = string.Join(", ", profile.TopGenres.Select(g => g.Genre));
+            var samples = profile.SampleTitles.Count > 0 ? string.Join(", ", profile.SampleTitles) : "none recorded";
+            var favs    = profile.FavoriteTitles.Count > 0 ? string.Join(", ", profile.FavoriteTitles) : "none recorded";
+            tasteSection = $"Top genres: {genres}\n- Era preference: {profile.EraPreference}\n" +
+                           $"- Content mix: {profile.MoviePercent}% movies, {100 - profile.MoviePercent}% shows\n" +
+                           $"- Enjoyed: {samples}\n- Favourites: {favs}";
+        }
+
         return $"""
 You are a friendly media assistant for a personal Jellyfin home server. Help the user discover and request movies and TV shows.
 
 USER TASTE PROFILE:
-- Top genres: {genres}
-- Era preference: {profile.EraPreference}
-- Content mix: {profile.MoviePercent}% movies, {100 - profile.MoviePercent}% shows
-- Enjoyed: {samples}
-- Favourites: {favs}
+- {tasteSection}
 
 DOWNLOAD SERVICES: {serviceList}
 
-TOOLS: search_content, get_recommendations, request_media, check_status
+TOOLS:
+- discover_content: browse TMDB by genre/type — fast, use this for any "recommend me" request
+- search_content: find a specific title on TMDB to get its verified TMDB ID
+- request_media: submit a download request to Jellyseerr/Radarr/Sonarr
+- check_status: check if something is already downloaded or queued
+- sync_to_jellyfin: refresh the AI recommendation stubs in the user's Jellyfin library (only if they ask)
 
 RULES:
-1. Always call search_content before request_media to get the real TMDB ID — never guess it.
-2. Confirm what you're about to request before calling request_media, unless the user already said "yes", "sure", or "request it".
-3. Be concise. Use <b>bold</b> for titles (Telegram HTML). No markdown asterisks.
-4. If no download services are configured, say so when the user tries to request something.
+1. For "recommend me" or "what should I watch" requests, call discover_content — never call sync_to_jellyfin unless explicitly asked.
+2. Always call search_content before request_media to get the real TMDB ID — never guess it.
+3. Confirm what you're about to request before calling request_media, unless the user already said "yes", "sure", or "request it".
+4. Be concise. Use <b>bold</b> for titles (Telegram HTML). No markdown asterisks or bullet dashes.
+5. If no download services are configured, say so when the user tries to request something.
 """;
     }
 
@@ -454,8 +520,28 @@ RULES:
             type = "function",
             function = new
             {
+                name = "discover_content",
+                description = "Browse TMDB for popular movies or TV shows matching given genres. Use this for any 'recommend me' or 'what should I watch' request. Fast — no extra AI call needed.",
+                parameters = new
+                {
+                    type = "object",
+                    properties = new Dictionary<string, object>
+                    {
+                        ["type"]   = new { type = "string", @enum = new[] { "movie", "tv" }, description = "Movie or TV show" },
+                        ["genres"] = new { type = "array", items = new { type = "string" }, description = "Genre names e.g. ['Action','Thriller']. Omit to use the user's taste profile." },
+                        ["count"]  = new { type = "integer", description = "How many results to return (1-10, default 5)" }
+                    },
+                    required = new[] { "type" }
+                }
+            }
+        },
+        new
+        {
+            type = "function",
+            function = new
+            {
                 name = "search_content",
-                description = "Search TMDB for a movie or TV show by title to verify it exists and get its TMDB ID. Always call this before request_media.",
+                description = "Search TMDB for a specific movie or TV show by title to get its verified TMDB ID. Always call this before request_media.",
                 parameters = new
                 {
                     type = "object",
@@ -474,33 +560,15 @@ RULES:
             type = "function",
             function = new
             {
-                name = "get_recommendations",
-                description = "Generate personalised movie and TV show recommendations based on the user's Jellyfin watch history.",
-                parameters = new
-                {
-                    type = "object",
-                    properties = new Dictionary<string, object>
-                    {
-                        ["count"] = new { type = "integer", description = "Number of recommendations to return (1-10)" }
-                    },
-                    required = new[] { "count" }
-                }
-            }
-        },
-        new
-        {
-            type = "function",
-            function = new
-            {
                 name = "request_media",
-                description = "Submit a download request for a movie or TV show via Jellyseerr, Radarr, or Sonarr. Always call search_content first to confirm the TMDB ID.",
+                description = "Submit a download request via Jellyseerr, Radarr, or Sonarr. Always call search_content first to confirm the TMDB ID.",
                 parameters = new
                 {
                     type = "object",
                     properties = new Dictionary<string, object>
                     {
-                        ["tmdb_id"] = new { type = "integer", description = "TMDB ID from search_content result" },
-                        ["title"]   = new { type = "string",  description = "Human-readable title for confirmation messages" },
+                        ["tmdb_id"] = new { type = "integer", description = "TMDB ID from search_content" },
+                        ["title"]   = new { type = "string",  description = "Human-readable title" },
                         ["type"]    = new { type = "string",  @enum = new[] { "movie", "tv" } }
                     },
                     required = new[] { "tmdb_id", "title", "type" }
@@ -513,7 +581,7 @@ RULES:
             function = new
             {
                 name = "check_status",
-                description = "Check the download or availability status of a movie or TV show.",
+                description = "Check the download or availability status of a specific title.",
                 parameters = new
                 {
                     type = "object",
@@ -523,6 +591,21 @@ RULES:
                         ["type"]    = new { type = "string",  @enum = new[] { "movie", "tv" } }
                     },
                     required = new[] { "tmdb_id", "type" }
+                }
+            }
+        },
+        new
+        {
+            type = "function",
+            function = new
+            {
+                name = "sync_to_jellyfin",
+                description = "Refresh the user's AI recommendation stubs in their Jellyfin library. Only call this when the user explicitly asks to update their Jellyfin recommendations.",
+                parameters = new
+                {
+                    type = "object",
+                    properties = new Dictionary<string, object>(),
+                    required = Array.Empty<string>()
                 }
             }
         }
