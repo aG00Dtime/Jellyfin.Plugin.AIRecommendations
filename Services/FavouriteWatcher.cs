@@ -19,6 +19,7 @@ public class FavouriteWatcher : IHostedService
     private readonly IUserDataManager _userDataManager;
     private readonly IUserManager _userManager;
     private readonly JellyseerrService _jellyseerr;
+    private readonly ArrRequestService _arr;
     private readonly ISessionManager _sessionManager;
     private readonly ILogger<FavouriteWatcher> _logger;
 
@@ -26,12 +27,14 @@ public class FavouriteWatcher : IHostedService
         IUserDataManager userDataManager,
         IUserManager userManager,
         JellyseerrService jellyseerr,
+        ArrRequestService arr,
         ISessionManager sessionManager,
         ILogger<FavouriteWatcher> logger)
     {
         _userDataManager = userDataManager;
         _userManager = userManager;
         _jellyseerr = jellyseerr;
+        _arr = arr;
         _sessionManager = sessionManager;
         _logger = logger;
     }
@@ -283,48 +286,106 @@ public class FavouriteWatcher : IHostedService
             }
 
             _logger.LogInformation(
-                "{User} favourited \"{Title}\" in AI library — submitting Jellyseerr request immediately",
+                "{User} favourited \"{Title}\" in AI library — submitting download request",
                 user.Username, item.Name);
 
-            var rec = new ResolvedRecommendation
+            var queued = new List<string>();
+            var anyConfigured = false;
+
+            // Jellyseerr — handles both movies and shows
+            if (!string.IsNullOrWhiteSpace(config.JellyseerrBaseUrl))
             {
-                TmdbId = tmdbId,
-                IsSeries = inShowLib,
-                Title = item.Name ?? string.Empty
-            };
+                anyConfigured = true;
+                try
+                {
+                    var rec = new ResolvedRecommendation
+                    {
+                        TmdbId = tmdbId,
+                        IsSeries = inShowLib,
+                        Title = item.Name ?? string.Empty
+                    };
+                    var submitted = await _jellyseerr
+                        .RequestRecommendationsAsync([rec], ct)
+                        .ConfigureAwait(false);
+                    if (submitted > 0)
+                    {
+                        queued.Add("Jellyseerr");
+                        _logger.LogInformation(
+                            "Jellyseerr: queued \"{Title}\" (tmdb {Id}) for {User}",
+                            item.Name, tmdbId, user.Username);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "FavouriteWatcher: Jellyseerr request failed for \"{Title}\"", item.Name);
+                }
+            }
 
-            var submitted = await _jellyseerr
-                .RequestRecommendationsAsync([rec], ct)
-                .ConfigureAwait(false);
+            // Radarr — movies only
+            if (!inShowLib && !string.IsNullOrWhiteSpace(config.RadarrBaseUrl))
+            {
+                anyConfigured = true;
+                try
+                {
+                    var ok = await _arr
+                        .RequestMovieAsync(tmdbId, item.Name ?? string.Empty, ct)
+                        .ConfigureAwait(false);
+                    if (ok) queued.Add("Radarr");
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "FavouriteWatcher: Radarr request failed for \"{Title}\"", item.Name);
+                }
+            }
 
-            if (submitted > 0)
+            // Sonarr — shows only
+            if (inShowLib && !string.IsNullOrWhiteSpace(config.SonarrBaseUrl))
+            {
+                anyConfigured = true;
+                try
+                {
+                    var ok = await _arr
+                        .RequestShowAsync(tmdbId, item.Name ?? string.Empty, ct)
+                        .ConfigureAwait(false);
+                    if (ok) queued.Add("Sonarr");
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "FavouriteWatcher: Sonarr request failed for \"{Title}\"", item.Name);
+                }
+            }
+
+            if (queued.Count > 0)
             {
                 reg.RequestedTmdbIds.Add(tmdbId);
                 Plugin.Instance!.SaveConfiguration();
-
-                _logger.LogInformation(
-                    "Jellyseerr request sent for \"{Title}\" (tmdb {Id}) on behalf of {User}",
-                    item.Name, tmdbId, user.Username);
-
+                var via = string.Join(" + ", queued);
                 await NotifyUserAsync(
                     user.Id,
                     "Download Requested",
-                    $"\"{item.Name}\" has been queued — you'll be notified when it's ready.",
+                    $"\"{item.Name}\" queued in {via} — you'll be notified when it's ready.",
+                    ct).ConfigureAwait(false);
+            }
+            else if (!anyConfigured)
+            {
+                await NotifyUserAsync(
+                    user.Id,
+                    "Not Configured",
+                    "No download service is set up. Configure Jellyseerr, Radarr, or Sonarr in the plugin settings.",
                     ct).ConfigureAwait(false);
             }
             else
             {
-                // Jellyseerr knew about it already (status >= pending) but it wasn't in our local list
                 await NotifyUserAsync(
                     user.Id,
                     "Already Queued",
-                    $"\"{item.Name}\" is already pending or available in Jellyseerr.",
+                    $"\"{item.Name}\" is already pending or being processed.",
                     ct).ConfigureAwait(false);
             }
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "FavouriteWatcher: Jellyseerr request failed for \"{Title}\"", item.Name);
+            _logger.LogWarning(ex, "FavouriteWatcher: request failed for \"{Title}\"", item.Name);
             await NotifyUserAsync(
                 user.Id,
                 "Request Failed",
