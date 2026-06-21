@@ -78,6 +78,20 @@ public sealed class TelegramBotService : IHostedService
 
     // ── Outbound messaging ────────────────────────────────────────────────────
 
+    private async Task SendChatActionAsync(long chatId, CancellationToken ct)
+    {
+        var token = Plugin.Instance?.Configuration.TelegramBotToken;
+        if (string.IsNullOrWhiteSpace(token)) return;
+
+        var payload = new { chat_id = chatId, action = "typing" };
+        var client = _httpClientFactory.CreateClient(ClientName);
+        using var req = new HttpRequestMessage(
+            HttpMethod.Post, $"https://api.telegram.org/bot{token}/sendChatAction");
+        req.Content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
+        try { using var _ = await client.SendAsync(req, ct).ConfigureAwait(false); }
+        catch { }
+    }
+
     public async Task SendMessageAsync(long chatId, string html, CancellationToken ct = default)
     {
         var token = Plugin.Instance?.Configuration.TelegramBotToken;
@@ -225,8 +239,28 @@ public sealed class TelegramBotService : IHostedService
         try
         {
             _logger.LogInformation("Telegram: dispatching to agent for user {UserId}", link.JellyfinUserId);
-            var reply = await _agent.RunAsync(link.JellyfinUserId, text, session.History, ct)
-                .ConfigureAwait(false);
+
+            // Keep the Telegram "typing..." indicator alive every 4 s while the agent works.
+            // Telegram auto-clears it after 5 s, so we refresh before it expires.
+            using var typingCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            _ = Task.Run(async () =>
+            {
+                while (!typingCts.Token.IsCancellationRequested)
+                {
+                    await SendChatActionAsync(chatId, typingCts.Token).ConfigureAwait(false);
+                    try { await Task.Delay(4000, typingCts.Token).ConfigureAwait(false); }
+                    catch (OperationCanceledException) { break; }
+                }
+            }, typingCts.Token);
+
+            var reply = await _agent.RunAsync(
+                link.JellyfinUserId,
+                text,
+                session.History,
+                async status => await SendMessageAsync(chatId, status, ct).ConfigureAwait(false),
+                ct).ConfigureAwait(false);
+
+            typingCts.Cancel();
 
             // Trim history window
             while (session.History.Count > MaxHistoryMessages)

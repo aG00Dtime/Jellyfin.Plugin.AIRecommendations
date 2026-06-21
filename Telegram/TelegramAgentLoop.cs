@@ -60,7 +60,7 @@ public sealed class TelegramAgentLoop
     public async Task<string> TestAsync(string jellyfinUserId, string message, CancellationToken ct)
     {
         var history = _testSessions.GetOrAdd(jellyfinUserId, _ => new List<ConversationMessage>());
-        var reply = await RunAsync(jellyfinUserId, message, history, ct).ConfigureAwait(false);
+        var reply = await RunAsync(jellyfinUserId, message, history, null, ct).ConfigureAwait(false);
         while (history.Count > MaxHistoryMessages) history.RemoveAt(0);
         return reply;
     }
@@ -73,10 +73,12 @@ public sealed class TelegramAgentLoop
     /// runs the tool-calling loop, appends all assistant/tool messages, and returns the
     /// final text reply.
     /// </summary>
+    /// <param name="onStatus">Optional callback invoked before each tool call with a brief human-readable status.</param>
     public async Task<string> RunAsync(
         string jellyfinUserId,
         string userText,
         List<ConversationMessage> history,
+        Func<string, Task>? onStatus,
         CancellationToken ct)
     {
         var config = Plugin.Instance?.Configuration;
@@ -152,6 +154,13 @@ public sealed class TelegramAgentLoop
                         ? fnArgs.GetString() ?? "{}" : "{}";
 
                     _logger.LogInformation("TelegramAgentLoop: tool call {Tool}({Args})", tcName, tcArgs.Length > 200 ? tcArgs[..200] : tcArgs);
+
+                    if (onStatus != null)
+                    {
+                        var statusMsg = BuildToolStatusMessage(tcName, tcArgs);
+                        if (statusMsg != null)
+                            try { await onStatus(statusMsg).ConfigureAwait(false); } catch { }
+                    }
 
                     string toolResult;
                     try
@@ -651,4 +660,45 @@ RULES:
         }
     ];
 
+    // ── Tool status messages ──────────────────────────────────────────────────
+
+    private static string? BuildToolStatusMessage(string toolName, string argsJson)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(argsJson);
+            var args = doc.RootElement;
+            return toolName switch
+            {
+                "search_content" =>
+                    args.TryGetProperty("query", out var q) && q.GetString() is { Length: > 0 } title
+                        ? $"🔍 Searching for <b>{EscapeHtml(title)}</b>..."
+                        : "🔍 Searching TMDB...",
+
+                "discover_content" =>
+                    args.TryGetProperty("genres", out var g) && g.ValueKind == JsonValueKind.Array
+                    && g.EnumerateArray().Select(x => x.GetString()).Where(x => !string.IsNullOrEmpty(x)).Take(2).ToList() is { Count: > 0 } genreList
+                        ? $"🎬 Finding <b>{string.Join(" &amp; ", genreList)}</b> picks..."
+                        : "🎬 Finding recommendations...",
+
+                "request_media" =>
+                    args.TryGetProperty("title", out var t) && t.GetString() is { Length: > 0 } rt
+                        ? $"📤 Requesting <b>{EscapeHtml(rt)}</b>..."
+                        : "📤 Submitting request...",
+
+                "check_status" =>
+                    args.TryGetProperty("title", out var st) && st.GetString() is { Length: > 0 } stt
+                        ? $"📊 Checking status of <b>{EscapeHtml(stt)}</b>..."
+                        : "📊 Checking download status...",
+
+                "sync_to_jellyfin" => "🔄 Syncing your Jellyfin library...",
+
+                _ => null
+            };
+        }
+        catch { return null; }
+    }
+
+    private static string EscapeHtml(string s) =>
+        s.Replace("&", "&amp;").Replace("<", "&lt;").Replace(">", "&gt;");
 }
