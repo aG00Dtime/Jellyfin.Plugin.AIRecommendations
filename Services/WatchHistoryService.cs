@@ -18,10 +18,12 @@ namespace Jellyfin.Plugin.AIRecommendations.Services;
 public class WatchHistoryService
 {
     private readonly ILibraryManager _libraryManager;
+    private readonly IUserDataManager _userDataManager;
 
-    public WatchHistoryService(ILibraryManager libraryManager)
+    public WatchHistoryService(ILibraryManager libraryManager, IUserDataManager userDataManager)
     {
         _libraryManager = libraryManager;
+        _userDataManager = userDataManager;
     }
 
     /// <summary>
@@ -205,6 +207,142 @@ public class WatchHistoryService
             .ToList();
     }
 
+    /// <summary>
+    /// Returns watched movies and series annotated with completion percentage.
+    /// Also includes partially-started items tagged as Abandoned.
+    /// </summary>
+    public List<WatchedItemDetail> GetWatchedWithCompletion(User user, int limit = 200)
+    {
+        var aiPaths = Plugin.Instance?.Configuration.UserLibraries
+            .SelectMany(r => new[] { r.MoviePath, r.ShowPath })
+            .Where(p => !string.IsNullOrEmpty(p))
+            .ToList() ?? [];
+
+        bool IsAiStub(BaseItem item) =>
+            aiPaths.Count > 0
+            && aiPaths.Any(p => item.Path?.StartsWith(p, StringComparison.OrdinalIgnoreCase) == true);
+
+        var played = _libraryManager.GetItemList(new InternalItemsQuery(user)
+        {
+            IncludeItemTypes = [BaseItemKind.Movie, BaseItemKind.Series],
+            OrderBy = [(ItemSortBy.DatePlayed, SortOrder.Descending)],
+            Limit = limit,
+            Recursive = true,
+            IsPlayed = true,
+            EnableGroupByMetadataKey = true
+        });
+
+        var resumable = _libraryManager.GetItemList(new InternalItemsQuery(user)
+        {
+            IncludeItemTypes = [BaseItemKind.Movie, BaseItemKind.Series],
+            Recursive = true,
+            IsResumable = true,
+            Limit = 200
+        });
+
+        var seenIds = new HashSet<Guid>();
+        var results = new List<WatchedItemDetail>();
+
+        foreach (var item in played)
+        {
+            if (IsAiStub(item) || !seenIds.Add(item.Id)) continue;
+            var ud = _userDataManager.GetUserData(user, item);
+            var pct = ComputeCompletionPct(ud, item);
+            var tag = pct >= 90.0 ? WatchCompletion.Loved : WatchCompletion.Watched;
+            results.Add(BuildDetail(item, pct, tag));
+        }
+
+        foreach (var item in resumable)
+        {
+            if (IsAiStub(item) || !seenIds.Add(item.Id)) continue;
+            var ud = _userDataManager.GetUserData(user, item);
+            var pct = ComputeCompletionPct(ud, item);
+            if (pct <= 0 || pct >= 30) continue;
+            results.Add(BuildDetail(item, pct, WatchCompletion.Abandoned));
+        }
+
+        return results;
+    }
+
+    /// <summary>
+    /// Returns TMDB IDs of items the user started but abandoned (0–30% watched).
+    /// Added to the recommendation exclusion set so the engine doesn't re-suggest them.
+    /// </summary>
+    public HashSet<int> GetAbandonedTmdbIds(User user)
+    {
+        var ids = new HashSet<int>();
+        var aiPaths = Plugin.Instance?.Configuration.UserLibraries
+            .SelectMany(r => new[] { r.MoviePath, r.ShowPath })
+            .Where(p => !string.IsNullOrEmpty(p))
+            .ToList() ?? [];
+
+        var resumable = _libraryManager.GetItemList(new InternalItemsQuery(user)
+        {
+            IncludeItemTypes = [BaseItemKind.Movie, BaseItemKind.Series],
+            Recursive = true,
+            IsResumable = true,
+            Limit = 200
+        });
+
+        foreach (var item in resumable)
+        {
+            if (aiPaths.Count > 0 && aiPaths.Any(p => item.Path?.StartsWith(p, StringComparison.OrdinalIgnoreCase) == true))
+                continue;
+
+            var ud = _userDataManager.GetUserData(user, item);
+            var pct = ComputeCompletionPct(ud, item);
+            if (pct <= 0 || pct >= 30) continue;
+
+            if (item.TryGetProviderId(MetadataProvider.Tmdb, out var idStr)
+                && int.TryParse(idStr, out var id))
+            {
+                ids.Add(id);
+            }
+        }
+
+        return ids;
+    }
+
+    /// <summary>
+    /// Computes 0–100 completion percentage from user data and item runtime.
+    /// Favorites and highly-rated items are treated as fully loved (100%).
+    /// For played items with no position data the value defaults to 100.
+    /// </summary>
+    private static double ComputeCompletionPct(UserItemData? ud, BaseItem item)
+    {
+        if (ud is null) return 0.0;
+        if (ud.IsFavorite || (ud.Rating.HasValue && ud.Rating.Value >= 7.0))
+            return 100.0;
+
+        var runTicks = item.RunTimeTicks ?? 0;
+
+        if (!ud.Played)
+        {
+            if (runTicks <= 0 || ud.PlaybackPositionTicks <= 0) return 0.0;
+            return Math.Min(99.0, ud.PlaybackPositionTicks * 100.0 / runTicks);
+        }
+
+        if (runTicks > 0 && ud.PlaybackPositionTicks > 0)
+            return Math.Min(100.0, ud.PlaybackPositionTicks * 100.0 / runTicks);
+
+        return 100.0;
+    }
+
+    private static WatchedItemDetail BuildDetail(BaseItem item, double pct, WatchCompletion tag)
+    {
+        item.TryGetProviderId(MetadataProvider.Tmdb, out var tmdbStr);
+        _ = int.TryParse(tmdbStr, out var tmdbId);
+        return new WatchedItemDetail
+        {
+            Title             = item.Name ?? string.Empty,
+            Year              = item.ProductionYear,
+            TmdbId            = tmdbId > 0 ? tmdbId : null,
+            IsSeries          = item is MediaBrowser.Controller.Entities.TV.Series,
+            CompletionPercent = pct,
+            Tag               = tag
+        };
+    }
+
     private static string BuildEraLabel(List<int> years)
     {
         if (years.Count == 0) return "varied";
@@ -214,6 +352,18 @@ public class WatchHistoryService
         if (pct >= 40) return "mix of classic and modern";
         return "mostly classic (pre-2000s)";
     }
+}
+
+public enum WatchCompletion { Loved, Watched, Abandoned }
+
+public sealed class WatchedItemDetail
+{
+    public string Title { get; init; } = string.Empty;
+    public int? Year { get; init; }
+    public int? TmdbId { get; init; }
+    public bool IsSeries { get; init; }
+    public double CompletionPercent { get; init; }
+    public WatchCompletion Tag { get; init; }
 }
 
 /// <summary>

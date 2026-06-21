@@ -68,6 +68,12 @@ public class RecommendationEngine
         seenTmdbIds.UnionWith(watchedIds);
         seenTmdbIds.UnionWith(extraExcludeIds);
 
+        // Exclude items the user started but abandoned — softer dislike signal
+        var abandonedIds = _watchHistory.GetAbandonedTmdbIds(user);
+        seenTmdbIds.UnionWith(abandonedIds);
+        if (abandonedIds.Count > 0)
+            _logger.LogInformation("Excluding {Count} abandoned-title IDs for {User}", abandonedIds.Count, user.Username);
+
         var ownedTitles = _libraryFilter.GetOwnedTitles(user);
         var watchedTitles = _watchHistory.GetWatchedTitles(user);
         var baseTitleExcludes = ownedTitles
@@ -77,14 +83,55 @@ public class RecommendationEngine
 
         var excludedTitleSet = new HashSet<string>(baseTitleExcludes, StringComparer.OrdinalIgnoreCase);
 
-        // === RAG: pre-fetch TMDB Discover candidates in parallel ===
+        // Seed TMDB /recommendations from top loved titles (≥90% completion)
+        var completionData = _watchHistory.GetWatchedWithCompletion(user, 100);
+        var lovedMovieIds = completionData
+            .Where(w => !w.IsSeries && w.Tag == WatchCompletion.Loved && w.TmdbId.HasValue)
+            .Take(3)
+            .Select(w => w.TmdbId!.Value)
+            .ToList();
+        var lovedShowIds = completionData
+            .Where(w => w.IsSeries && w.Tag == WatchCompletion.Loved && w.TmdbId.HasValue)
+            .Take(3)
+            .Select(w => w.TmdbId!.Value)
+            .ToList();
+
+        // === RAG: Discover + loved-title TMDB recommendations in parallel ===
         var topGenres = profile.TopGenres.Select(g => g.Genre).ToList();
-        var (movieCatalog, showCatalog) = await FetchCatalogAsync(topGenres, seenTmdbIds, cancellationToken)
-            .ConfigureAwait(false);
+        var catalogTask = FetchCatalogAsync(topGenres, seenTmdbIds, cancellationToken);
+
+        var tmdbRecTasks = lovedMovieIds
+            .Select(id => _tmdb.GetTmdbRecommendationsAsync(id, false, seenTmdbIds, 10, cancellationToken))
+            .Concat(lovedShowIds.Select(id => _tmdb.GetTmdbRecommendationsAsync(id, true, seenTmdbIds, 10, cancellationToken)))
+            .ToList();
+
+        var tmdbRecs = tmdbRecTasks.Count > 0
+            ? await Task.WhenAll(tmdbRecTasks).ConfigureAwait(false)
+            : Array.Empty<IReadOnlyList<TmdbCandidate>>();
+
+        var (movieCatalog, showCatalog) = await catalogTask.ConfigureAwait(false);
+
+        // Merge /recommendations into Discover catalog (deduplicated by TMDB ID)
+        var recSeen = new HashSet<int>(seenTmdbIds);
+        var totalRecAdded = 0;
+        foreach (var recList in tmdbRecs)
+        {
+            foreach (var c in recList)
+            {
+                if (recSeen.Add(c.TmdbId))
+                {
+                    totalRecAdded++;
+                    if (c.IsSeries) showCatalog.Add(c);
+                    else movieCatalog.Add(c);
+                }
+            }
+        }
 
         _logger.LogInformation(
-            "RAG catalog for {User}: {Movies} movie candidates, {Shows} show candidates",
-            user.Username, movieCatalog.Count, showCatalog.Count);
+            "RAG catalog for {User}: {Movies} movie candidates, {Shows} show candidates " +
+            "(+{Recs} from TMDB /recommendations, {Loved} loved seeds)",
+            user.Username, movieCatalog.Count, showCatalog.Count, totalRecAdded,
+            lovedMovieIds.Count + lovedShowIds.Count);
 
         var catalogById = movieCatalog.Concat(showCatalog)
             .ToDictionary(c => c.TmdbId);
