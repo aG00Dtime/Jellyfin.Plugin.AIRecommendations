@@ -226,6 +226,7 @@ public sealed class TelegramAgentLoop
 
         return toolName switch
         {
+            "get_ai_recommendations"  => GetAiRecommendations(args, user),
             "search_content"          => await SearchContentAsync(args, ct).ConfigureAwait(false),
             "search_library"          => SearchLibrary(args, user),
             "get_recently_added"      => GetRecentlyAdded(args, user),
@@ -236,6 +237,34 @@ public sealed class TelegramAgentLoop
             "refresh_taste_profile"   => await RefreshTasteProfileAsync(user, ct).ConfigureAwait(false),
             _ => JsonSerializer.Serialize(new { error = $"Unknown tool: {toolName}" })
         };
+    }
+
+    private string GetAiRecommendations(JsonElement args, User user)
+    {
+        var type = args.TryGetProperty("type", out var t) ? t.GetString() : null;
+        var results = _libraryFilter.GetAiRecommendations(user, type);
+
+        if (results.Count == 0)
+            return JsonSerializer.Serialize(new
+            {
+                found   = false,
+                message = "No AI recommendations in the library yet — they're generated during the daily sync. Use discover_content as a fallback."
+            });
+
+        return JsonSerializer.Serialize(new
+        {
+            found   = true,
+            count   = results.Count,
+            source  = "AI recommendation engine (personalised from watch history)",
+            results = results.Select(r => new
+            {
+                title    = r.Title,
+                year     = r.Year,
+                type     = r.Type,
+                tmdb_id  = r.TmdbId,
+                overview = r.Overview
+            })
+        });
     }
 
     private async Task<string> SearchContentAsync(JsonElement args, CancellationToken ct)
@@ -624,9 +653,10 @@ USER TASTE PROFILE:
 DOWNLOAD SERVICES: {serviceList}
 
 TOOLS:
+- get_ai_recommendations: returns the personalised AI picks already computed from the user's watch history — USE THIS FIRST for any recommendation request
 - search_library: search the user's actual Jellyfin library by title — use this when they ask what's in their library or if a specific title is there
 - get_recently_added: list the most recently added movies/shows in the library, sorted by date added — use this for "what's new?", "recently added", "what did I get lately?" questions
-- discover_content: browse TMDB by genre/type — fast, use this for any "recommend me" request
+- discover_content: browse TMDB by genre/type — use as a fallback when the user wants a specific genre or get_ai_recommendations is empty
 - search_content: find a specific title on TMDB (searches movies + TV simultaneously) to get its verified TMDB ID
 - request_media: submit a download request to Jellyseerr/Radarr/Sonarr
 - check_status: check if something is already downloaded or queued
@@ -634,20 +664,20 @@ TOOLS:
 - refresh_taste_profile: regenerate the user's taste profile from their watch history (only if they ask)
 
 RULES:
-1. For any "recommend", "what should I watch", or "find me something" request, call discover_content with count=5 — do not suggest titles from memory.
-2. Present ALL titles returned by discover_content, exactly as returned, in order. Use the TMDB title, year, and overview from the tool result. Never invent, substitute, omit, or reorder titles. Never filter by era, prestige, mainstream vs art-house, or any other personal judgment — show everything the tool returns.
-3. For every recommendation set, include at least 1 wildcard — a genre or style clearly outside the user's usual taste. Call discover_content a second time with a different genre to get this wildcard pick. Label it lightly (e.g. "something different") so the user knows it's a stretch pick.
-3. discover_content already excludes items already in the user's Jellyfin library — every result is something they don't have yet.
-4. If you want to refine or try different genres, call discover_content again with those genres — do not ask the user what to search for without doing it.
-5. Always call search_content before request_media to get the verified TMDB ID — never guess it.
-6. If search_content returns in_library: true, tell the user that title is already in their Jellyfin library — do NOT offer to request it.
-7. Confirm what you're about to request before calling request_media, unless the user already said "yes", "sure", or "request it".
-8. After a successful request_media call, always tell the user: "You'll get a Telegram notification here when it arrives in Jellyfin." The download status poller tracks all requests and sends automatic notifications — never tell the user you can't notify them.
+1. For any "recommend", "what should I watch", or "find me something" request, ALWAYS call get_ai_recommendations first. These are personalised picks from the recommendation engine — show them all. Only call discover_content if the user explicitly asks for a specific genre, or get_ai_recommendations returns found: false.
+2. Present ALL titles returned by get_ai_recommendations or discover_content, exactly as returned, in order. Use the title, year, and overview from the tool result. Never invent, substitute, omit, or reorder titles. Never filter by era, prestige, mainstream vs art-house, or any other personal judgment — show everything the tool returns.
+3. For every recommendation set, include at least 1 wildcard — a genre or style clearly outside the user's usual taste. Call discover_content with a different genre to get this wildcard pick. Label it lightly (e.g. "something different") so the user knows it's a stretch pick.
+4. get_ai_recommendations results are titles NOT YET in the main library — they can be requested. discover_content already excludes items in the library too.
+5. If you want to refine or try different genres, call discover_content again with those genres — do not ask the user what to search for without doing it.
+6. Always call search_content before request_media to get the verified TMDB ID — never guess it.
+7. If search_content returns in_library: true, tell the user that title is already in their Jellyfin library — do NOT offer to request it.
+8. Confirm what you're about to request before calling request_media, unless the user already said "yes", "sure", or "request it".
+9. After a successful request_media call, always tell the user: "You'll get a Telegram notification here when it arrives in Jellyfin." The download status poller tracks all requests and sends automatic notifications — never tell the user you can't notify them.
    If the result contains an availability_note (e.g. "in theaters only", "not yet released"), always include it in your reply so the user understands the download may be delayed.
-9. When check_status returns in_jellyfin: true, ALWAYS tell the user the title is available to watch in Jellyfin RIGHT NOW. Never mention download service statuses when in_jellyfin is true — they lag behind and are irrelevant. "Available now" is the only answer that matters.
-10. If the user asks to "search my library", "check my library", or "browse my library" without specifying a title, ask what specific title or genre they're looking for rather than calling search_library with no query.
-11. Be concise. Use <b>bold</b> for titles (Telegram HTML). No markdown asterisks or bullet dashes.
-12. If no download services are configured, say so when the user tries to request something.
+10. When check_status returns in_jellyfin: true, ALWAYS tell the user the title is available to watch in Jellyfin RIGHT NOW. Never mention download service statuses when in_jellyfin is true — they lag behind and are irrelevant. "Available now" is the only answer that matters.
+11. If the user asks to "search my library", "check my library", or "browse my library" without specifying a title, ask what specific title or genre they're looking for rather than calling search_library with no query.
+12. Be concise. Use <b>bold</b> for titles (Telegram HTML). No markdown asterisks or bullet dashes.
+13. If no download services are configured, say so when the user tries to request something.
 """;
     }
 
@@ -733,6 +763,24 @@ RULES:
 
     private static object[] GetToolDefinitions() =>
     [
+        new
+        {
+            type = "function",
+            function = new
+            {
+                name = "get_ai_recommendations",
+                description = "Returns the personalised AI recommendation picks already computed from this user's watch history. ALWAYS call this first for any recommendation request — these are curated by the recommendation engine, not generic popularity lists.",
+                parameters = new
+                {
+                    type = "object",
+                    properties = new Dictionary<string, object>
+                    {
+                        ["type"] = new { type = "string", @enum = new[] { "movie", "tv" }, description = "Optional — filter to movies or TV shows only. Omit to return both." }
+                    },
+                    required = Array.Empty<string>()
+                }
+            }
+        },
         new
         {
             type = "function",
@@ -891,6 +939,11 @@ RULES:
             var args = doc.RootElement;
             return toolName switch
             {
+                "get_ai_recommendations" =>
+                    args.TryGetProperty("type", out var art) && art.GetString() is { } artype && artype != "all"
+                        ? $"🤖 Fetching your AI {artype} picks..."
+                        : "🤖 Fetching your personalised AI picks...",
+
                 "search_library" =>
                     args.TryGetProperty("query", out var lq) && lq.GetString() is { Length: > 0 } ltitle
                         ? $"📚 Searching library for <b>{EscapeHtml(ltitle)}</b>..."

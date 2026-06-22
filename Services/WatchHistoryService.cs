@@ -465,17 +465,47 @@ public class LibraryFilterService
         .ToList();
     }
 
+    public IReadOnlyList<LibrarySearchResult> GetAiRecommendations(User user, string? type = null)
+    {
+        var config = Plugin.Instance?.Configuration;
+        var reg = config?.UserLibraries.FirstOrDefault(r => r.UserId == user.Id.ToString("N"));
+        if (reg is null) return [];
+
+        var moviePath = reg.MoviePath;
+        var showPath  = reg.ShowPath;
+        if (string.IsNullOrEmpty(moviePath) && string.IsNullOrEmpty(showPath)) return [];
+
+        var kinds = type?.Equals("movie", StringComparison.OrdinalIgnoreCase) == true
+            ? (BaseItemKind[])[BaseItemKind.Movie]
+            : type is "tv" or "series"
+                ? (BaseItemKind[])[BaseItemKind.Series]
+                : (BaseItemKind[])[BaseItemKind.Movie, BaseItemKind.Series];
+
+        return _libraryManager.GetItemList(new InternalItemsQuery(user)
+        {
+            IncludeItemTypes = kinds,
+            Recursive        = true,
+            IsVirtualItem    = false
+        })
+        .Where(item =>
+            (!string.IsNullOrEmpty(moviePath) && item.Path?.StartsWith(moviePath, StringComparison.OrdinalIgnoreCase) == true)
+            || (!string.IsNullOrEmpty(showPath)  && item.Path?.StartsWith(showPath,  StringComparison.OrdinalIgnoreCase) == true))
+        .Select(i => ToSearchResult(i))
+        .ToList();
+    }
+
     private static LibrarySearchResult ToSearchResult(BaseItem i)
     {
         i.TryGetProviderId(MediaBrowser.Model.Entities.MetadataProvider.Tmdb, out var tmdbIdStr);
         _ = int.TryParse(tmdbIdStr, out var tmdbId);
         return new LibrarySearchResult
         {
-            Title      = i.Name ?? string.Empty,
-            Year       = i.ProductionYear,
-            Type       = i is MediaBrowser.Controller.Entities.TV.Series ? "tv" : "movie",
-            TmdbId     = tmdbId > 0 ? tmdbId : null,
-            DateAdded  = i.DateCreated == default ? null : i.DateCreated
+            Title     = i.Name ?? string.Empty,
+            Year      = i.ProductionYear,
+            Type      = i is MediaBrowser.Controller.Entities.TV.Series ? "tv" : "movie",
+            TmdbId    = tmdbId > 0 ? tmdbId : null,
+            Overview  = i.Overview,
+            DateAdded = i.DateCreated == default ? null : i.DateCreated
         };
     }
 }
@@ -486,5 +516,6 @@ public sealed class LibrarySearchResult
     public int?      Year      { get; init; }
     public string    Type      { get; init; } = "movie";
     public int?      TmdbId    { get; init; }
+    public string?   Overview  { get; init; }
     public DateTime? DateAdded { get; init; }
 }
