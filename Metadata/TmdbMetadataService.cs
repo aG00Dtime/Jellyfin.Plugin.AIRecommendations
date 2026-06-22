@@ -144,7 +144,8 @@ public class TmdbMetadataService
         bool isMovie,
         HashSet<int> excludeIds,
         int limitPerGenre,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        int page = 1)
     {
         var config = Plugin.Instance?.Configuration;
         if (config is null || string.IsNullOrWhiteSpace(config.TmdbApiKey))
@@ -177,6 +178,7 @@ public class TmdbMetadataService
                       $"&with_genres={genreId}" +
                       $"&sort_by=popularity.desc" +
                       $"&vote_count.gte=50" +
+                      $"&page={Math.Clamp(page, 1, 5)}" +
                       $"&include_adult={config.IncludeAdult.ToString().ToLowerInvariant()}" +
                       langParam;
 
@@ -452,6 +454,94 @@ public class TmdbMetadataService
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "GetTmdbRecommendationsAsync failed for {Type} {Id}", type, tmdbId);
+            return Array.Empty<TmdbCandidate>();
+        }
+    }
+
+    /// <summary>
+    /// Fetches a named TMDB list (popular, top_rated, trending, now_playing, upcoming, etc.)
+    /// for movies or TV. <paramref name="page"/> enables pagination for variety.
+    /// </summary>
+    public async Task<IReadOnlyList<TmdbCandidate>> BrowseTmdbAsync(
+        string category,
+        bool isMovie,
+        int page,
+        int limit,
+        HashSet<int> excludeIds,
+        CancellationToken cancellationToken)
+    {
+        var config = Plugin.Instance?.Configuration;
+        if (config is null || string.IsNullOrWhiteSpace(config.TmdbApiKey))
+            return Array.Empty<TmdbCandidate>();
+
+        var type = isMovie ? "movie" : "tv";
+
+        var endpoint = category switch
+        {
+            "top_rated"     => $"{type}/top_rated",
+            "trending_week" => $"trending/{type}/week",
+            "trending_day"  => $"trending/{type}/day",
+            "now_playing"   => isMovie ? "movie/now_playing" : "tv/airing_today",
+            "upcoming"      => isMovie ? "movie/upcoming"    : "tv/on_the_air",
+            "airing_today"  => "tv/airing_today",
+            "on_the_air"    => "tv/on_the_air",
+            _               => $"{type}/popular"
+        };
+
+        var url = $"https://api.themoviedb.org/3/{endpoint}" +
+                  $"?api_key={config.TmdbApiKey}" +
+                  $"&page={Math.Clamp(page, 1, 5)}" +
+                  $"&include_adult={config.IncludeAdult.ToString().ToLowerInvariant()}";
+
+        var client = _httpClientFactory.CreateClient(nameof(TmdbMetadataService));
+        try
+        {
+            using var response = await client.GetAsync(new Uri(url), cancellationToken).ConfigureAwait(false);
+            if (!response.IsSuccessStatusCode) return Array.Empty<TmdbCandidate>();
+
+            var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+            using var doc = JsonDocument.Parse(json);
+            if (!doc.RootElement.TryGetProperty("results", out var results))
+                return Array.Empty<TmdbCandidate>();
+
+            var list = new List<TmdbCandidate>();
+            foreach (var item in results.EnumerateArray())
+            {
+                if (list.Count >= limit) break;
+
+                var id = item.GetProperty("id").GetInt32();
+                if (excludeIds.Contains(id)) continue;
+
+                // trending endpoints carry per-item media_type — use it to pick the right fields
+                var itemIsSeries = !isMovie;
+                var titleField   = isMovie ? "title" : "name";
+                var dateField    = isMovie ? "release_date" : "first_air_date";
+
+                if (item.TryGetProperty("media_type", out var mt))
+                {
+                    itemIsSeries = mt.GetString() == "tv";
+                    titleField   = itemIsSeries ? "name"           : "title";
+                    dateField    = itemIsSeries ? "first_air_date" : "release_date";
+                }
+
+                var title = item.TryGetProperty(titleField, out var t) ? t.GetString() : null;
+                if (string.IsNullOrWhiteSpace(title)) continue;
+
+                list.Add(new TmdbCandidate
+                {
+                    TmdbId   = id,
+                    Title    = title,
+                    Year     = ParseYear(item, dateField),
+                    IsSeries = itemIsSeries,
+                    Overview = item.TryGetProperty("overview", out var ov) ? ov.GetString() : null
+                });
+            }
+
+            return list;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "BrowseTmdbAsync failed for {Category}/{Type} page {Page}", category, type, page);
             return Array.Empty<TmdbCandidate>();
         }
     }

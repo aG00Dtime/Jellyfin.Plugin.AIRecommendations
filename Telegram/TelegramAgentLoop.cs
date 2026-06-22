@@ -227,6 +227,7 @@ public sealed class TelegramAgentLoop
         return toolName switch
         {
             "get_ai_recommendations"  => GetAiRecommendations(args, user),
+            "browse_tmdb"             => await BrowseTmdbAsync(args, user, ct).ConfigureAwait(false),
             "search_content"          => await SearchContentAsync(args, ct).ConfigureAwait(false),
             "search_library"          => SearchLibrary(args, user),
             "get_recently_added"      => GetRecentlyAdded(args, user),
@@ -264,6 +265,46 @@ public sealed class TelegramAgentLoop
                 tmdb_id  = r.TmdbId,
                 overview = r.Overview
             })
+        });
+    }
+
+    private async Task<string> BrowseTmdbAsync(JsonElement args, User user, CancellationToken ct)
+    {
+        var category = args.TryGetProperty("category", out var cat) ? cat.GetString() ?? "popular" : "popular";
+        var type     = args.TryGetProperty("type",     out var t)   ? t.GetString()   ?? "movie"   : "movie";
+        var isMovie  = !type.Equals("tv", StringComparison.OrdinalIgnoreCase)
+                    && !type.Equals("series", StringComparison.OrdinalIgnoreCase);
+        var page     = args.TryGetProperty("page",  out var pg) && pg.TryGetInt32(out var p) ? Math.Clamp(p, 1, 5) : 1;
+        var count    = args.TryGetProperty("count", out var c)  && c.TryGetInt32(out var n)  ? Math.Clamp(n, 5, 20) : 10;
+
+        var config   = Plugin.Instance!.Configuration;
+        var reg      = config.UserLibraries.FirstOrDefault(r => r.UserId == user.Id.ToString("N"));
+        var excludeIds = reg is not null
+            ? new HashSet<int>(reg.RejectedTmdbIds.Concat(reg.RequestedTmdbIds))
+            : [];
+        var ownedIds = _libraryFilter.GetOwnedTmdbIds();
+
+        var results = await _tmdb.BrowseTmdbAsync(category, isMovie, page, count * 2, excludeIds, ct)
+            .ConfigureAwait(false);
+
+        var filtered = results
+            .Where(r => !ownedIds.Contains(r.TmdbId))
+            .Take(count)
+            .Select(r => new
+            {
+                tmdb_id  = r.TmdbId,
+                title    = r.Title,
+                year     = r.Year,
+                type     = r.IsSeries ? "tv" : "movie",
+                overview = r.Overview
+            }).ToList();
+
+        return JsonSerializer.Serialize(new
+        {
+            count    = filtered.Count,
+            category,
+            page,
+            results  = filtered
         });
     }
 
@@ -350,6 +391,8 @@ public sealed class TelegramAgentLoop
                    && !type.Equals("series", StringComparison.OrdinalIgnoreCase);
         var count   = args.TryGetProperty("count", out var c) && c.TryGetInt32(out var n)
             ? Math.Clamp(n, 5, 10) : 5;
+        var page    = args.TryGetProperty("page",  out var pg) && pg.TryGetInt32(out var pn)
+            ? Math.Clamp(pn, 1, 5) : 1;
 
         // Use genres from args, or fall back to the user's taste profile
         List<string> genres;
@@ -382,7 +425,7 @@ public sealed class TelegramAgentLoop
 
         // Fetch 4× count per genre so there's room to absorb owned-item filtering
         var fetchLimit = Math.Max(count * 4, 20);
-        var results = await _tmdb.DiscoverAsync(genres, isMovie, excludeForFetch, fetchLimit, ct).ConfigureAwait(false);
+        var results = await _tmdb.DiscoverAsync(genres, isMovie, excludeForFetch, fetchLimit, ct, page).ConfigureAwait(false);
         var top = results
             .Where(r => !ownedIds.Contains(r.TmdbId))
             .Take(count)
@@ -654,9 +697,10 @@ DOWNLOAD SERVICES: {serviceList}
 
 TOOLS:
 - get_ai_recommendations: returns the personalised AI picks already computed from the user's watch history — USE THIS FIRST for any recommendation request
+- browse_tmdb: browse TMDB lists — popular, top_rated, trending_week, now_playing, upcoming — use this when the user asks "what's popular?", "what's trending?", "what are top-rated movies?", "what's in theaters?", "what's coming soon?", or wants variety after already seeing AI picks
 - search_library: search the user's actual Jellyfin library by title — use this when they ask what's in their library or if a specific title is there
 - get_recently_added: list the most recently added movies/shows in the library, sorted by date added — use this for "what's new?", "recently added", "what did I get lately?" questions
-- discover_content: browse TMDB by genre/type — use as a fallback when the user wants a specific genre or get_ai_recommendations is empty
+- discover_content: browse TMDB by genre/type with optional page for variety — use as a fallback when the user wants a specific genre or get_ai_recommendations is empty
 - search_content: find a specific title on TMDB (searches movies + TV simultaneously) to get its verified TMDB ID
 - request_media: submit a download request to Jellyseerr/Radarr/Sonarr
 - check_status: check if something is already downloaded or queued
@@ -665,19 +709,21 @@ TOOLS:
 
 RULES:
 1. For any "recommend", "what should I watch", or "find me something" request, ALWAYS call get_ai_recommendations first. These are personalised picks from the recommendation engine — show them all. Only call discover_content if the user explicitly asks for a specific genre, or get_ai_recommendations returns found: false.
-2. Present ALL titles returned by get_ai_recommendations or discover_content, exactly as returned, in order. Use the title, year, and overview from the tool result. Never invent, substitute, omit, or reorder titles. Never filter by era, prestige, mainstream vs art-house, or any other personal judgment — show everything the tool returns.
-3. For every recommendation set, include at least 1 wildcard — a genre or style clearly outside the user's usual taste. Call discover_content with a different genre to get this wildcard pick. Label it lightly (e.g. "something different") so the user knows it's a stretch pick.
-4. get_ai_recommendations results are titles NOT YET in the main library — they can be requested. discover_content already excludes items in the library too.
-5. If you want to refine or try different genres, call discover_content again with those genres — do not ask the user what to search for without doing it.
-6. Always call search_content before request_media to get the verified TMDB ID — never guess it.
-7. If search_content returns in_library: true, tell the user that title is already in their Jellyfin library — do NOT offer to request it.
-8. Confirm what you're about to request before calling request_media, unless the user already said "yes", "sure", or "request it".
-9. After a successful request_media call, always tell the user: "You'll get a Telegram notification here when it arrives in Jellyfin." The download status poller tracks all requests and sends automatic notifications — never tell the user you can't notify them.
-   If the result contains an availability_note (e.g. "in theaters only", "not yet released"), always include it in your reply so the user understands the download may be delayed.
-10. When check_status returns in_jellyfin: true, ALWAYS tell the user the title is available to watch in Jellyfin RIGHT NOW. Never mention download service statuses when in_jellyfin is true — they lag behind and are irrelevant. "Available now" is the only answer that matters.
-11. If the user asks to "search my library", "check my library", or "browse my library" without specifying a title, ask what specific title or genre they're looking for rather than calling search_library with no query.
-12. Be concise. Use <b>bold</b> for titles (Telegram HTML). No markdown asterisks or bullet dashes.
-13. If no download services are configured, say so when the user tries to request something.
+2. When the user says "something different", "more options", "not those", "other recommendations", "try again", or any similar phrase AFTER already seeing a recommendation list — do NOT call get_ai_recommendations again (it returns the same pre-computed list every time). Instead: call browse_tmdb with page=2 for variety, OR call discover_content with different genres and page=2. Rotate through both to give genuinely different results.
+3. Present ALL titles returned by any tool, exactly as returned, in order. Use the title, year, and overview from the tool result. Never invent, substitute, omit, or reorder titles. Never filter by era, prestige, mainstream vs art-house, or any other personal judgment — show everything the tool returns.
+4. For every initial recommendation set, include at least 1 wildcard — a genre or style clearly outside the user's usual taste. Call discover_content with a different genre to get this wildcard pick. Label it lightly (e.g. "something different") so the user knows it's a stretch pick.
+5. get_ai_recommendations results are titles NOT YET in the main library — they can be requested. discover_content and browse_tmdb already exclude items in the library too.
+6. If you want to refine or try different genres, call discover_content again with those genres — do not ask the user what to search for without doing it.
+7. For "what's popular?", "what's trending?", "what's top rated?", "what's in theaters?", "what's coming soon?" — use browse_tmdb with the appropriate category (popular, trending_week, top_rated, now_playing, upcoming).
+8. Always call search_content before request_media to get the verified TMDB ID — never guess it.
+9. If search_content returns in_library: true, tell the user that title is already in their Jellyfin library — do NOT offer to request it.
+10. Confirm what you're about to request before calling request_media, unless the user already said "yes", "sure", or "request it".
+11. After a successful request_media call, always tell the user: "You'll get a Telegram notification here when it arrives in Jellyfin." The download status poller tracks all requests and sends automatic notifications — never tell the user you can't notify them.
+    If the result contains an availability_note (e.g. "in theaters only", "not yet released"), always include it in your reply so the user understands the download may be delayed.
+12. When check_status returns in_jellyfin: true, ALWAYS tell the user the title is available to watch in Jellyfin RIGHT NOW. Never mention download service statuses when in_jellyfin is true — they lag behind and are irrelevant. "Available now" is the only answer that matters.
+13. If the user asks to "search my library", "check my library", or "browse my library" without specifying a title, ask what specific title or genre they're looking for rather than calling search_library with no query.
+14. Be concise. Use <b>bold</b> for titles (Telegram HTML). No markdown asterisks or bullet dashes.
+15. If no download services are configured, say so when the user tries to request something.
 """;
     }
 
@@ -786,6 +832,27 @@ RULES:
             type = "function",
             function = new
             {
+                name = "browse_tmdb",
+                description = "Browse a named TMDB list — popular, top-rated, trending, now playing, or upcoming. Use this when the user asks what's popular/trending/top-rated/in-theaters/coming-soon, or wants variety after already seeing AI picks. Use page 2+ to get a genuinely different set of results.",
+                parameters = new
+                {
+                    type = "object",
+                    properties = new Dictionary<string, object>
+                    {
+                        ["category"] = new { type = "string", @enum = new[] { "popular", "top_rated", "trending_week", "trending_day", "now_playing", "upcoming", "airing_today", "on_the_air" }, description = "Which TMDB list to fetch. 'now_playing'/'upcoming' are movies; 'airing_today'/'on_the_air' are TV." },
+                        ["type"]     = new { type = "string", @enum = new[] { "movie", "tv" }, description = "Movie or TV show" },
+                        ["page"]     = new { type = "integer", description = "Page number 1-5. Use 2+ to get a different set of results for variety." },
+                        ["count"]    = new { type = "integer", description = "How many results to return (5-20, default 10)." }
+                    },
+                    required = new[] { "category", "type" }
+                }
+            }
+        },
+        new
+        {
+            type = "function",
+            function = new
+            {
                 name = "search_library",
                 description = "Search the user's Jellyfin library by title. Use this when they ask what's in their library, whether a specific title is available, or to browse what they already have.",
                 parameters = new
@@ -824,7 +891,7 @@ RULES:
             function = new
             {
                 name = "discover_content",
-                description = "Browse TMDB for popular movies or TV shows matching given genres. Use this for any 'recommend me' or 'what should I watch' request. Fast — no extra AI call needed.",
+                description = "Browse TMDB for popular movies or TV shows matching given genres. Use as a fallback when get_ai_recommendations is empty or the user wants genre-specific picks. Use page 2+ for variety when the user wants something different.",
                 parameters = new
                 {
                     type = "object",
@@ -832,7 +899,8 @@ RULES:
                     {
                         ["type"]   = new { type = "string", @enum = new[] { "movie", "tv" }, description = "Movie or TV show" },
                         ["genres"] = new { type = "array", items = new { type = "string" }, description = "Genre names e.g. ['Action','Thriller']. Omit to use the user's taste profile." },
-                        ["count"]  = new { type = "integer", description = "How many results to return (5-10, default 5). Always use at least 5." }
+                        ["count"]  = new { type = "integer", description = "How many results to return (5-10, default 5). Always use at least 5." },
+                        ["page"]   = new { type = "integer", description = "Page number 1-5. Use 2+ to get a genuinely different set of results when the user wants variety." }
                     },
                     required = new[] { "type" }
                 }
@@ -943,6 +1011,21 @@ RULES:
                     args.TryGetProperty("type", out var art) && art.GetString() is { } artype && artype != "all"
                         ? $"🤖 Fetching your AI {artype} picks..."
                         : "🤖 Fetching your personalised AI picks...",
+
+                "browse_tmdb" =>
+                    args.TryGetProperty("category", out var bcat) && bcat.GetString() is { } bcatStr
+                        ? bcatStr switch
+                        {
+                            "top_rated"     => "⭐ Fetching top-rated titles...",
+                            "trending_week" => "🔥 Fetching what's trending this week...",
+                            "trending_day"  => "🔥 Fetching what's trending today...",
+                            "now_playing"   => "🎟️ Fetching what's in theaters now...",
+                            "upcoming"      => "📅 Fetching upcoming releases...",
+                            "airing_today"  => "📺 Fetching shows airing today...",
+                            "on_the_air"    => "📺 Fetching currently airing shows...",
+                            _               => "🌟 Fetching popular titles..."
+                        }
+                        : "🌟 Fetching popular titles...",
 
                 "search_library" =>
                     args.TryGetProperty("query", out var lq) && lq.GetString() is { Length: > 0 } ltitle
