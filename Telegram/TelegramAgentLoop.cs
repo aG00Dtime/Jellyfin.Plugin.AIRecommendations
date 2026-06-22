@@ -531,34 +531,50 @@ public sealed class TelegramAgentLoop
         var type     = args.TryGetProperty("type", out var t) ? t.GetString() ?? "movie" : "movie";
         var isSeries = type == "tv" || type == "series";
         var config   = Plugin.Instance!.Configuration;
-        var statuses = new List<string>();
 
-        // Check Jellyfin library first — this is the only ground-truth signal that something is watchable
+        // Jellyfin library is the only ground truth — if it's here, it's watchable NOW
         var ownedIds = _libraryFilter.GetOwnedTmdbIds();
-        statuses.Add(ownedIds.Contains(tmdbId) ? "Jellyfin: available to watch now" : "Jellyfin: not in library");
+        var inJellyfin = ownedIds.Contains(tmdbId);
+
+        if (inJellyfin)
+        {
+            // Item is in the library — skip download service polling, the answer is already definitive
+            return JsonSerializer.Serialize(new
+            {
+                tmdb_id    = tmdbId,
+                in_jellyfin = true,
+                message    = "Available to watch now in Jellyfin. Download service status is irrelevant — the file is there."
+            });
+        }
+
+        // Not in Jellyfin yet — check download services to give progress info
+        var serviceStatuses = new List<string>();
 
         if (!string.IsNullOrWhiteSpace(config.JellyseerrBaseUrl))
         {
             var (code, name, _) = await _arr.CheckJellyseerrStatusAsync(tmdbId, isSeries, ct).ConfigureAwait(false);
-            statuses.Add($"Jellyseerr: {name}");
+            serviceStatuses.Add($"Jellyseerr: {name}");
         }
 
         if (!string.IsNullOrWhiteSpace(config.RadarrBaseUrl) && !isSeries)
         {
             var (exists, hasFile, _) = await _arr.CheckRadarrStatusAsync(tmdbId, ct).ConfigureAwait(false);
-            statuses.Add(exists ? (hasFile ? "Radarr: downloaded" : "Radarr: monitored, not yet downloaded") : "Radarr: not added");
+            serviceStatuses.Add(exists ? (hasFile ? "Radarr: downloaded (importing soon)" : "Radarr: monitored, not yet downloaded") : "Radarr: not added");
         }
 
         if (!string.IsNullOrWhiteSpace(config.SonarrBaseUrl) && isSeries)
         {
             var (exists, pct, _) = await _arr.CheckSonarrStatusAsync(tmdbId, ct).ConfigureAwait(false);
-            statuses.Add(exists ? $"Sonarr: {pct}% downloaded" : "Sonarr: not added");
+            serviceStatuses.Add(exists ? $"Sonarr: {pct}% downloaded" : "Sonarr: not added");
         }
 
-        if (statuses.Count == 0)
-            return JsonSerializer.Serialize(new { status = "unknown", message = "No download services configured" });
-
-        return JsonSerializer.Serialize(new { tmdb_id = tmdbId, statuses });
+        return JsonSerializer.Serialize(new
+        {
+            tmdb_id     = tmdbId,
+            in_jellyfin = false,
+            message     = "Not in Jellyfin yet.",
+            service_statuses = serviceStatuses
+        });
     }
 
     // ── LLM plumbing ─────────────────────────────────────────────────────────
@@ -628,9 +644,10 @@ RULES:
 7. Confirm what you're about to request before calling request_media, unless the user already said "yes", "sure", or "request it".
 8. After a successful request_media call, always tell the user: "You'll get a Telegram notification here when it arrives in Jellyfin." The download status poller tracks all requests and sends automatic notifications — never tell the user you can't notify them.
    If the result contains an availability_note (e.g. "in theaters only", "not yet released"), always include it in your reply so the user understands the download may be delayed.
-9. If the user asks to "search my library", "check my library", or "browse my library" without specifying a title, ask what specific title or genre they're looking for rather than calling search_library with no query.
-10. Be concise. Use <b>bold</b> for titles (Telegram HTML). No markdown asterisks or bullet dashes.
-11. If no download services are configured, say so when the user tries to request something.
+9. When check_status returns in_jellyfin: true, ALWAYS tell the user the title is available to watch in Jellyfin RIGHT NOW. Never mention download service statuses when in_jellyfin is true — they lag behind and are irrelevant. "Available now" is the only answer that matters.
+10. If the user asks to "search my library", "check my library", or "browse my library" without specifying a title, ask what specific title or genre they're looking for rather than calling search_library with no query.
+11. Be concise. Use <b>bold</b> for titles (Telegram HTML). No markdown asterisks or bullet dashes.
+12. If no download services are configured, say so when the user tries to request something.
 """;
     }
 
