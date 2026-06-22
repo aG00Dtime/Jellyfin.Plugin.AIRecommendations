@@ -17,8 +17,6 @@ public sealed class DownloadStatusPoller : IHostedService
     private readonly LibraryFilterService _libraryFilter;
     private readonly ILogger<DownloadStatusPoller> _logger;
     private Timer? _timer;
-    private volatile bool _seeded;
-
     public DownloadStatusPoller(
         ArrRequestService arr,
         TelegramBotService bot,
@@ -47,42 +45,10 @@ public sealed class DownloadStatusPoller : IHostedService
 
     private void OnTick(object? state) => _ = Task.Run(() => PollAsync(CancellationToken.None));
 
-    private void SeedAlreadyOwned(Configuration.PluginConfiguration config)
-    {
-        var ownedIds = _libraryFilter.GetOwnedTmdbIds();
-        var dirty = false;
-        foreach (var link in config.TelegramUserLinks)
-        {
-            var reg = config.UserLibraries.FirstOrDefault(r => r.UserId == link.JellyfinUserId);
-            if (reg is null) continue;
-            foreach (var tmdbId in reg.RequestedTmdbIds)
-            {
-                if (ownedIds.Contains(tmdbId) && !link.NotifiedAvailableTmdbIds.Contains(tmdbId))
-                {
-                    link.NotifiedAvailableTmdbIds.Add(tmdbId);
-                    dirty = true;
-                }
-            }
-        }
-        if (dirty)
-        {
-            Plugin.Instance!.SaveConfiguration();
-            _logger.LogInformation("DownloadStatusPoller: seeded {Count} already-owned item(s) into notification history — no duplicate alerts will fire", dirty ? 1 : 0);
-        }
-    }
-
     private async Task PollAsync(CancellationToken ct)
     {
         var config = Plugin.Instance?.Configuration;
         if (config is null || string.IsNullOrWhiteSpace(config.TelegramBotToken)) return;
-
-        // On the first tick after startup, silently mark already-owned items as notified
-        // so we don't fire duplicate "now available" alerts for content that was already there.
-        if (!_seeded)
-        {
-            _seeded = true;
-            SeedAlreadyOwned(config);
-        }
 
         var hasDownloadService =
             !string.IsNullOrWhiteSpace(config.JellyseerrBaseUrl) ||
