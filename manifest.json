@@ -9,11 +9,11 @@
     "versions": [
       {
         "version": "1.0.107.0",
-        "changelog": "Build 1.0.107",
+        "changelog": "fix: bot no longer says 'still waiting' when movie is in Jellyfin",
         "targetAbi": "10.11.9.0",
         "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.107/Jellyfin.Plugin.AIRecommendations.zip",
-        "checksum": "",
-        "timestamp": "2026-06-22T10:49:57Z"
+        "checksum": "4c31e7f2ed5b98c1405c9f06019f4488",
+        "timestamp": "2026-06-22T10:50:09Z"
       },
       {
         "version": "1.0.106.0",
