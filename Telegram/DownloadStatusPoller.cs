@@ -71,7 +71,10 @@ public sealed class DownloadStatusPoller : IHostedService
 
                 try
                 {
-                    var (available, title) = await CheckAvailableAsync(config, tmdbId, ct).ConfigureAwait(false);
+                    // 30-second cap per item — prevents a hung Jellyseerr/Radarr/Sonarr
+                    // from blocking the entire poll round with CancellationToken.None.
+                    using var checkCts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+                    var (available, title) = await CheckAvailableAsync(config, tmdbId, checkCts.Token).ConfigureAwait(false);
                     if (!available) continue;
 
                     var displayTitle = string.IsNullOrWhiteSpace(title) ? $"TMDB #{tmdbId}" : title;
@@ -86,6 +89,10 @@ public sealed class DownloadStatusPoller : IHostedService
                     _logger.LogInformation(
                         "Notified Telegram {ChatId}: '{Title}' (TMDB {TmdbId}) is available",
                         link.ChatId, displayTitle, tmdbId);
+                }
+                catch (OperationCanceledException)
+                {
+                    _logger.LogDebug("DownloadStatusPoller: check timed out for TMDB {TmdbId}, skipping", tmdbId);
                 }
                 catch (Exception ex)
                 {

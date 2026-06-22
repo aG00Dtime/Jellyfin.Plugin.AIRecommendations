@@ -192,8 +192,9 @@ public sealed class TelegramBotService : IHostedService
 
     private async Task PollLoopAsync(CancellationToken ct)
     {
-        var client = _httpClientFactory.CreateClient(ClientName);
-
+        // Client is created per-iteration so that if the underlying handler is recycled
+        // by IHttpClientFactory (every 2 min) we always use the current one, avoiding
+        // stale connection state after a network blip.
         while (!ct.IsCancellationRequested)
         {
             try
@@ -208,7 +209,8 @@ public sealed class TelegramBotService : IHostedService
                 var url = $"https://api.telegram.org/bot{token}/getUpdates" +
                           $"?offset={_lastUpdateId + 1}&timeout={LongPollTimeoutSeconds}&allowed_updates=[\"message\"]";
 
-                using var req = new HttpRequestMessage(HttpMethod.Get, url);
+                var client = _httpClientFactory.CreateClient(ClientName);
+                using var req  = new HttpRequestMessage(HttpMethod.Get, url);
                 using var resp = await client.SendAsync(req, ct).ConfigureAwait(false);
 
                 if (!resp.IsSuccessStatusCode)
@@ -228,7 +230,18 @@ public sealed class TelegramBotService : IHostedService
                         _ = Task.Run(() => HandleUpdateAsync(msg, ct), ct);
                 }
             }
-            catch (OperationCanceledException) { break; }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                // Shutdown — exit cleanly
+                break;
+            }
+            catch (OperationCanceledException)
+            {
+                // HttpClient.Timeout fired (connection dropped/hung for 100 s) — NOT a shutdown.
+                // Log and retry; do NOT break or the poll loop dies permanently.
+                _logger.LogWarning("TelegramBotService: getUpdates timed out (connection lost?), retrying in 5 s");
+                try { await Task.Delay(5000, ct).ConfigureAwait(false); } catch (OperationCanceledException) { break; }
+            }
             catch (Exception ex)
             {
                 _logger.LogWarning(ex, "TelegramBotService: poll error, backing off 5 s");
@@ -341,7 +354,8 @@ public sealed class TelegramBotService : IHostedService
 
         // 90-second hard timeout per user turn — prevents the agent from hanging silently
         // if the LLM provider is slow or unresponsive.
-        using var turnCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        using var turnCts  = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        using var typingCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         turnCts.CancelAfter(TimeSpan.FromSeconds(90));
 
         try
@@ -350,7 +364,6 @@ public sealed class TelegramBotService : IHostedService
 
             // Keep the Telegram "typing..." indicator alive every 4 s while the agent works.
             // Telegram auto-clears it after 5 s, so we refresh before it expires.
-            using var typingCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
             _ = Task.Run(async () =>
             {
                 while (!typingCts.Token.IsCancellationRequested)
@@ -391,6 +404,7 @@ public sealed class TelegramBotService : IHostedService
         }
         catch (Exception ex)
         {
+            typingCts.Cancel();
             _logger.LogWarning(ex, "TelegramBotService: agent error for chat {ChatId}", chatId);
             await SendMessageAsync(chatId, "Something went wrong. Please try again.", ct).ConfigureAwait(false);
         }
