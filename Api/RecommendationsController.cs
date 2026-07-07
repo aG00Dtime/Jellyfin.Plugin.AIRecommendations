@@ -463,6 +463,39 @@ public class RecommendationsController : ControllerBase
         return NoContent();
     }
 
+    /// <summary>Manually links a Discord user to a Jellyfin account without requiring the /link bot command.</summary>
+    [HttpPost("Discord/Links/Manual")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public IActionResult ManualLinkDiscordAccount([FromBody] DiscordManualLinkRequest request)
+    {
+        if (!ulong.TryParse(request.DiscordUserId?.Trim(), out var discordId))
+            return BadRequest(new { error = "Invalid Discord user ID. It must be a numeric snowflake (e.g. 123456789012345678)." });
+
+        if (string.IsNullOrWhiteSpace(request.JellyfinUserId))
+            return BadRequest(new { error = "JellyfinUserId is required." });
+
+        var config = Plugin.Instance!.Configuration;
+        config.DiscordUserLinks.RemoveAll(l => l.DiscordUserId == discordId
+                                             || l.JellyfinUserId == request.JellyfinUserId);
+
+        var ownedIds = _libraryFilter.GetOwnedTmdbIds();
+        var reg = config.UserLibraries.FirstOrDefault(r => r.UserId == request.JellyfinUserId);
+        var alreadyOwned = reg?.RequestedTmdbIds.Where(id => ownedIds.Contains(id)).ToList() ?? [];
+
+        config.DiscordUserLinks.Add(new DiscordUserLink
+        {
+            DiscordUserId            = discordId,
+            JellyfinUserId           = request.JellyfinUserId,
+            DiscordUsername          = string.IsNullOrWhiteSpace(request.DiscordUsername) ? null : request.DiscordUsername.Trim(),
+            LinkedAt                 = DateTime.UtcNow,
+            NotifiedAvailableTmdbIds = alreadyOwned
+        });
+        Plugin.Instance!.SaveConfiguration();
+
+        return Ok(new { message = $"Linked Discord user {discordId} to Jellyfin user {request.JellyfinUserId}" });
+    }
+
     // ── Arr profile helpers ────────────────────────────────────────────────────
 
     /// <summary>Returns available quality profiles from Radarr or Sonarr (for the config UI dropdowns).</summary>
@@ -755,4 +788,11 @@ public class DiscordLinkRequest
 {
     public string Code { get; set; } = string.Empty;
     public string JellyfinUserId { get; set; } = string.Empty;
+}
+
+public class DiscordManualLinkRequest
+{
+    public string DiscordUserId { get; set; } = string.Empty;
+    public string JellyfinUserId { get; set; } = string.Empty;
+    public string? DiscordUsername { get; set; }
 }

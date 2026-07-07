@@ -320,6 +320,22 @@
                                 <button is="emby-button" type="button" id="btn-link-discord" class="raised button-submit" style="margin-bottom:4px">Link</button>
                             </div>
                             <div class="test-result" id="discord-link-result"></div>
+
+                            <p style="font-size:.82em;color:#888;margin:12px 0 6px">Or link manually by entering the user's Discord ID (right-click their name → Copy User ID with Developer Mode on):</p>
+                            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
+                                <div class="inputContainer" style="flex:0 0 200px;margin:0">
+                                    <input is="emby-input" type="text" id="discordManualId" label="Discord User ID" placeholder="e.g. 123456789012345678" />
+                                </div>
+                                <div class="inputContainer" style="flex:0 0 140px;margin:0">
+                                    <input is="emby-input" type="text" id="discordManualUsername" label="Username (optional)" />
+                                </div>
+                                <div class="selectContainer" style="flex:1;min-width:140px;margin:0">
+                                    <label class="selectLabel" for="discordManualJellyfinUserId">Jellyfin User</label>
+                                    <select is="emby-select" id="discordManualJellyfinUserId" class="emby-select-withcolor"></select>
+                                </div>
+                                <button is="emby-button" type="button" id="btn-manual-link-discord" class="raised button-submit" style="margin-bottom:4px">Link</button>
+                            </div>
+                            <div class="test-result" id="discord-manual-link-result"></div>
                         </div>
 
                         <!-- Linked accounts table -->
@@ -508,9 +524,11 @@
                 }).then(function (r) { return r.json(); }).then(function (users) {
                     var sel = document.getElementById('telegramLinkUserId');
                     var discordSel = document.getElementById('discordLinkUserId');
+                    var discordManualSel = document.getElementById('discordManualJellyfinUserId');
                     var agentSel = document.getElementById('agentTestUserId');
                     sel.innerHTML = '';
                     discordSel.innerHTML = '';
+                    discordManualSel.innerHTML = '';
                     agentSel.innerHTML = '';
                     (users || []).forEach(function (u) {
                         var opt = document.createElement('option');
@@ -518,6 +536,7 @@
                         opt.textContent = u.Name;
                         sel.appendChild(opt);
                         discordSel.appendChild(opt.cloneNode(true));
+                        discordManualSel.appendChild(opt.cloneNode(true));
                         agentSel.appendChild(opt.cloneNode(true));
                     });
                 }).catch(function () {});
@@ -920,6 +939,44 @@
                             }).catch(function () {
                                 resultEl.className = 'test-result err';
                                 resultEl.textContent = 'Link failed — code may be invalid or expired.';
+                            });
+                        }
+                    }).catch(function (err) {
+                        resultEl.className = 'test-result err';
+                        resultEl.textContent = 'Request failed: ' + (err.message || String(err));
+                    });
+                });
+                document.getElementById('btn-manual-link-discord').addEventListener('click', function () {
+                    var discordId = document.getElementById('discordManualId').value.trim();
+                    var jellyfinUserId = document.getElementById('discordManualJellyfinUserId').value;
+                    var discordUsername = document.getElementById('discordManualUsername').value.trim();
+                    var resultEl = document.getElementById('discord-manual-link-result');
+                    if (!discordId || !jellyfinUserId) {
+                        resultEl.className = 'test-result err';
+                        resultEl.textContent = 'Enter a Discord User ID and select a Jellyfin user.';
+                        return;
+                    }
+                    resultEl.className = 'test-result loading';
+                    resultEl.textContent = 'Linking…';
+                    var token = ApiClient.accessToken();
+                    fetch(ApiClient.getUrl('AIRecommendations/Discord/Links/Manual'), {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-Emby-Token': token, 'X-MediaBrowser-Token': token },
+                        body: JSON.stringify({ DiscordUserId: discordId, JellyfinUserId: jellyfinUserId, DiscordUsername: discordUsername || null })
+                    }).then(function (r) {
+                        if (r.ok) {
+                            resultEl.className = 'test-result ok';
+                            resultEl.textContent = 'Linked successfully!';
+                            document.getElementById('discordManualId').value = '';
+                            document.getElementById('discordManualUsername').value = '';
+                            loadDiscordLinks();
+                        } else {
+                            return r.json().then(function (err) {
+                                resultEl.className = 'test-result err';
+                                resultEl.textContent = (err && err.error) || 'Link failed.';
+                            }).catch(function () {
+                                resultEl.className = 'test-result err';
+                                resultEl.textContent = 'Link failed.';
                             });
                         }
                     }).catch(function (err) {

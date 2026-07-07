@@ -417,6 +417,21 @@ public sealed class DiscordBotService : IHostedService
 
         // ── Commands ──────────────────────────────────────────────────────────
 
+        if (text is "/help" or "/commands")
+        {
+            await SendToChannelAsync(channelId,
+                "**AI Recommendations — Commands**\n\n" +
+                "`/link` — connect your Jellyfin account (required before chatting)\n" +
+                "`/unlink` — disconnect your Jellyfin account\n" +
+                "`/profile` — show your personalised taste profile\n" +
+                "`/reset` — clear the current conversation and start fresh\n" +
+                "`/help` — show this message\n\n" +
+                "Once linked, just talk to me naturally — ask for something to watch, a mood, a genre, or \"something like X\". " +
+                "I can also request downloads for you if Radarr / Sonarr are configured.",
+                ct).ConfigureAwait(false);
+            return;
+        }
+
         if (text is "/link" or "/start")
         {
             var code = CreateLinkCode(authorId, username);
@@ -478,11 +493,7 @@ public sealed class DiscordBotService : IHostedService
         if (text.StartsWith('/'))
         {
             await SendToChannelAsync(channelId,
-                "Unknown command. Available commands:\n" +
-                "`/link` — link your Jellyfin account\n" +
-                "`/profile` — view your taste profile\n" +
-                "`/reset` — start a new conversation\n\n" +
-                "Or just ask me what you want to watch!",
+                $"Unknown command `{text}`. Send `/help` to see what's available.",
                 ct).ConfigureAwait(false);
             return;
         }

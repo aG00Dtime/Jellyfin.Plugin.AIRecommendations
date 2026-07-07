@@ -3,6 +3,7 @@ using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using Jellyfin.Database.Implementations.Entities;
+using Jellyfin.Plugin.AIRecommendations.Discord;
 using Jellyfin.Plugin.AIRecommendations.Metadata;
 using Jellyfin.Plugin.AIRecommendations.Models;
 using Jellyfin.Plugin.AIRecommendations.Services;
@@ -236,6 +237,7 @@ public sealed class TelegramAgentLoop
             "check_status"            => await CheckStatusAsync(args, ct).ConfigureAwait(false),
             "sync_to_jellyfin"        => await SyncToJellyfinAsync(user, ct).ConfigureAwait(false),
             "refresh_taste_profile"   => await RefreshTasteProfileAsync(user, ct).ConfigureAwait(false),
+            "find_watch_partner"      => FindWatchPartner(args),
             _ => JsonSerializer.Serialize(new { error = $"Unknown tool: {toolName}" })
         };
     }
@@ -299,11 +301,21 @@ public sealed class TelegramAgentLoop
                 overview = r.Overview
             }).ToList();
 
+        string? categoryNote = category switch
+        {
+            "now_playing"  => "These movies are CURRENTLY IN THEATERS ONLY. They may not be available for digital download yet — warn the user before suggesting any of them for a request.",
+            "airing_today" => "These shows are airing live today.",
+            "upcoming"     => "These movies have NOT BEEN RELEASED YET and cannot be downloaded until their release date — tell the user this.",
+            "on_the_air"   => "These shows are currently in the middle of their broadcast run.",
+            _ => null
+        };
+
         return JsonSerializer.Serialize(new
         {
             count    = filtered.Count,
             category,
             page,
+            category_note = categoryNote,
             results  = filtered
         });
     }
@@ -487,6 +499,65 @@ public sealed class TelegramAgentLoop
             _logger.LogWarning(ex, "TelegramAgentLoop: refresh_taste_profile failed for {User}", user.Username);
             return JsonSerializer.Serialize(new { success = false, error = ex.Message });
         }
+    }
+
+    private string FindWatchPartner(JsonElement args)
+    {
+        var partnerName = args.TryGetProperty("partner_name", out var pn) ? pn.GetString() ?? "" : "";
+        if (string.IsNullOrWhiteSpace(partnerName))
+            return JsonSerializer.Serialize(new { found = false, message = "partner_name is required" });
+
+        var config = Plugin.Instance!.Configuration;
+
+        // Match by Jellyfin username first
+        var matchedUser = _userManager.GetUsers()
+            .FirstOrDefault(u => u.Username.Contains(partnerName, StringComparison.OrdinalIgnoreCase));
+
+        // Fall back to Telegram username
+        if (matchedUser is null)
+        {
+            var telLink = config.TelegramUserLinks.FirstOrDefault(l =>
+                l.TelegramUsername != null &&
+                l.TelegramUsername.Contains(partnerName, StringComparison.OrdinalIgnoreCase));
+            if (telLink is not null && Guid.TryParse(telLink.JellyfinUserId, out var telGuid))
+                matchedUser = _userManager.GetUserById(telGuid);
+        }
+
+        // Fall back to Discord username
+        if (matchedUser is null)
+        {
+            var discLink = config.DiscordUserLinks.FirstOrDefault(l =>
+                l.DiscordUsername != null &&
+                l.DiscordUsername.Contains(partnerName, StringComparison.OrdinalIgnoreCase));
+            if (discLink is not null && Guid.TryParse(discLink.JellyfinUserId, out var discGuid))
+                matchedUser = _userManager.GetUserById(discGuid);
+        }
+
+        if (matchedUser is null)
+            return JsonSerializer.Serialize(new
+            {
+                found = false,
+                message = $"No account found matching '{partnerName}'. They may not be on this server, or their username might differ — try their Jellyfin, Telegram, or Discord username."
+            });
+
+        var reg = config.UserLibraries.FirstOrDefault(r => r.UserId == matchedUser.Id.ToString("N"));
+
+        if (reg is null || string.IsNullOrWhiteSpace(reg.TasteProfileText))
+            return JsonSerializer.Serialize(new
+            {
+                found = true,
+                name = matchedUser.Username,
+                has_taste_profile = false,
+                message = $"Found {matchedUser.Username} but they have no taste profile yet (no watch history). Ask the user 2-3 quick questions about what {matchedUser.Username} enjoys — favourite genres, a title or two — then use those preferences alongside your own taste profile to find something you'd both enjoy."
+            });
+
+        return JsonSerializer.Serialize(new
+        {
+            found = true,
+            name = matchedUser.Username,
+            has_taste_profile = true,
+            taste_profile = reg.TasteProfileText
+        });
     }
 
     private async Task<string> RequestMediaAsync(
@@ -706,6 +777,7 @@ TOOLS:
 - check_status: check if something is already downloaded or queued
 - sync_to_jellyfin: refresh the AI recommendation stubs in the user's Jellyfin library (only if they ask)
 - refresh_taste_profile: regenerate the user's taste profile from their watch history (only if they ask)
+- find_watch_partner: look up another user's taste profile by name — use this when the user says they want to watch something with someone else
 
 RULES:
 1. For any "recommend", "what should I watch", or "find me something" request, ALWAYS call get_ai_recommendations first. These are personalised picks from the recommendation engine — show them all. Only call discover_content if the user explicitly asks for a specific genre, or get_ai_recommendations returns found: false.
@@ -724,6 +796,8 @@ RULES:
 13. If the user asks to "search my library", "check my library", or "browse my library" without specifying a title, ask what specific title or genre they're looking for rather than calling search_library with no query.
 14. Be concise. Use <b>bold</b> for titles. No markdown asterisks or bullet dashes.
 15. If no download services are configured, say so when the user tries to request something.
+16. Watch Together: when the user mentions watching with someone else ("me and X want to watch", "find something for me and Y tonight"), call find_watch_partner with that person's name. If has_taste_profile is true, use BOTH taste profiles when picking: call discover_content with genres that appear in both profiles, and briefly explain why each pick suits both people. If has_taste_profile is false, ask the user 2-3 quick questions about what their partner enjoys (favourite genres, a title or two) before searching — then use those answers alongside the user's own taste. If find_watch_partner returns found: false, tell the user and ask for 2-3 quick preferences about their partner, then use those.
+17. Theater/digital labeling: when browse_tmdb returns a category_note, ALWAYS tell the user what it says before listing results. For now_playing results, explicitly say these are currently in theaters and may not be downloadable yet — do NOT offer to request them without first warning the user. For upcoming results, say these haven't been released yet.
 """;
     }
 
@@ -994,6 +1068,24 @@ RULES:
                     required = Array.Empty<string>()
                 }
             }
+        },
+        new
+        {
+            type = "function",
+            function = new
+            {
+                name = "find_watch_partner",
+                description = "Look up another user's taste profile by name for Watch Together recommendations. Matches against Jellyfin usernames, Telegram usernames, and Discord usernames. Use this when the user says they want to watch something with someone else (e.g. 'me and Anna want to watch something tonight').",
+                parameters = new
+                {
+                    type = "object",
+                    properties = new Dictionary<string, object>
+                    {
+                        ["partner_name"] = new { type = "string", description = "The name of the person — their Jellyfin, Telegram, or Discord username" }
+                    },
+                    required = new[] { "partner_name" }
+                }
+            }
         }
     ];
 
@@ -1061,6 +1153,11 @@ RULES:
                 "sync_to_jellyfin" => "🔄 Syncing your Jellyfin library...",
 
                 "refresh_taste_profile" => "🧠 Regenerating your taste profile from watch history...",
+
+                "find_watch_partner" =>
+                    args.TryGetProperty("partner_name", out var wpn) && wpn.GetString() is { Length: > 0 } wpnStr
+                        ? $"👥 Looking up {EscapeHtml(wpnStr)}'s taste profile..."
+                        : "👥 Looking up watch partner...",
 
                 _ => null
             };
