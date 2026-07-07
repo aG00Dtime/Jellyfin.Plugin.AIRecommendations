@@ -29,6 +29,7 @@ public class RecommendationsController : ControllerBase
     private readonly TelegramBotService _telegramBot;
     private readonly TelegramAgentLoop _telegramAgent;
     private readonly DiscordBotService _discordBot;
+    private readonly LibraryFilterService _libraryFilter;
 
     public RecommendationsController(
         RecommendationSyncService syncService,
@@ -38,7 +39,8 @@ public class RecommendationsController : ControllerBase
         IHttpClientFactory httpClientFactory,
         TelegramBotService telegramBot,
         TelegramAgentLoop telegramAgent,
-        DiscordBotService discordBot)
+        DiscordBotService discordBot,
+        LibraryFilterService libraryFilter)
     {
         _syncService = syncService;
         _tasteProfile = tasteProfile;
@@ -48,6 +50,7 @@ public class RecommendationsController : ControllerBase
         _telegramBot = telegramBot;
         _telegramAgent = telegramAgent;
         _discordBot = discordBot;
+        _libraryFilter = libraryFilter;
     }
 
     /// <summary>
@@ -326,12 +329,20 @@ public class RecommendationsController : ControllerBase
         var config = Plugin.Instance!.Configuration;
         config.TelegramUserLinks.RemoveAll(l => l.ChatId == pending.ChatId
                                               || l.JellyfinUserId == request.JellyfinUserId);
+
+        // Pre-seed NotifiedAvailableTmdbIds with RequestedTmdbIds already in the library
+        // so the first poll doesn't flood the user with notifications for existing content.
+        var ownedIds = _libraryFilter.GetOwnedTmdbIds();
+        var reg = config.UserLibraries.FirstOrDefault(r => r.UserId == request.JellyfinUserId);
+        var alreadyOwned = reg?.RequestedTmdbIds.Where(id => ownedIds.Contains(id)).ToList() ?? [];
+
         config.TelegramUserLinks.Add(new TelegramUserLink
         {
-            ChatId          = pending.ChatId,
-            JellyfinUserId  = request.JellyfinUserId,
-            TelegramUsername= pending.Username,
-            LinkedAt        = DateTime.UtcNow
+            ChatId                   = pending.ChatId,
+            JellyfinUserId           = request.JellyfinUserId,
+            TelegramUsername         = pending.Username,
+            LinkedAt                 = DateTime.UtcNow,
+            NotifiedAvailableTmdbIds = alreadyOwned
         });
         Plugin.Instance!.SaveConfiguration();
 
@@ -394,12 +405,20 @@ public class RecommendationsController : ControllerBase
         var config = Plugin.Instance!.Configuration;
         config.DiscordUserLinks.RemoveAll(l => l.DiscordUserId == pending.UserId
                                              || l.JellyfinUserId == request.JellyfinUserId);
+
+        // Pre-seed NotifiedAvailableTmdbIds with RequestedTmdbIds already in the library
+        // so the first poll doesn't flood the user with notifications for existing content.
+        var ownedIdsDisc = _libraryFilter.GetOwnedTmdbIds();
+        var regDisc = config.UserLibraries.FirstOrDefault(r => r.UserId == request.JellyfinUserId);
+        var alreadyOwnedDisc = regDisc?.RequestedTmdbIds.Where(id => ownedIdsDisc.Contains(id)).ToList() ?? [];
+
         config.DiscordUserLinks.Add(new DiscordUserLink
         {
-            DiscordUserId   = pending.UserId,
-            JellyfinUserId  = request.JellyfinUserId,
-            DiscordUsername = pending.Username,
-            LinkedAt        = DateTime.UtcNow
+            DiscordUserId            = pending.UserId,
+            JellyfinUserId           = request.JellyfinUserId,
+            DiscordUsername          = pending.Username,
+            LinkedAt                 = DateTime.UtcNow,
+            NotifiedAvailableTmdbIds = alreadyOwnedDisc
         });
         Plugin.Instance!.SaveConfiguration();
 

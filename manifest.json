@@ -2,10 +2,11 @@
   {
     "guid": "7c4a9e2b-3f1d-4a8c-b6e5-2d9f8a1c0b3e",
     "name": "AI Recommendations (WIP)",
-    "description": "[Work in progress] Per-user AI movie and TV recommendations synced to virtual libraries on all Jellyfin clients",
-    "overview": "[WIP] LLM-powered recommendations via OpenAI, OpenRouter, or Ollama - not production-ready yet",
+    "description": "[Work in progress] AI media agent for Jellyfin — personalised recommendation libraries, Telegram & Discord bots, and one-tap downloads via Jellyseerr, Radarr, and Sonarr",
+    "overview": "[WIP] LLM-powered per-user recommendations via OpenAI, OpenRouter, or Ollama, with conversational Telegram and Discord bots. Not production-ready.",
     "owner": "aG00Dtime",
     "category": "General",
+    "imageUrl": "https://raw.githubusercontent.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/main/agent.png",
     "versions": [
       {
         "version": "1.0.113.0",

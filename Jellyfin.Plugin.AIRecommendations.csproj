@@ -23,6 +23,11 @@
   <ItemGroup>
     <None Remove="Configuration\configPage.html" />
     <EmbeddedResource Include="Configuration\configPage.html" />
+    <None Remove="agent.png" />
+    <EmbeddedResource Include="agent.png">
+      <!-- Jellyfin serves /Plugins/{guid}/{version}/Image from this embedded resource -->
+      <LogicalName>Jellyfin.Plugin.AIRecommendations.thumb.png</LogicalName>
+    </EmbeddedResource>
   </ItemGroup>
 
 </Project>
