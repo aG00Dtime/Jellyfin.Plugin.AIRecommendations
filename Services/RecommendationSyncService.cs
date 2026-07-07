@@ -158,10 +158,19 @@ public class RecommendationSyncService
         if (await _tasteProfile.RefreshIfNeededAsync(user, registration, config, cancellationToken).ConfigureAwait(false))
             Plugin.Instance!.SaveConfiguration();
 
-        // Exclude rejected + already-requested IDs from new recommendations
+        // Exclude rejected + already-requested IDs from new recommendations.
+        // In accumulate mode, also exclude stubs already on disk so the LLM generates
+        // genuinely new titles rather than re-recommending what's already placed.
         var extraExcludeIds = registration.RejectedTmdbIds
             .Concat(registration.RequestedTmdbIds)
             .ToHashSet();
+
+        if (!config.AlwaysRefreshRecommendations)
+        {
+            var onDiskIds = VirtualItemWriter.ScanTmdbIds(registration.MoviePath);
+            onDiskIds.UnionWith(VirtualItemWriter.ScanTmdbIds(registration.ShowPath));
+            extraExcludeIds.UnionWith(onDiskIds);
+        }
 
         // Skip LLM generation if stubs already exist and the sync interval hasn't elapsed.
         // Check PlacedTmdbIds first; fall back to scanning actual disk files in case the config

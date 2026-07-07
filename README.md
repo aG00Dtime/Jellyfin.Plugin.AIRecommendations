@@ -5,7 +5,7 @@
 >
 > This plugin is in active development. Configuration format, API endpoints, file layouts, and behaviour **will change without notice** between versions. Upgrading may require clearing all plugin state and starting fresh. Do not use in production environments where stability matters.
 
-Jellyfin plugin that gives each user a private AI-powered recommendation library, a Telegram or Discord bot assistant, and one-tap download requests via Jellyseerr, Radarr, and Sonarr.
+AI media agent for Jellyfin. Chat with it over Telegram or Discord to get personalised recommendations, request downloads, and check what's available — all without opening the Jellyfin UI. Each user also gets a private recommendation library populated automatically on a schedule, and a taste profile the agent uses to understand their preferences before they say a word.
 
 Requires Jellyfin **10.11.9**.
 
@@ -27,11 +27,12 @@ Install **AI Recommendations (WIP)** from the catalog and restart Jellyfin.
 
 ## What it does
 
-- **Private recommendation libraries** — each user gets two Jellyfin libraries ("AI Movie Picks" and "AI Show Picks") populated with personalised stubs. Other users cannot see them.
+- **Telegram and Discord AI agent** — chat with the agent via DMs on either platform to get personalised recommendations, search your library, request downloads, and check status. Both bots run simultaneously and use the same underlying AI.
+- **Taste profiles** — after each sync the agent has a LLM-generated narrative about each user's preferences. It reads this before every conversation turn so responses are personalised from the first message.
+- **Private recommendation libraries** — each user gets two Jellyfin libraries ("AI Movie Picks" and "AI Show Picks") populated with personalised stubs on a schedule. Other users cannot see them.
 - **One-tap downloads** — heart a stub to immediately request it through Jellyseerr, Radarr, or Sonarr. An on-screen toast confirms the request.
 - **Mark as watched to dismiss** — marking a stub as played permanently rejects it and deletes it from disk.
-- **Telegram or Discord bot** — chat with an AI assistant via Telegram or Discord DMs to get recommendations, search titles, and request downloads without opening Jellyfin. Both platforms work simultaneously.
-- **Smart sync** — stubs are not regenerated on every restart; the LLM is only called when the sync interval has elapsed or when a manual sync is triggered.
+- **Smart sync** — stubs accumulate over time; the LLM only generates new recommendations to fill empty slots, never re-recommending titles already placed.
 
 ---
 
@@ -132,10 +133,18 @@ The Discord bot offers the same AI assistant experience as Telegram — recommen
 
 1. Go to [discord.com/developers/applications](https://discord.com/developers/applications) and click **New Application**.
 2. Go to the **Bot** tab and click **Reset Token**. Copy the token.
-3. Under **Privileged Gateway Intents**, no extra toggles are needed — the bot uses only DMs and does not require the Message Content intent.
-4. Go to **OAuth2 → URL Generator**, select the `bot` scope, and add the `Send Messages` and `Read Message History` permissions. Open the generated URL to invite the bot to your server (or skip this — users can DM the bot directly without it being in a server by enabling **Allow anyone to start a DM** under the **Bot** tab).
+3. Still on the **Bot** tab, scroll down to **Privileged Gateway Intents**. **Do not enable any** — the bot only needs `DIRECT_MESSAGES`, which is not a privileged intent and requires no toggle.
+4. Invite the bot to your server so users can DM it (Discord only allows DMs with bots that share a server with the user):
+   - Go to **OAuth2 → URL Generator**.
+   - Under **Scopes**, tick `bot`.
+   - Under **Bot Permissions**, tick **Send Messages**. That is the only permission the bot needs.
+   - Open the generated URL and add the bot to your server. It does not need access to any channels — just being a member is enough to allow DMs.
 5. Paste the token into the **Discord Bot** section of the plugin config and click **Test Token**.
 6. Click **Save** — the bot connects immediately without a restart.
+
+> **Why a server invite?** Discord only allows users to DM a bot if they share a server with it. The bot does not need any channel permissions — invite it to a private server or an existing one and it will be invisible in channels unless given access.
+
+> **Bot permissions summary:** `Send Messages` only. No privileged intents. No `MESSAGE_CONTENT` intent (that is only needed to read guild channel messages — DMs are always readable by the bot).
 
 ### Linking accounts
 
@@ -210,7 +219,7 @@ Both actions take effect immediately — no sync required.
 | Max recommendations per type | 10 | How many movie stubs and show stubs to maintain per user. |
 | Sync interval (hours) | 24 | How often recommendations refresh. The LLM is not called if stubs already exist and this interval hasn't elapsed. |
 | Limit shows to Season 1 | on | Only writes a Season 1 stub per show. Speeds up library scans. |
-| Always refresh recommendations | off | Replace all stubs on every sync instead of accumulating them. |
+| Always refresh recommendations | off | Replace all stubs on every sync. When off (default), stubs accumulate — each sync adds new picks to fill empty slots without removing existing ones. |
 | Taste profile interval (days) | 7 | How often to regenerate the taste profile narrative. Set to 0 to disable. |
 
 ---
@@ -249,8 +258,9 @@ Items are excluded from recommendations at multiple layers:
 | Already watched | `WatchHistoryService.GetWatchedTmdbIds()` | Fully-played movies and series; any series with a played episode |
 | Rejected | `UserLibraryRegistration.RejectedTmdbIds` | Titles the user marked as watched on stubs |
 | Requested | `UserLibraryRegistration.RequestedTmdbIds` | Titles already in the download queue |
+| Already placed (accumulate mode) | `VirtualItemWriter.ScanTmdbIds()` | Stubs currently on disk — excluded so each sync generates genuinely new picks |
 
-AI stub paths are explicitly excluded from the owned and watched checks so virtual stub items don't block real recommendations.
+AI stub paths are explicitly excluded from the owned and watched checks so virtual stub items don't block real recommendations. In refresh mode (`AlwaysRefreshRecommendations = true`) all stubs are wiped before generation so the placed-stubs exclusion is not needed.
 
 ### TMDB Discover (RAG mode)
 
