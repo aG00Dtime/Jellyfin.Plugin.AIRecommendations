@@ -1,6 +1,7 @@
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using Jellyfin.Plugin.AIRecommendations.Discord;
 using Jellyfin.Plugin.AIRecommendations.Models;
 using Jellyfin.Plugin.AIRecommendations.Services;
 using Jellyfin.Plugin.AIRecommendations.Telegram;
@@ -27,6 +28,7 @@ public class RecommendationsController : ControllerBase
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly TelegramBotService _telegramBot;
     private readonly TelegramAgentLoop _telegramAgent;
+    private readonly DiscordBotService _discordBot;
 
     public RecommendationsController(
         RecommendationSyncService syncService,
@@ -35,7 +37,8 @@ public class RecommendationsController : ControllerBase
         ILibraryManager libraryManager,
         IHttpClientFactory httpClientFactory,
         TelegramBotService telegramBot,
-        TelegramAgentLoop telegramAgent)
+        TelegramAgentLoop telegramAgent,
+        DiscordBotService discordBot)
     {
         _syncService = syncService;
         _tasteProfile = tasteProfile;
@@ -44,6 +47,7 @@ public class RecommendationsController : ControllerBase
         _httpClientFactory = httpClientFactory;
         _telegramBot = telegramBot;
         _telegramAgent = telegramAgent;
+        _discordBot = discordBot;
     }
 
     /// <summary>
@@ -372,6 +376,74 @@ public class RecommendationsController : ControllerBase
         return NoContent();
     }
 
+    // ── Discord link management ────────────────────────────────────────────────
+
+    /// <summary>
+    /// Links a Discord user to a Jellyfin user via a one-time code generated
+    /// by the bot's /link command.
+    /// </summary>
+    [HttpPost("Discord/Link")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public IActionResult LinkDiscordAccount([FromBody] DiscordLinkRequest request)
+    {
+        var pending = _discordBot.ConsumePendingCode(request.Code?.Trim() ?? string.Empty);
+        if (pending is null)
+            return BadRequest(new { error = "Invalid or expired code. Have the user send /link to the bot again." });
+
+        var config = Plugin.Instance!.Configuration;
+        config.DiscordUserLinks.RemoveAll(l => l.DiscordUserId == pending.UserId
+                                             || l.JellyfinUserId == request.JellyfinUserId);
+        config.DiscordUserLinks.Add(new DiscordUserLink
+        {
+            DiscordUserId   = pending.UserId,
+            JellyfinUserId  = request.JellyfinUserId,
+            DiscordUsername = pending.Username,
+            LinkedAt        = DateTime.UtcNow
+        });
+        Plugin.Instance!.SaveConfiguration();
+
+        _ = _discordBot.SendDmAsync(pending.UserId, "✅ Linked to Jellyfin! Ask me what to watch.", CancellationToken.None);
+
+        return Ok(new { message = $"Linked Discord user {pending.UserId} to Jellyfin user {request.JellyfinUserId}" });
+    }
+
+    /// <summary>Returns all linked Discord accounts (for the admin UI).</summary>
+    [HttpGet("Discord/Links")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public ActionResult<IEnumerable<object>> GetDiscordLinks()
+    {
+        var config = Plugin.Instance!.Configuration;
+        return Ok(config.DiscordUserLinks.Select(l =>
+        {
+            var user = _userManager.GetUserById(Guid.TryParse(l.JellyfinUserId, out var uid) ? uid : Guid.Empty);
+            return new
+            {
+                DiscordUserId   = l.DiscordUserId.ToString(),
+                l.JellyfinUserId,
+                Username        = user?.Username ?? l.JellyfinUserId,
+                l.DiscordUsername,
+                l.LinkedAt,
+                NotifiedCount   = l.NotifiedAvailableTmdbIds.Count
+            };
+        }));
+    }
+
+    /// <summary>Unlinks a Discord account by Discord user ID.</summary>
+    [HttpDelete("Discord/Links/{discordUserId}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public IActionResult UnlinkDiscordAccount([FromRoute] string discordUserId)
+    {
+        if (!ulong.TryParse(discordUserId, out var uid))
+            return BadRequest(new { error = "Invalid Discord user ID" });
+
+        var config = Plugin.Instance!.Configuration;
+        config.DiscordUserLinks.RemoveAll(l => l.DiscordUserId == uid);
+        Plugin.Instance!.SaveConfiguration();
+        return NoContent();
+    }
+
     // ── Arr profile helpers ────────────────────────────────────────────────────
 
     /// <summary>Returns available quality profiles from Radarr or Sonarr (for the config UI dropdowns).</summary>
@@ -539,6 +611,22 @@ public class RecommendationsController : ControllerBase
                     .ConfigureAwait(false);
             }
 
+            case "Discord":
+            {
+                var token = req.ApiKey;
+                if (string.IsNullOrWhiteSpace(token))
+                    throw new InvalidOperationException("Bot token is required.");
+                using var discReq = new HttpRequestMessage(HttpMethod.Get, "https://discord.com/api/v10/users/@me");
+                discReq.Headers.Authorization = new AuthenticationHeaderValue("Bot", token);
+                using var discResp = await client.SendAsync(discReq, cancellationToken).ConfigureAwait(false);
+                discResp.EnsureSuccessStatusCode();
+                var discBody = await discResp.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+                using var discDoc = System.Text.Json.JsonDocument.Parse(discBody);
+                var discUsername = discDoc.RootElement.TryGetProperty("username", out var dun)
+                    ? dun.GetString() : "bot";
+                return $"Connected as {discUsername}";
+            }
+
             case "Telegram":
             {
                 var token = req.ApiKey;
@@ -642,4 +730,10 @@ public class TestAgentRequest
 {
     public string JellyfinUserId { get; set; } = string.Empty;
     public string Message { get; set; } = string.Empty;
+}
+
+public class DiscordLinkRequest
+{
+    public string Code { get; set; } = string.Empty;
+    public string JellyfinUserId { get; set; } = string.Empty;
 }
