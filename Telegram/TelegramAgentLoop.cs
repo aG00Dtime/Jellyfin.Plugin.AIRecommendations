@@ -718,11 +718,11 @@ RULES:
 8. Always call search_content before request_media to get the verified TMDB ID — never guess it.
 9. If search_content returns in_library: true, tell the user that title is already in their Jellyfin library — do NOT offer to request it.
 10. Confirm what you're about to request before calling request_media, unless the user already said "yes", "sure", or "request it".
-11. After a successful request_media call, always tell the user: "You'll get a Telegram notification here when it arrives in Jellyfin." The download status poller tracks all requests and sends automatic notifications — never tell the user you can't notify them.
+11. After a successful request_media call, always tell the user: "You'll get a notification here when it arrives in Jellyfin." The download status poller tracks all requests and sends automatic notifications — never tell the user you can't notify them.
     If the result contains an availability_note (e.g. "in theaters only", "not yet released"), always include it in your reply so the user understands the download may be delayed.
 12. When check_status returns in_jellyfin: true, ALWAYS tell the user the title is available to watch in Jellyfin RIGHT NOW. Never mention download service statuses when in_jellyfin is true — they lag behind and are irrelevant. "Available now" is the only answer that matters.
 13. If the user asks to "search my library", "check my library", or "browse my library" without specifying a title, ask what specific title or genre they're looking for rather than calling search_library with no query.
-14. Be concise. Use <b>bold</b> for titles (Telegram HTML). No markdown asterisks or bullet dashes.
+14. Be concise. Use <b>bold</b> for titles. No markdown asterisks or bullet dashes.
 15. If no download services are configured, say so when the user tries to request something.
 """;
     }

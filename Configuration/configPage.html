@@ -290,6 +290,55 @@
                         </div>
                     </details>
 
+                    <!-- Discord Bot -->
+                    <details style="margin-top:14px">
+                        <summary style="cursor:pointer;font-size:1.1em;font-weight:bold;padding:6px 0;border-bottom:1px solid #333;margin-bottom:10px">Discord Bot <span style="font-weight:normal;font-size:.8em;color:#888">(optional)</span></summary>
+                        <p style="font-size:.85em;color:#aaa;margin:0 0 10px">
+                            Go to <strong>discord.com/developers/applications</strong> → New Application → Bot → Reset Token.
+                            Under <em>Privileged Gateway Intents</em>, no extra intents are needed — the bot works via DMs only.
+                            Users send <code>/link</code> to the bot in a DM, then enter the code here to connect their Jellyfin account.
+                        </p>
+                        <div class="inputContainer">
+                            <input is="emby-input" type="password" id="discordBotToken" label="Bot Token" />
+                            <div class="fieldDescription">From the Bot page in the Discord Developer Portal</div>
+                        </div>
+                        <button is="emby-button" type="button" id="btn-test-discord" class="raised button-alt">Test Token</button>
+                        <div class="test-result" id="test-discord"></div>
+
+                        <!-- Discord link panel -->
+                        <div style="margin-top:14px">
+                            <h4 style="margin-bottom:6px">Link a Discord Account</h4>
+                            <p style="font-size:.82em;color:#888;margin:0 0 8px">Have the user send <code>/link</code> to the bot in a DM, then enter the code they receive:</p>
+                            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
+                                <div class="inputContainer" style="flex:0 0 120px;margin:0">
+                                    <input is="emby-input" type="text" id="discordLinkCode" label="6-digit code" maxlength="6" />
+                                </div>
+                                <div class="selectContainer" style="flex:1;min-width:140px;margin:0">
+                                    <label class="selectLabel" for="discordLinkUserId">Jellyfin User</label>
+                                    <select is="emby-select" id="discordLinkUserId" class="emby-select-withcolor"></select>
+                                </div>
+                                <button is="emby-button" type="button" id="btn-link-discord" class="raised button-submit" style="margin-bottom:4px">Link</button>
+                            </div>
+                            <div class="test-result" id="discord-link-result"></div>
+                        </div>
+
+                        <!-- Linked accounts table -->
+                        <div id="discordLinksPanel" style="display:none;margin-top:14px">
+                            <h4 style="margin-bottom:6px">Linked Accounts</h4>
+                            <table style="width:100%;border-collapse:collapse;font-size:.85em" id="discordLinksTable">
+                                <thead>
+                                    <tr style="color:#888;text-align:left">
+                                        <th style="padding:4px 8px">Jellyfin User</th>
+                                        <th style="padding:4px 8px">Discord</th>
+                                        <th style="padding:4px 8px">Linked</th>
+                                        <th style="padding:4px 8px"></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="discordLinksBody"></tbody>
+                            </table>
+                        </div>
+                    </details>
+
                     <!-- TMDB -->
                     <details style="margin-top:14px">
                         <summary style="cursor:pointer;font-size:1.1em;font-weight:bold;padding:6px 0;border-bottom:1px solid #333;margin-bottom:10px">TMDB</summary>
@@ -392,6 +441,36 @@
                 });
             }
 
+            function loadDiscordLinks() {
+                apiGet('AIRecommendations/Discord/Links').then(function (links) {
+                    var panel = document.getElementById('discordLinksPanel');
+                    var tbody = document.getElementById('discordLinksBody');
+                    if (!links || !links.length) { panel.style.display = 'none'; return; }
+                    tbody.innerHTML = '';
+                    links.forEach(function (link) {
+                        var tr = document.createElement('tr');
+                        var discHandle = link.DiscordUsername ? '@' + link.DiscordUsername : '—';
+                        var linkedAt = link.LinkedAt ? new Date(link.LinkedAt).toLocaleDateString() : '—';
+                        tr.innerHTML =
+                            '<td style="padding:4px 8px">' + (link.Username || link.JellyfinUserId) + '</td>' +
+                            '<td style="padding:4px 8px;color:#aaa">' + discHandle + '</td>' +
+                            '<td style="padding:4px 8px;color:#888">' + linkedAt + '</td>' +
+                            '<td style="padding:4px 8px"><button type="button" class="btn-discord-unlink" data-userid="' + link.DiscordUserId + '" style="background:#3a1a1a;border:1px solid #5a2a2a;color:#db7e7e;border-radius:3px;padding:2px 8px;font-size:.78em;cursor:pointer">Unlink</button></td>';
+                        tbody.appendChild(tr);
+                    });
+                    panel.style.display = 'block';
+                    tbody.querySelectorAll('.btn-discord-unlink').forEach(function (btn) {
+                        btn.addEventListener('click', function () {
+                            btn.disabled = true;
+                            btn.textContent = '…';
+                            apiDelete('AIRecommendations/Discord/Links/' + btn.dataset.userid).then(function () {
+                                loadDiscordLinks();
+                            }).catch(function () { btn.disabled = false; btn.textContent = 'Unlink'; });
+                        });
+                    });
+                }).catch(function () {});
+            }
+
             function loadTelegramLinks() {
                 apiGet('AIRecommendations/Telegram/Links').then(function (links) {
                     var panel = document.getElementById('telegramLinksPanel');
@@ -428,14 +507,17 @@
                     headers: { 'X-Emby-Token': token, 'X-MediaBrowser-Token': token }
                 }).then(function (r) { return r.json(); }).then(function (users) {
                     var sel = document.getElementById('telegramLinkUserId');
+                    var discordSel = document.getElementById('discordLinkUserId');
                     var agentSel = document.getElementById('agentTestUserId');
                     sel.innerHTML = '';
+                    discordSel.innerHTML = '';
                     agentSel.innerHTML = '';
                     (users || []).forEach(function (u) {
                         var opt = document.createElement('option');
                         opt.value = u.Id;
                         opt.textContent = u.Name;
                         sel.appendChild(opt);
+                        discordSel.appendChild(opt.cloneNode(true));
                         agentSel.appendChild(opt.cloneNode(true));
                     });
                 }).catch(function () {});
@@ -698,7 +780,7 @@
                 }).then(function (text) {
                     if (!text) return;
                     var lines = text.split('\n').filter(function (l) {
-                        return l.indexOf('AIRecommendations') !== -1 || l.indexOf('Jellyseerr') !== -1 || l.indexOf('Recommendation') !== -1 || l.indexOf('Telegram') !== -1 || l.indexOf('Radarr') !== -1 || l.indexOf('Sonarr') !== -1;
+                        return l.indexOf('AIRecommendations') !== -1 || l.indexOf('Jellyseerr') !== -1 || l.indexOf('Recommendation') !== -1 || l.indexOf('Telegram') !== -1 || l.indexOf('Discord') !== -1 || l.indexOf('Radarr') !== -1 || l.indexOf('Sonarr') !== -1;
                     }).slice(-80);
                     box.textContent = lines.length ? lines.join('\n') : 'No AI Recommendations log entries yet.';
                     box.scrollTop = box.scrollHeight;
@@ -751,12 +833,15 @@
                     // Telegram
                     document.getElementById('telegramBotToken').value = config.TelegramBotToken || '';
                     document.getElementById('telegramDownloadPollIntervalMinutes').value = config.TelegramDownloadPollIntervalMinutes || 15;
+                    // Discord
+                    document.getElementById('discordBotToken').value = config.DiscordBotToken || '';
                     Dashboard.hideLoadingMsg();
                     loadStatus();
                     loadUsers();
                     loadLogs();
                     loadJellyfinUsers();
                     loadTelegramLinks();
+                    loadDiscordLinks();
                 });
 
                 document.getElementById('activeProvider').addEventListener('change', function () {
@@ -793,6 +878,55 @@
                 document.getElementById('btn-test-radarr').addEventListener('click', function () { testProvider('Radarr'); });
                 document.getElementById('btn-test-sonarr').addEventListener('click', function () { testProvider('Sonarr'); });
                 document.getElementById('btn-test-telegram').addEventListener('click', function () { testProvider('Telegram'); });
+                document.getElementById('btn-test-discord').addEventListener('click', function () {
+                    var resultEl = document.getElementById('test-discord');
+                    resultEl.className = 'test-result loading';
+                    resultEl.textContent = 'Testing…';
+                    apiPost('AIRecommendations/TestProvider', { Provider: 'Discord', ApiKey: document.getElementById('discordBotToken').value })
+                        .then(function (result) {
+                            resultEl.className = 'test-result ' + (result.Success ? 'ok' : 'err');
+                            resultEl.textContent = result.Message;
+                        }).catch(function (err) {
+                            resultEl.className = 'test-result err';
+                            resultEl.textContent = 'Request failed: ' + (err.message || String(err));
+                        });
+                });
+                document.getElementById('btn-link-discord').addEventListener('click', function () {
+                    var code = document.getElementById('discordLinkCode').value.trim();
+                    var userId = document.getElementById('discordLinkUserId').value;
+                    var resultEl = document.getElementById('discord-link-result');
+                    if (!code || !userId) {
+                        resultEl.className = 'test-result err';
+                        resultEl.textContent = 'Enter a 6-digit code and select a user.';
+                        return;
+                    }
+                    resultEl.className = 'test-result loading';
+                    resultEl.textContent = 'Linking…';
+                    var token = ApiClient.accessToken();
+                    fetch(ApiClient.getUrl('AIRecommendations/Discord/Link'), {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-Emby-Token': token, 'X-MediaBrowser-Token': token },
+                        body: JSON.stringify({ Code: code, JellyfinUserId: userId })
+                    }).then(function (r) {
+                        if (r.ok) {
+                            resultEl.className = 'test-result ok';
+                            resultEl.textContent = 'Linked successfully!';
+                            document.getElementById('discordLinkCode').value = '';
+                            loadDiscordLinks();
+                        } else {
+                            return r.json().then(function (err) {
+                                resultEl.className = 'test-result err';
+                                resultEl.textContent = (err && err.error) || 'Link failed — code may be invalid or expired.';
+                            }).catch(function () {
+                                resultEl.className = 'test-result err';
+                                resultEl.textContent = 'Link failed — code may be invalid or expired.';
+                            });
+                        }
+                    }).catch(function (err) {
+                        resultEl.className = 'test-result err';
+                        resultEl.textContent = 'Request failed: ' + (err.message || String(err));
+                    });
+                });
                 document.getElementById('btn-fetch-radarr-profiles').addEventListener('click', function () { fetchArrProfiles('Radarr'); });
                 document.getElementById('btn-fetch-sonarr-profiles').addEventListener('click', function () { fetchArrProfiles('Sonarr'); });
                 document.getElementById('btn-fetch-radarr-folders').addEventListener('click', function () { fetchArrRootFolders('Radarr'); });
@@ -896,6 +1030,7 @@
                     config.SonarrRootFolderPath = document.getElementById('sonarrRootFolderPath').value;
                     config.TelegramBotToken = document.getElementById('telegramBotToken').value;
                     config.TelegramDownloadPollIntervalMinutes = parseInt(document.getElementById('telegramDownloadPollIntervalMinutes').value, 10) || 15;
+                    config.DiscordBotToken = document.getElementById('discordBotToken').value;
                     config.TasteProfileRegenerationIntervalDays = parseInt(document.getElementById('tasteProfileRegenerationIntervalDays').value, 10) || 7;
                     ApiClient.updatePluginConfiguration(PLUGIN_ID, config).then(function () {
                         Dashboard.processPluginConfigurationUpdateResult();

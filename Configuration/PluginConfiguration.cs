@@ -1,3 +1,4 @@
+using Jellyfin.Plugin.AIRecommendations.Discord;
 using Jellyfin.Plugin.AIRecommendations.Telegram;
 using MediaBrowser.Model.Plugins;
 
@@ -87,6 +88,14 @@ public class PluginConfiguration : BasePluginConfiguration
     public DateTime? LastSyncUtc { get; set; }
 
     public string LastSyncMessage { get; set; } = string.Empty;
+
+    // ── Discord Bot ──────────────────────────────────────────────────────────
+
+    /// <summary>Discord Bot token from the Developer Portal. Leave blank to disable.</summary>
+    public string DiscordBotToken { get; set; } = string.Empty;
+
+    /// <summary>Linked Discord accounts.</summary>
+    public List<DiscordUserLink> DiscordUserLinks { get; set; } = new();
 
     // ── Telegram Bot ──────────────────────────────────────────────────────────
 

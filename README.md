@@ -5,7 +5,7 @@
 >
 > This plugin is in active development. Configuration format, API endpoints, file layouts, and behaviour **will change without notice** between versions. Upgrading may require clearing all plugin state and starting fresh. Do not use in production environments where stability matters.
 
-Jellyfin plugin that gives each user a private AI-powered recommendation library, a Telegram bot assistant, and one-tap download requests via Jellyseerr, Radarr, and Sonarr.
+Jellyfin plugin that gives each user a private AI-powered recommendation library, a Telegram or Discord bot assistant, and one-tap download requests via Jellyseerr, Radarr, and Sonarr.
 
 Requires Jellyfin **10.11.9**.
 
@@ -30,7 +30,7 @@ Install **AI Recommendations (WIP)** from the catalog and restart Jellyfin.
 - **Private recommendation libraries** — each user gets two Jellyfin libraries ("AI Movie Picks" and "AI Show Picks") populated with personalised stubs. Other users cannot see them.
 - **One-tap downloads** — heart a stub to immediately request it through Jellyseerr, Radarr, or Sonarr. An on-screen toast confirms the request.
 - **Mark as watched to dismiss** — marking a stub as played permanently rejects it and deletes it from disk.
-- **Telegram bot** — chat with an AI assistant via Telegram to get recommendations, search titles, and request downloads without opening Jellyfin.
+- **Telegram or Discord bot** — chat with an AI assistant via Telegram or Discord DMs to get recommendations, search titles, and request downloads without opening Jellyfin. Both platforms work simultaneously.
 - **Smart sync** — stubs are not regenerated on every restart; the LLM is only called when the sync interval has elapsed or when a manual sync is triggered.
 
 ---
@@ -63,9 +63,9 @@ Use the **Test Connection** button to verify credentials before saving.
 - `gemma3:27b` — good quality, free tier
 - `gemma3:4b` — faster, free tier
 
-The Telegram agent uses the same provider as the main plugin. No separate configuration needed.
+The Telegram and Discord agents use the same provider as the main plugin. No separate configuration needed.
 
-> **Note:** The Telegram agent requires an OpenAI-compatible tool-calling API. OpenAI and OpenRouter both work. Ollama works with models that support function calling (e.g. `llama3.1`, `mistral-nemo`). Models without function-calling support will result in the agent looping without producing results.
+> **Note:** The chat agents require an OpenAI-compatible tool-calling API. OpenAI and OpenRouter both work. Ollama works with models that support function calling (e.g. `llama3.1`, `mistral-nemo`). Models without function-calling support will result in the agent looping without producing results.
 
 ---
 
@@ -124,6 +124,45 @@ The bot notifies you in Telegram when a requested item becomes available in your
 
 ---
 
+## Discord bot
+
+The Discord bot offers the same AI assistant experience as Telegram — recommendations, search, download requests, and availability notifications — delivered entirely through **Direct Messages**. The bot never reads or posts in server channels.
+
+### Setup
+
+1. Go to [discord.com/developers/applications](https://discord.com/developers/applications) and click **New Application**.
+2. Go to the **Bot** tab and click **Reset Token**. Copy the token.
+3. Under **Privileged Gateway Intents**, no extra toggles are needed — the bot uses only DMs and does not require the Message Content intent.
+4. Go to **OAuth2 → URL Generator**, select the `bot` scope, and add the `Send Messages` and `Read Message History` permissions. Open the generated URL to invite the bot to your server (or skip this — users can DM the bot directly without it being in a server by enabling **Allow anyone to start a DM** under the **Bot** tab).
+5. Paste the token into the **Discord Bot** section of the plugin config and click **Test Token**.
+6. Click **Save** — the bot connects immediately without a restart.
+
+### Linking accounts
+
+1. A user DMs the bot `/link`.
+2. The bot replies with a 6-digit code (expires in 10 minutes).
+3. In the plugin config under **Discord Bot → Link a Discord Account**, enter the code and select the Jellyfin user, then click **Link**.
+4. The bot sends a confirmation DM. The user can now chat with it.
+
+### Bot commands
+
+| Command | Description |
+|---|---|
+| `/link` or `/start` | Generate a link code |
+| `/unlink` | Remove the link between this Discord account and Jellyfin |
+| `/reset` | Clear the current conversation and start fresh |
+| `/profile` | Show your AI-generated taste profile narrative |
+
+### What the agent can do
+
+Same capabilities as the Telegram bot: recommendations, library search, TMDB search, download requests, status checks, and taste profile refresh. The same AI agent handles both platforms — conversation history is maintained per user per platform.
+
+### Download status notifications
+
+When a requested title becomes available in Jellyfin, the bot sends a DM notification. It uses the same poll interval as Telegram (configured in the **Telegram** section, default 15 minutes). Both Telegram and Discord notifications run independently — a user linked to both platforms receives notifications on both.
+
+---
+
 ## Taste profiles
 
 ### What a taste profile is
@@ -136,9 +175,9 @@ Example excerpt:
 On each sync, if a user has no taste profile stored (or the profile is older than the configured regeneration interval), `TasteProfileService` reads their watch history via `WatchHistoryService`, sends it to the active LLM provider with a generation prompt, and stores the resulting narrative in `PluginConfiguration` (XML-persisted). This only happens once per interval — not on every sync.
 
 ### Where it's used
-- **Telegram agent system prompt** — every conversation turn includes the full narrative so the agent understands the user before they say a word
+- **Telegram and Discord agent system prompt** — every conversation turn includes the full narrative so the agent understands the user before they say a word
 - **Auto-sync recommendations** — the narrative is passed to the LLM when generating stub recommendations, replacing the raw stats summary for richer, more personalised picks
-- **`/profile` command** — users can read their own taste profile in Telegram at any time
+- **`/profile` command** — users can read their own taste profile in Telegram or Discord at any time
 
 ### Regeneration
 | Trigger | Behaviour |
@@ -228,29 +267,31 @@ Each recommendation is a folder containing a `.strm` file and a `.nfo` file. Jel
 
 ---
 
-## Telegram agent architecture
+## Agent architecture
 
 ### Overview
 
-The Telegram agent is a tool-calling loop implemented as a lightweight harness around any OpenAI-compatible chat completions endpoint. It does not use the Anthropic API or any agent SDK — it's a plain while-loop that dispatches tool calls to existing plugin services.
+The AI agent (`TelegramAgentLoop`) is a shared tool-calling loop used by both the Telegram and Discord bots. It is a lightweight harness around any OpenAI-compatible chat completions endpoint — a plain while-loop that dispatches tool calls to existing plugin services. It does not use any agent SDK.
+
+Each bot service (`TelegramBotService`, `DiscordBotService`) handles its own transport layer (long-polling vs WebSocket gateway) and calls into the shared agent for every user message.
 
 ```
-User sends Telegram message
+User message (Telegram or Discord DM)
           │
           ▼
-TelegramBotService.HandleUpdateAsync()
-  │
+TelegramBotService  ──or──  DiscordBotService
+  │                                │
   ├─ /link /unlink /reset /profile → handle directly, return
   │
   ├─ not linked → "Send /link to get started"
   │
   └─ linked user found
        │
-       ├─ Start typing indicator loop (every 4 s)
+       ├─ Start typing indicator loop (4 s / Telegram, 8 s / Discord)
        ├─ Start 90 s turn timeout (turnCts)
        │
        ▼
-  TelegramAgentLoop.RunAsync()
+  TelegramAgentLoop.RunAsync()        ← shared by both platforms
        │
        ├─ Build system prompt (taste profile + services + rules)
        ├─ Append user message → history
@@ -259,7 +300,7 @@ TelegramBotService.HandleUpdateAsync()
               │
               ▼
          POST /chat/completions
-         (system + history + 7 tool defs, temp=0.5)
+         (system + history + tool defs, temp=0.5)
          80 s HTTP timeout per call
               │
               ├─ OperationCanceledException → re-throw
@@ -276,21 +317,24 @@ TelegramBotService.HandleUpdateAsync()
                    │    │
                    │    └─ for each tool call:
                    │         │
-                   │         ├─ Send status message to Telegram
+                   │         ├─ Send status message to platform
                    │         │   ("🔍 Searching for X...", "📤 Requesting Y...")
                    │         │
                    │         ├─ ExecuteToolAsync(name, args)
-                   │         │    ├─ search_library         → LibraryFilterService.SearchByTitle
-                   │         │    ├─ search_content         → TmdbMetadataService.SearchMultiAsync
-                   │         │    ├─ discover_content       → TmdbMetadataService.DiscoverAsync
-                   │         │    │                           (post-filter owned IDs)
-                   │         │    ├─ request_media          → GetMovieAvailabilityAsync (movies)
-                   │         │    │                           → JellyseerrService (primary)
-                   │         │    │                           → ArrRequestService (fallback)
-                   │         │    │                           → add to RequestedTmdbIds
-                   │         │    ├─ check_status           → Jellyfin + Jellyseerr + Radarr/Sonarr
-                   │         │    ├─ sync_to_jellyfin       → RecommendationSyncService.SyncUserAsync
-                   │         │    └─ refresh_taste_profile  → TasteProfileService.ForceRefreshAsync
+                   │         │    ├─ get_ai_recommendations  → LibraryFilterService.GetAiRecommendations
+                   │         │    ├─ browse_tmdb             → TmdbMetadataService.BrowseTmdbAsync
+                   │         │    ├─ search_library          → LibraryFilterService.SearchByTitle
+                   │         │    ├─ get_recently_added      → LibraryFilterService.GetRecentlyAdded
+                   │         │    ├─ search_content          → TmdbMetadataService.SearchMultiAsync
+                   │         │    ├─ discover_content        → TmdbMetadataService.DiscoverAsync
+                   │         │    │                            (post-filter owned IDs)
+                   │         │    ├─ request_media           → GetMovieAvailabilityAsync (movies)
+                   │         │    │                            → JellyseerrService (primary)
+                   │         │    │                            → ArrRequestService (fallback)
+                   │         │    │                            → add to RequestedTmdbIds
+                   │         │    ├─ check_status            → Jellyfin + Jellyseerr + Radarr/Sonarr
+                   │         │    ├─ sync_to_jellyfin        → RecommendationSyncService.SyncUserAsync
+                   │         │    └─ refresh_taste_profile   → TasteProfileService.ForceRefreshAsync
                    │         │
                    │         └─ Append tool result → history
                    │
@@ -301,15 +345,11 @@ TelegramBotService.HandleUpdateAsync()
                         ├─ Append assistant reply → history
                         └─ return reply text
                              │
-                             ▼
-                    SanitizeTelegramHtml()
-                      ├─ semantic tags  → <b> <i>
-                      ├─ block tags     → \n
-                      ├─ strip disallowed tags / attributes
-                      └─ CloseDanglingTags() (stack-based balancer)
-                             │
-                             ▼
-                    SendMessageAsync() → Telegram API
+                   ┌─────────┴─────────────────┐
+                   │ Telegram                  │ Discord
+                   │ SanitizeTelegramHtml()    │ HtmlToMarkdown()
+                   │ → Telegram Bot API        │ → Discord REST API
+                   └───────────────────────────┘
                     Cancel typing indicator
                     Trim history → 20 messages max
 
@@ -318,23 +358,34 @@ TelegramBotService.HandleUpdateAsync()
        │
        └─ OperationCanceledException propagates out of RunAsync
             │
-            └─ HandleUpdateAsync catches it
+            └─ Bot service catches it
                  → "The AI took too long to respond — please try again."
 
-  ── session state (in-memory, per chat) ───────────────────────
+  ── session state (in-memory, per user/chat) ──────────────────
   ConversationSession
     ├─ JellyfinUserId
     ├─ History [ ConversationMessage, ... ]  ← capped at 20, lost on restart
     └─ LastActivity                          ← evicted after 60 min idle
 ```
 
+### Platform differences
+
+| | Telegram | Discord |
+|---|---|---|
+| Connection | HTTP long-polling (25 s timeout) | WebSocket Gateway (persistent) |
+| Typing indicator | Every 4 s (Telegram clears after 5 s) | Every 8 s (Discord clears after ~10 s) |
+| Message format | Telegram HTML (`<b>`, `<i>`, etc.) | Discord Markdown (`**`, `*`, `` ` ``) |
+| User identifier | Chat ID (`long`) | User ID (`ulong`, Discord snowflake) |
+| Session key | Chat ID | Discord User ID |
+| Reconnection | Stateless — just restart the poll | Resume (session_id + seq) or fresh IDENTIFY |
+
 ### Session management
 
-- Each linked Telegram chat has an in-memory `ConversationSession` holding a message `History` list
+- Each linked user has an in-memory `ConversationSession` holding a message `History` list, keyed separately per platform
 - History is capped at **20 messages** (trimmed from the oldest end) to keep LLM context costs bounded
 - Sessions expire after **60 minutes of inactivity** — evicted on each incoming message
 - Sessions are lost on server restart (by design — they are never persisted to disk)
-- The test agent in the config UI maintains separate per-user test sessions independent of Telegram
+- The test agent in the config UI maintains separate per-user test sessions independent of both bots
 
 ### Tool-calling loop
 
@@ -396,22 +447,30 @@ The system prompt is rebuilt on every turn from live state (current service conf
 
 The system prompt instructs the agent to include at least one "wildcard" recommendation per set — a pick from a genre clearly outside the user's usual taste. The agent is instructed to call `discover_content` a second time with a different genre to source this pick, rather than selecting from the primary results. Wildcards are labelled lightly in the reply so the user understands it's a stretch pick.
 
-### HTML sanitization
+### Message formatting
 
-Telegram's Bot API only accepts a restricted subset of HTML: `<b>`, `<i>`, `<u>`, `<s>`, `<code>`, `<pre>`, `<a href="...">`. Attributes on any other tag cause a 400 Bad Request. The LLM frequently outputs `<br>`, markdown formatting, or unclosed tags, all of which break the API.
+The agent always produces HTML (`<b>`, `<i>`, etc.) internally. Each platform converts it before sending:
 
-`TelegramBotService.SanitizeTelegramHtml` handles this before every send:
+**Telegram** — `TelegramBotService.SanitizeTelegramHtml` before every send:
 1. Converts semantic tags (`<strong>` → `<b>`, `<em>` → `<i>`)
 2. Converts block-level tags (`<br>`, `<p>`, `<li>`, etc.) to newlines
 3. Strips attributes from the allowed inline tags (e.g. `<b class="...">` → `<b>`)
 4. Strips all disallowed tags entirely (retaining their text content)
-5. Calls `CloseDanglingTags` — a stack-based scanner that appends missing closing tags in reverse open order
+5. Calls `CloseDanglingTags` — a stack-based scanner that appends missing closing tags in reverse order
+
+**Discord** — `DiscordBotService.HtmlToMarkdown` before every send:
+1. Converts `<b>` / `<strong>` → `**`, `<i>` / `<em>` → `*`, `<code>` → `` ` ``
+2. Converts `<br>` to newlines
+3. Unescapes HTML entities (`&amp;`, `&lt;`, `&gt;`)
+4. Strips any remaining tags (retaining text content)
+
+Status messages (interim tool-call progress, e.g. "🔍 Searching for X...") are sent with tags stripped rather than converted, since they are short and plain text reads naturally on both platforms.
 
 ### Download status notifications
 
-`DownloadStatusPoller` is a background `IHostedService` that ticks on the configured interval. On each tick it checks every linked user's `RequestedTmdbIds` against Jellyfin's library. If an ID is now owned and hasn't been notified before, the bot sends an availability message and the ID is added to `NotifiedAvailableTmdbIds` (persisted in config) so it's never re-notified.
+`DownloadStatusPoller` (Telegram) and `DiscordDownloadStatusPoller` (Discord) are background `IHostedService`s that tick on the same configured interval. On each tick they check every linked user's `RequestedTmdbIds` against Jellyfin's library. If an ID is now owned and hasn't been notified before, the bot sends an availability message and the ID is added to `NotifiedAvailableTmdbIds` (persisted in config) so it's never re-notified.
 
-On startup, items already in the library are silently added to `NotifiedAvailableTmdbIds` without sending any message. This prevents "now available" spam for titles that arrived before the notification system existed or while the server was offline.
+A user linked on both platforms receives a notification on both. Each platform tracks its own `NotifiedAvailableTmdbIds` per user link independently.
 
 ---
 
@@ -437,6 +496,9 @@ On startup, items already in the library are silently added to `NotifiedAvailabl
 | `DELETE` | `/AIRecommendations/Telegram/Links/{chatId}` | Unlink a Telegram account |
 | `POST` | `/AIRecommendations/Telegram/TestAgent` | Send a test message to the agent |
 | `DELETE` | `/AIRecommendations/Telegram/TestAgent/{userId}` | Clear agent test session |
+| `POST` | `/AIRecommendations/Discord/Link` | Link a Discord user to a Jellyfin user |
+| `GET` | `/AIRecommendations/Discord/Links` | List linked Discord accounts |
+| `DELETE` | `/AIRecommendations/Discord/Links/{discordUserId}` | Unlink a Discord account |
 
 All endpoints require admin authentication.
 

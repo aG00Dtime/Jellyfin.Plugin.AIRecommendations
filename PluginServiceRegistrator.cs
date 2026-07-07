@@ -1,3 +1,4 @@
+using Jellyfin.Plugin.AIRecommendations.Discord;
 using Jellyfin.Plugin.AIRecommendations.Metadata;
 using Jellyfin.Plugin.AIRecommendations.Providers;
 using Jellyfin.Plugin.AIRecommendations.Services;
@@ -55,6 +56,8 @@ public class PluginServiceRegistrator : IPluginServiceRegistrator
         services.AddHostedService<FavouriteWatcher>();
 
         // Telegram + Arr services
+        services.AddHttpClient("DiscordBot")
+            .ConfigureHttpClient(c => c.Timeout = TimeSpan.FromSeconds(30));
         services.AddSingleton<ArrRequestService>();
         services.AddSingleton<TelegramAgentLoop>();
         // Register as singleton so the controller can inject it, and also wire it up as IHostedService
@@ -62,5 +65,9 @@ public class PluginServiceRegistrator : IPluginServiceRegistrator
         services.AddHostedService(sp => sp.GetRequiredService<TelegramBotService>());
         services.AddSingleton<DownloadStatusPoller>();
         services.AddHostedService(sp => sp.GetRequiredService<DownloadStatusPoller>());
+        services.AddSingleton<DiscordBotService>();
+        services.AddHostedService(sp => sp.GetRequiredService<DiscordBotService>());
+        services.AddSingleton<DiscordDownloadStatusPoller>();
+        services.AddHostedService(sp => sp.GetRequiredService<DiscordDownloadStatusPoller>());
     }
 }
