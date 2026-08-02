@@ -84,6 +84,103 @@ public class JellyseerrService
         return requested;
     }
 
+    /// <summary>
+    /// Fetches popular movies or shows from Jellyseerr's Discover feed, excluding
+    /// anything Jellyseerr already knows about (pending/processing/available) and
+    /// anything in <paramref name="excludeIds"/>. Returns an empty list (never throws)
+    /// if Jellyseerr isn't configured or the request fails, so callers can fall back
+    /// to TMDB directly.
+    /// </summary>
+    public async Task<IReadOnlyList<ResolvedRecommendation>> DiscoverAsync(
+        bool isMovie,
+        HashSet<int> excludeIds,
+        int limit,
+        CancellationToken cancellationToken)
+    {
+        var config = Plugin.Instance!.Configuration;
+        if (string.IsNullOrWhiteSpace(config.JellyseerrBaseUrl)
+            || string.IsNullOrWhiteSpace(config.JellyseerrApiKey))
+        {
+            return [];
+        }
+
+        var baseUrl = config.JellyseerrBaseUrl.TrimEnd('/');
+        var endpoint = isMovie ? "movies" : "tv";
+        var results = new List<ResolvedRecommendation>();
+
+        try
+        {
+            for (var page = 1; results.Count < limit && page <= 5; page++)
+            {
+                var client = _httpClientFactory.CreateClient(nameof(JellyseerrService));
+                using var request = new HttpRequestMessage(HttpMethod.Get, $"{baseUrl}/api/v1/discover/{endpoint}?page={page}");
+                request.Headers.Add("X-Api-Key", config.JellyseerrApiKey);
+
+                using var response = await client.SendAsync(request, cancellationToken).ConfigureAwait(false);
+                if (!response.IsSuccessStatusCode)
+                {
+                    break;
+                }
+
+                var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+                using var doc = JsonDocument.Parse(json);
+                if (!doc.RootElement.TryGetProperty("results", out var items) || items.GetArrayLength() == 0)
+                {
+                    break;
+                }
+
+                foreach (var item in items.EnumerateArray())
+                {
+                    if (results.Count >= limit) break;
+
+                    var id = item.GetProperty("id").GetInt32();
+                    if (excludeIds.Contains(id)) continue;
+
+                    // mediaInfo.status: 1=unknown, 2=pending, 3=processing, 4=partial, 5=available
+                    if (item.TryGetProperty("mediaInfo", out var mediaInfo)
+                        && mediaInfo.TryGetProperty("status", out var statusProp)
+                        && statusProp.TryGetInt32(out var status)
+                        && status >= 2)
+                    {
+                        continue;
+                    }
+
+                    var titleField = isMovie ? "title" : "name";
+                    var dateField = isMovie ? "releaseDate" : "firstAirDate";
+                    var title = item.TryGetProperty(titleField, out var t) ? t.GetString() : null;
+                    if (string.IsNullOrWhiteSpace(title)) continue;
+
+                    int? year = null;
+                    if (item.TryGetProperty(dateField, out var dateEl))
+                    {
+                        var dateStr = dateEl.GetString();
+                        if (!string.IsNullOrWhiteSpace(dateStr) && dateStr.Length >= 4
+                            && int.TryParse(dateStr.AsSpan(0, 4), out var y))
+                        {
+                            year = y;
+                        }
+                    }
+
+                    results.Add(new ResolvedRecommendation
+                    {
+                        TmdbId = id,
+                        Title = title,
+                        Year = year,
+                        IsSeries = !isMovie,
+                        Reason = "Trending now",
+                        Overview = item.TryGetProperty("overview", out var ov) ? ov.GetString() : null
+                    });
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Jellyseerr discover failed for {Endpoint}", endpoint);
+        }
+
+        return results;
+    }
+
     /// <summary>Returns true if Jellyseerr knows about this item and it's already being handled.</summary>
     private async Task<bool> IsAlreadyRequestedOrAvailableAsync(
         string baseUrl,

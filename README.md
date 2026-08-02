@@ -88,6 +88,24 @@ Same structure as Radarr. Click **Fetch Profiles** and **Fetch Folders** after s
 
 ---
 
+## Discover Library
+
+A single shared library — **Discover Movies** / **Discover Shows** — visible to every user, populated with trending/popular content. Unlike AI Picks, this isn't personalized per user and doesn't call the LLM at all; it's a lightweight "what's popular right now" feed, closer to what a plain Jellyseerr/TMDB discover browse looks like.
+
+Enabled via a single checkbox under **Discover Library** in the plugin settings (off by default) — global, not per-user.
+
+### Content source
+- **Primary**: Jellyseerr's `/api/v1/discover/movies` and `/api/v1/discover/tv` endpoints, when `JellyseerrBaseUrl`/`JellyseerrApiKey` are configured. Jellyseerr's own `mediaInfo.status` is used to skip anything already pending/processing/available, so the feed doesn't recommend things you're already getting.
+- **Fallback**: TMDB's `popular` list directly (via `TmdbMetadataService.BrowseTmdbAsync`), used automatically whenever Jellyseerr isn't configured or its discover call fails for any reason. This keeps the feature working even in a Jellyseerr-less setup — the plugin never hard-depends on Jellyseerr for anything.
+
+### Favoriting and dismissing
+Same mechanism as AI Picks stubs — ♥ Favorite submits a download request (Jellyseerr/Radarr/Sonarr), and marking watched permanently dismisses a title. `FavouriteWatcher` handles both the per-user AI Picks libraries and the shared Discover library through a common `IStubTarget` interface, so the same event handler covers both without duplicated logic.
+
+### Syncing
+Runs automatically as part of the normal sync cycle (same `SyncIntervalHours` interval as AI Picks), or on demand via **Sync Discover Now** in the settings page / `POST /AIRecommendations/Discover/Sync`.
+
+---
+
 ## Telegram bot
 
 ### Setup
@@ -260,6 +278,10 @@ Both actions take effect immediately — no sync required.
 | Limit shows to Season 1 | on | Only writes a Season 1 stub per show. Speeds up library scans. |
 | Always refresh recommendations | off | Replace all stubs on every sync. When off (default), stubs accumulate — each sync adds new picks to fill empty slots without removing existing ones. |
 | Taste profile interval (days) | 7 | How often to regenerate the taste profile narrative. Set to 0 to disable. |
+| Enable Discover library | off | Turns on the shared (not per-user) trending/popular library. See [Discover Library](#discover-library). |
+| Discover items per type | 30 | How many movie stubs and show stubs to maintain in the shared Discover library. |
+
+Per-user: each user can also be individually enabled/disabled for AI Picks generation from the **Users** panel — new users default to disabled until an admin opts them in.
 
 ---
 
@@ -280,7 +302,7 @@ Scheduled task / manual sync
   │
   ├─ LLM picks N items from the candidate list using the taste profile narrative
   │
-  ├─ Write stubs to disk (.strm + .nfo per item)
+  ├─ Write stubs to disk (placeholder video + .nfo per item)
   │
   ├─ Jellyfin library scan
   │
@@ -312,7 +334,9 @@ Key details:
 
 ### Stubs
 
-Each recommendation is a folder containing a `.strm` file and a `.nfo` file. Jellyfin reads the TMDB ID from the folder name and fetches full artwork, cast, ratings, and descriptions automatically. The `.strm` files point to a JustWatch search URL and are not playable.
+Each recommendation is a folder containing a short placeholder video and a `.nfo` file. Jellyfin reads the TMDB ID from the folder name and fetches full artwork, cast, ratings, and descriptions automatically.
+
+The placeholder is a real local `.mp4` (embedded in the plugin, extracted once per install to the plugin's data folder, then copied into each stub) explaining that this is an AI recommendation and how to request or dismiss it — not a `.strm` pointer. Jellyfin treats `.strm` as a remote-stream reference even when its content is just a local path, which is enough to make Play fail; a real video file avoids that entirely, so tapping Play is instant and harmless instead of erroring.
 
 ---
 
@@ -548,6 +572,8 @@ A user linked on both platforms receives a notification on both. Each platform t
 | `POST` | `/AIRecommendations/Discord/Link` | Link a Discord user to a Jellyfin user |
 | `GET` | `/AIRecommendations/Discord/Links` | List linked Discord accounts |
 | `DELETE` | `/AIRecommendations/Discord/Links/{discordUserId}` | Unlink a Discord account |
+| `POST` | `/AIRecommendations/Users/{userId}/Enabled/{enabled}` | Enable/disable AI Picks generation for one user |
+| `POST` | `/AIRecommendations/Discover/Sync` | Force sync the shared Discover library |
 
 All endpoints require admin authentication.
 

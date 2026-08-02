@@ -50,6 +50,7 @@ public class PluginServiceRegistrator : IPluginServiceRegistrator
         services.AddSingleton<LibraryPermissionManager>();
         services.AddSingleton<VirtualLibraryManager>();
         services.AddSingleton<JellyseerrService>();
+        services.AddSingleton<DiscoverSyncService>();
         services.AddSingleton<RecommendationSyncService>();
         services.AddSingleton<RecommendationSyncTask>();
         services.AddHostedService<PluginStartupService>();

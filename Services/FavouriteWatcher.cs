@@ -1,4 +1,5 @@
 using Jellyfin.Database.Implementations.Entities;
+using Jellyfin.Plugin.AIRecommendations.Configuration;
 using Jellyfin.Plugin.AIRecommendations.Models;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Library;
@@ -76,26 +77,45 @@ public class FavouriteWatcher : IHostedService
         }
     }
 
+    /// <summary>
+    /// Finds which stub collection (the user's own AI Picks, or the shared Discover
+    /// library) this item's path belongs to, if any.
+    /// </summary>
+    private static IStubTarget? ResolveTarget(PluginConfiguration config, User user, string itemPath)
+    {
+        var userKey = user.Id.ToString("N");
+        var reg = config.UserLibraries.FirstOrDefault(r => r.UserId == userKey);
+        if (reg is not null
+            && (itemPath.StartsWith(reg.MoviePath, StringComparison.OrdinalIgnoreCase)
+                || itemPath.StartsWith(reg.ShowPath, StringComparison.OrdinalIgnoreCase)))
+        {
+            return reg;
+        }
+
+        if (config.DiscoverLibraryEnabled
+            && (itemPath.StartsWith(config.DiscoverMoviePath, StringComparison.OrdinalIgnoreCase)
+                || itemPath.StartsWith(config.DiscoverShowPath, StringComparison.OrdinalIgnoreCase)))
+        {
+            return new DiscoverStubTarget(config);
+        }
+
+        return null;
+    }
+
     private Task HandlePlayedAsync(User user, BaseItem item)
     {
         try
         {
             var config = Plugin.Instance!.Configuration;
-            var userKey = user.Id.ToString("N");
-            var reg = config.UserLibraries.FirstOrDefault(r => r.UserId == userKey);
-            if (reg is null)
-            {
-                return Task.CompletedTask;
-            }
-
             var itemPath = item.Path ?? string.Empty;
-            var inMovieLib = itemPath.StartsWith(reg.MoviePath, StringComparison.OrdinalIgnoreCase);
-            var inShowLib = itemPath.StartsWith(reg.ShowPath, StringComparison.OrdinalIgnoreCase);
-
-            if (!inMovieLib && !inShowLib)
+            var target = ResolveTarget(config, user, itemPath);
+            if (target is null)
             {
                 return Task.CompletedTask;
             }
+
+            var inMovieLib = itemPath.StartsWith(target.MoviePath, StringComparison.OrdinalIgnoreCase);
+            var inShowLib = itemPath.StartsWith(target.ShowPath, StringComparison.OrdinalIgnoreCase);
 
             // For show stubs the played item may be an Episode whose TMDB provider ID
             // is the episode's own ID, not the show's. Always pull the show TMDB ID
@@ -104,7 +124,7 @@ public class FavouriteWatcher : IHostedService
             int tmdbId;
             if (inShowLib)
             {
-                var resolved = ResolveShowTmdbIdFromPath(itemPath, reg.ShowPath);
+                var resolved = ResolveShowTmdbIdFromPath(itemPath, target.ShowPath);
                 if (resolved is null)
                 {
                     return Task.CompletedTask;
@@ -131,7 +151,7 @@ public class FavouriteWatcher : IHostedService
                 }
             }
 
-            if (reg.RejectedTmdbIds.Contains(tmdbId))
+            if (target.RejectedTmdbIds.Contains(tmdbId))
             {
                 return Task.CompletedTask;
             }
@@ -140,8 +160,8 @@ public class FavouriteWatcher : IHostedService
                 "{User} marked \"{Title}\" as watched in AI library — dismissing permanently",
                 user.Username, item.Name);
 
-            reg.RejectedTmdbIds.Add(tmdbId);
-            reg.PlacedTmdbIds.Remove(tmdbId);
+            target.RejectedTmdbIds.Add(tmdbId);
+            target.PlacedTmdbIds.Remove(tmdbId);
 
             // Reset the item's played state BEFORE deleting the folder so Jellyfin stores
             // Played=false under this item's UserDataKey. If a future stub for the same
@@ -162,8 +182,8 @@ public class FavouriteWatcher : IHostedService
                 _logger.LogDebug(ex, "FavouriteWatcher: could not reset play state for \"{Title}\"", item.Name);
             }
 
-            DeleteStubFolder(reg.MoviePath, tmdbId);
-            DeleteStubFolder(reg.ShowPath, tmdbId);
+            DeleteStubFolder(target.MoviePath, tmdbId);
+            DeleteStubFolder(target.ShowPath, tmdbId);
 
             Plugin.Instance!.SaveConfiguration();
         }
@@ -200,21 +220,15 @@ public class FavouriteWatcher : IHostedService
         try
         {
             var config = Plugin.Instance!.Configuration;
-            var userKey = user.Id.ToString("N");
-            var reg = config.UserLibraries.FirstOrDefault(r => r.UserId == userKey);
-            if (reg is null)
-            {
-                return;
-            }
-
             var itemPath = item.Path ?? string.Empty;
-            var inMovieLib = itemPath.StartsWith(reg.MoviePath, StringComparison.OrdinalIgnoreCase);
-            var inShowLib = itemPath.StartsWith(reg.ShowPath, StringComparison.OrdinalIgnoreCase);
-
-            if (!inMovieLib && !inShowLib)
+            var target = ResolveTarget(config, user, itemPath);
+            if (target is null)
             {
                 return;
             }
+
+            var inMovieLib = itemPath.StartsWith(target.MoviePath, StringComparison.OrdinalIgnoreCase);
+            var inShowLib = itemPath.StartsWith(target.ShowPath, StringComparison.OrdinalIgnoreCase);
 
             // For show stubs the favourited item may be an Episode whose TMDB provider
             // ID is the episode's own ID, not the show's. Pull the show TMDB ID from
@@ -222,7 +236,7 @@ public class FavouriteWatcher : IHostedService
             int tmdbId;
             if (inShowLib)
             {
-                var resolved = ResolveShowTmdbIdFromPath(itemPath, reg.ShowPath);
+                var resolved = ResolveShowTmdbIdFromPath(itemPath, target.ShowPath);
                 if (resolved is null)
                 {
                     _logger.LogDebug(
@@ -272,7 +286,7 @@ public class FavouriteWatcher : IHostedService
                 _logger.LogWarning(unfavEx, "FavouriteWatcher: could not un-favourite \"{Title}\"", item.Name);
             }
 
-            if (reg.RequestedTmdbIds.Contains(tmdbId))
+            if (target.RequestedTmdbIds.Contains(tmdbId))
             {
                 _logger.LogDebug(
                     "FavouriteWatcher: \"{Title}\" already requested — heart cleared, Jellyseerr skipped",
@@ -357,7 +371,7 @@ public class FavouriteWatcher : IHostedService
 
             if (queued.Count > 0)
             {
-                reg.RequestedTmdbIds.Add(tmdbId);
+                target.RequestedTmdbIds.Add(tmdbId);
                 Plugin.Instance!.SaveConfiguration();
                 var via = string.Join(" + ", queued);
                 await NotifyUserAsync(

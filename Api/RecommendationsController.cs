@@ -30,6 +30,7 @@ public class RecommendationsController : ControllerBase
     private readonly TelegramAgentLoop _telegramAgent;
     private readonly DiscordBotService _discordBot;
     private readonly LibraryFilterService _libraryFilter;
+    private readonly DiscoverSyncService _discoverSync;
 
     public RecommendationsController(
         RecommendationSyncService syncService,
@@ -40,7 +41,8 @@ public class RecommendationsController : ControllerBase
         TelegramBotService telegramBot,
         TelegramAgentLoop telegramAgent,
         DiscordBotService discordBot,
-        LibraryFilterService libraryFilter)
+        LibraryFilterService libraryFilter,
+        DiscoverSyncService discoverSync)
     {
         _syncService = syncService;
         _tasteProfile = tasteProfile;
@@ -51,6 +53,18 @@ public class RecommendationsController : ControllerBase
         _telegramAgent = telegramAgent;
         _discordBot = discordBot;
         _libraryFilter = libraryFilter;
+        _discoverSync = discoverSync;
+    }
+
+    /// <summary>
+    /// Triggers an immediate sync of the shared Discover library (admin only).
+    /// </summary>
+    [HttpPost("Discover/Sync")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> SyncDiscover(CancellationToken cancellationToken)
+    {
+        await _discoverSync.SyncAsync(cancellationToken).ConfigureAwait(false);
+        return NoContent();
     }
 
     /// <summary>
