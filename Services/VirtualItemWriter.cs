@@ -25,20 +25,20 @@ public class VirtualItemWriter
     // Without a TMDB provider ID the episode's UserDataKey is path-based, so a fresh
     // stub always starts unplayed regardless of the user's prior watch history.
     //
-    // Episode 0, not 1: the show's tvshow.nfo carries a real TMDB ID so Jellyfin
-    // fetches the actual season/episode list from TMDB and shows it as real (but
-    // unplayable — Path is null) virtual episodes, including its own "Episode 1".
-    // Our stub can't be matched into that slot without a real TMDB episode ID (which
-    // would reintroduce inherited watched-state), so instead it's given episode 0 —
-    // sorts before the real episode list and reads clearly as "start here" rather
-    // than blending in as an odd extra episode 1.
+    // The show's tvshow.nfo carries a real TMDB ID so Jellyfin also fetches the
+    // actual season/episode list from TMDB, surfacing real (but unplayable — Path is
+    // null) virtual episodes including its own "Episode 1". Our stub shares that
+    // episode number (tried giving it episode 0 instead, but Jellyfin's NFO parser
+    // treats that as "no episode number" and drops it from the season list entirely
+    // without a real TMDB episode ID — worse than the collision), so it ends up
+    // sitting alongside the real ones. The distinct title is what marks it as ours.
     private static readonly string EpisodeNfo =
         """
         <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
         <episodedetails>
           <title>▶ AI Recommendation — tap to request or dismiss</title>
           <season>1</season>
-          <episode>0</episode>
+          <episode>1</episode>
           <lockdata>true</lockdata>
         </episodedetails>
         """;
@@ -209,7 +209,7 @@ public class VirtualItemWriter
 
         File.WriteAllText(Path.Combine(showFolder, "tvshow.nfo"), BuildShowNfo(show), Encoding.UTF8);
 
-        // Write a Season 01/S01E00 stub so the show surfaces in "Recently Added".
+        // Write a Season 01/S01E01 stub so the show surfaces in "Recently Added".
         // The companion NFO sets lockdata=true with no TMDB ID so Jellyfin cannot match
         // this episode to a real TMDB entry — the UserDataKey is path-based, meaning
         // fresh stubs always start unplayed regardless of the user's watch history.
@@ -220,7 +220,7 @@ public class VirtualItemWriter
 
     private static void WriteEpisodeStub(string seasonFolder, string showTitle)
     {
-        var episodeName = $"{Sanitize(showTitle)} - S01E00";
+        var episodeName = $"{Sanitize(showTitle)} - S01E01";
         var videoPath = Path.Combine(seasonFolder, $"{episodeName}{PlaceholderExtension}");
         var nfoPath = Path.Combine(seasonFolder, $"{episodeName}.nfo");
 
@@ -236,7 +236,7 @@ public class VirtualItemWriter
     }
 
     /// <summary>
-    /// Ensures every show stub folder on disk has a Season 01/S01E00 pair that
+    /// Ensures every show stub folder on disk has a Season 01/S01E01 pair that
     /// includes the protective episode NFO (lockdata=true, no TMDB ID).
     /// Handles three migration scenarios:
     ///   - v1.0.45 stubs (tvshow.nfo only, no season) → adds Season 01 so the show
@@ -244,10 +244,11 @@ public class VirtualItemWriter
     ///   - Pre-v1.0.45 stubs (Season folder with .strm but no .nfo) → deletes and
     ///     recreates the season so Jellyfin's database entry loses its old TMDB episode
     ///     ID on the next library scan, clearing inherited played state.
-    ///   - Pre-v1.0.120 stubs (episode numbered S01E01) → replaced with S01E00, since
-    ///     TMDB-matched shows get their own real (unplayable) "Episode 1" from Jellyfin's
-    ///     season data; numbering ours 1 too meant it collided/blended in with that
-    ///     instead of clearly sorting first as "start here".
+    ///   - v1.0.120-only stubs (numbered S01E00, briefly tried to dodge colliding with
+    ///     the real TMDB "Episode 1") → replaced back with S01E01 plus a distinguishing
+    ///     title, since Jellyfin's NFO parser treats episode 0 as "no episode number"
+    ///     without a real TMDB episode ID and drops it from the season list entirely —
+    ///     worse than the collision it was trying to avoid.
     /// </summary>
     private static void EnsureShowEpisodeStubs(string showsPath)
     {
@@ -263,7 +264,7 @@ public class VirtualItemWriter
 
             foreach (var seasonDir in seasonDirs)
             {
-                var oldEpisodeFiles = Directory.GetFiles(seasonDir, "* - S01E01.*");
+                var oldEpisodeFiles = Directory.GetFiles(seasonDir, "* - S01E00.*");
                 if (oldEpisodeFiles.Length == 0)
                 {
                     continue;
