@@ -74,7 +74,52 @@ public class FavouriteWatcher : IHostedService
             {
                 _ = Task.Run(() => HandlePlayedAsync(user, e.Item));
             }
+
+            return;
         }
+
+        // ▶ Playback of the placeholder clip finished → mark it played so it doesn't
+        // linger in Next Up/Continue Watching. The clip is only a few seconds, so it
+        // never crosses Jellyfin's normal "played" completion threshold on its own.
+        // This does NOT reject the recommendation (that's the explicit "mark as
+        // watched" action above) — just clears it from in-progress surfaces.
+        if (e.SaveReason == UserDataSaveReason.PlaybackFinished && !e.UserData.Played)
+        {
+            var user = _userManager.GetUserById(e.UserId);
+            if (user is not null)
+            {
+                _ = Task.Run(() => HandlePlaybackFinishedAsync(user, e.Item));
+            }
+        }
+    }
+
+    private Task HandlePlaybackFinishedAsync(User user, BaseItem item)
+    {
+        try
+        {
+            var config = Plugin.Instance!.Configuration;
+            var itemPath = item.Path ?? string.Empty;
+            if (ResolveTarget(config, user, itemPath) is null)
+            {
+                return Task.CompletedTask;
+            }
+
+            var ud = _userDataManager.GetUserData(user, item);
+            if (ud is null || ud.Played)
+            {
+                return Task.CompletedTask;
+            }
+
+            ud.Played = true;
+            ud.PlaybackPositionTicks = 0;
+            _userDataManager.SaveUserData(user, item, ud, UserDataSaveReason.Import, CancellationToken.None);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "FavouriteWatcher: failed to auto-mark placeholder played for \"{Title}\"", item.Name);
+        }
+
+        return Task.CompletedTask;
     }
 
     /// <summary>
