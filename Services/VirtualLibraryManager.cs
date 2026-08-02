@@ -193,13 +193,14 @@ public class VirtualLibraryManager
     }
 
     /// <summary>
-    /// Ensures the single shared "Discover" library exists (movies and shows mixed
-    /// together, via CollectionTypeOptions.mixed — Jellyfin auto-detects each
-    /// subfolder's content type), visible to every user (no per-user restriction,
-    /// unlike the personalized AI Picks libraries). Movie and show stubs still live in
-    /// separate subfolders on disk (VirtualItemWriter keeps its own per-type caps and
-    /// migration logic that way), but only one Jellyfin library is registered for both.
-    /// Persists the resulting paths/library ID to the top-level plugin config.
+    /// Ensures the single shared "Discover" library exists — movies and shows as
+    /// direct siblings in one flat folder (via CollectionTypeOptions.mixed, Jellyfin
+    /// auto-detects each item's content type), visible to every user (no per-user
+    /// restriction, unlike the personalized AI Picks libraries). VirtualItemWriter
+    /// keeps movie/show stubs distinguishable by structure (a show folder always has
+    /// a tvshow.nfo; a movie folder never does) rather than by separate subfolders, so
+    /// its per-type caps still work with DiscoverMoviePath and DiscoverShowPath both
+    /// pointing at this same directory. Persists the resulting path/library ID.
     /// </summary>
     public async Task EnsureDiscoverLibrariesAsync(CancellationToken cancellationToken)
     {
@@ -208,24 +209,21 @@ public class VirtualLibraryManager
         var discoverRoot = Path.Combine(root, "discover");
 
         if (!string.IsNullOrEmpty(config.DiscoverMoviePath) && Directory.Exists(config.DiscoverMoviePath)
-            && !string.IsNullOrEmpty(config.DiscoverShowPath) && Directory.Exists(config.DiscoverShowPath)
+            && config.DiscoverMoviePath == config.DiscoverShowPath
             && config.DiscoverLibraryId != Guid.Empty)
         {
             return;
         }
 
-        var moviePath = Path.Combine(discoverRoot, "movies");
-        var showPath = Path.Combine(discoverRoot, "shows");
-        Directory.CreateDirectory(moviePath);
-        Directory.CreateDirectory(showPath);
+        Directory.CreateDirectory(discoverRoot);
 
         const string libraryName = "Discover";
 
         await EnsureVirtualFolderAsync(libraryName, CollectionTypeOptions.mixed, discoverRoot, cancellationToken)
             .ConfigureAwait(false);
 
-        config.DiscoverMoviePath = moviePath;
-        config.DiscoverShowPath = showPath;
+        config.DiscoverMoviePath = discoverRoot;
+        config.DiscoverShowPath = discoverRoot;
         config.DiscoverLibraryId = FindLibraryId(libraryName, discoverRoot);
         Plugin.Instance!.SaveConfiguration();
 

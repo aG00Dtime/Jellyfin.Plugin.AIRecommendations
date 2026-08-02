@@ -78,9 +78,12 @@ public class VirtualItemWriter
         // so they surface in Jellyfin's "Recently Added" section.
         EnsureShowEpisodeStubs(showsPath);
 
-        // Count what remains
-        var existingMovieIds = ScanTmdbIds(moviesPath);
-        var existingShowIds = ScanTmdbIds(showsPath);
+        // Count what remains. Filtered by type (tvshow.nfo presence) rather than a
+        // plain scan, since moviesPath and showsPath may be the same shared directory
+        // (e.g. the single "Discover" library, movies and shows mixed together) —
+        // an unfiltered scan there would double-count everything toward both caps.
+        var existingMovieIds = ScanTmdbIds(moviesPath, isSeries: false);
+        var existingShowIds = ScanTmdbIds(showsPath, isSeries: true);
 
         var movies = newRecommendations.Where(r => !r.IsSeries).ToList();
         var shows = newRecommendations.Where(r => r.IsSeries).ToList();
@@ -109,16 +112,19 @@ public class VirtualItemWriter
             existingShowIds.Count + showsToAdd.Count, MaxStubsPerType);
 
         // Return everything on disk so the sync service can track placed IDs
-        var placed = new List<int>();
-        placed.AddRange(ScanTmdbIds(moviesPath));
-        placed.AddRange(ScanTmdbIds(showsPath));
-        return placed;
+        var placed = new HashSet<int>();
+        placed.UnionWith(ScanTmdbIds(moviesPath, isSeries: false));
+        placed.UnionWith(ScanTmdbIds(showsPath, isSeries: true));
+        return placed.ToList();
     }
 
     /// <summary>
-    /// Scans a directory and returns the TMDB IDs of all stub folders found.
+    /// Scans a directory and returns the TMDB IDs of all stub folders found. Pass
+    /// <paramref name="isSeries"/> to filter by type (a show folder always has a
+    /// tvshow.nfo; a movie folder never does) — required when moviesPath and
+    /// showsPath point at the same shared directory, harmless no-op otherwise.
     /// </summary>
-    public static HashSet<int> ScanTmdbIds(string path)
+    public static HashSet<int> ScanTmdbIds(string path, bool? isSeries = null)
     {
         if (!Directory.Exists(path))
         {
@@ -128,6 +134,11 @@ public class VirtualItemWriter
         var ids = new HashSet<int>();
         foreach (var dir in Directory.GetDirectories(path))
         {
+            if (isSeries.HasValue && File.Exists(Path.Combine(dir, "tvshow.nfo")) != isSeries.Value)
+            {
+                continue;
+            }
+
             var id = ParseTmdbId(Path.GetFileName(dir));
             if (id.HasValue)
             {
@@ -259,6 +270,13 @@ public class VirtualItemWriter
 
         foreach (var showDir in Directory.GetDirectories(showsPath))
         {
+            // showsPath may be a shared directory containing movie folders too (the
+            // single "Discover" library) — skip anything that isn't actually a show.
+            if (!File.Exists(Path.Combine(showDir, "tvshow.nfo")))
+            {
+                continue;
+            }
+
             var showFolderName = Path.GetFileName(showDir);
             var seasonDirs = Directory.GetDirectories(showDir);
 

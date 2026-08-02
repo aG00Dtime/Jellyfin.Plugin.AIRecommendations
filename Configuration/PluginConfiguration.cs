@@ -102,11 +102,13 @@ public class PluginConfiguration : BasePluginConfiguration
     /// <summary>How many movie stubs and show stubs to maintain in the shared Discover library.</summary>
     public int DiscoverItemsPerType { get; set; } = 30;
 
-    /// <summary>Movie stub folder — a subfolder of the single "Discover" Jellyfin library
-    /// (registered as CollectionTypeOptions.mixed so one library covers both).</summary>
+    /// <summary>Both point at the same flat directory — movie and show stub folders sit
+    /// as direct siblings, distinguished by structure (tvshow.nfo presence) rather than
+    /// separate subfolders, so the single "Discover" library shows both mixed together
+    /// instead of as two folders to click into.</summary>
     public string DiscoverMoviePath { get; set; } = string.Empty;
 
-    /// <summary>Show stub folder — a subfolder of the single "Discover" Jellyfin library.</summary>
+    /// <summary>See <see cref="DiscoverMoviePath"/> — always equal to it.</summary>
     public string DiscoverShowPath { get; set; } = string.Empty;
 
     public Guid DiscoverLibraryId { get; set; }
