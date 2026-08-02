@@ -16,6 +16,7 @@ public class DiscoverSyncService
     private const int TmdbPagesPerType = 3;
 
     private readonly VirtualLibraryManager _virtualLibraryManager;
+    private readonly LibraryPermissionManager _permissionManager;
     private readonly VirtualItemWriter _itemWriter;
     private readonly JellyseerrService _jellyseerr;
     private readonly TmdbMetadataService _tmdb;
@@ -25,6 +26,7 @@ public class DiscoverSyncService
 
     public DiscoverSyncService(
         VirtualLibraryManager virtualLibraryManager,
+        LibraryPermissionManager permissionManager,
         VirtualItemWriter itemWriter,
         JellyseerrService jellyseerr,
         TmdbMetadataService tmdb,
@@ -33,6 +35,7 @@ public class DiscoverSyncService
         ILogger<DiscoverSyncService> logger)
     {
         _virtualLibraryManager = virtualLibraryManager;
+        _permissionManager = permissionManager;
         _itemWriter = itemWriter;
         _jellyseerr = jellyseerr;
         _tmdb = tmdb;
@@ -50,6 +53,11 @@ public class DiscoverSyncService
         }
 
         await _virtualLibraryManager.EnsureDiscoverLibrariesAsync(cancellationToken).ConfigureAwait(false);
+
+        // Discover libraries are only just now created/known — grant every user
+        // access. (The main per-user reconciliation in ProvisionAllUsersAsync runs
+        // earlier in the sync cycle, before these library IDs exist.)
+        await _permissionManager.ReconcileAllLibraryAccessAsync(cancellationToken).ConfigureAwait(false);
 
         var excludeIds = _libraryFilter.GetOwnedTmdbIds();
         excludeIds.UnionWith(config.DiscoverRejectedTmdbIds);

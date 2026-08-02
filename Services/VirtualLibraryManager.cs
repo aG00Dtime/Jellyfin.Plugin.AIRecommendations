@@ -48,6 +48,14 @@ public class LibraryPermissionManager
             .SelectMany(r => new[] { r.MovieLibraryId, r.ShowLibraryId })
             .ToHashSet();
 
+        // Discover is shared, not per-user — every user gets access to it,
+        // unlike the personalized AI Picks libraries above.
+        var discoverIds = new HashSet<Guid>();
+        if (config.DiscoverLibraryId != Guid.Empty)
+        {
+            discoverIds.Add(config.DiscoverLibraryId);
+        }
+
         foreach (var user in _userManager.GetUsers())
         {
             if (user.HasPermission(PermissionKind.IsDisabled))
@@ -57,6 +65,7 @@ public class LibraryPermissionManager
 
             var userKey = user.Id.ToString("N");
             var ownAiIds = aiByUser.TryGetValue(userKey, out var ids) ? ids : new HashSet<Guid>();
+            var toGrant = ownAiIds.Union(discoverIds).ToHashSet();
 
             var dto = _userManager.GetUserDto(user);
             var policy = dto.Policy;
@@ -82,7 +91,7 @@ public class LibraryPermissionManager
                     .Where(id => !allAiIds.Contains(id) || ownAiIds.Contains(id))
                     .ToList();
 
-                foreach (var id in ownAiIds.Where(id => id != Guid.Empty && !enabled.Contains(id)))
+                foreach (var id in toGrant.Where(id => id != Guid.Empty && !enabled.Contains(id)))
                 {
                     enabled.Add(id);
                 }
@@ -184,43 +193,43 @@ public class VirtualLibraryManager
     }
 
     /// <summary>
-    /// Ensures the shared "Discover" movie and show libraries exist, visible to every
-    /// user (no per-user restriction, unlike the personalized AI Picks libraries).
-    /// Persists the resulting paths/library IDs to the top-level plugin config.
+    /// Ensures the single shared "Discover" library exists (movies and shows mixed
+    /// together, via CollectionTypeOptions.mixed — Jellyfin auto-detects each
+    /// subfolder's content type), visible to every user (no per-user restriction,
+    /// unlike the personalized AI Picks libraries). Movie and show stubs still live in
+    /// separate subfolders on disk (VirtualItemWriter keeps its own per-type caps and
+    /// migration logic that way), but only one Jellyfin library is registered for both.
+    /// Persists the resulting paths/library ID to the top-level plugin config.
     /// </summary>
     public async Task EnsureDiscoverLibrariesAsync(CancellationToken cancellationToken)
     {
         var config = Plugin.Instance!.Configuration;
+        var root = GetVirtualRoot();
+        var discoverRoot = Path.Combine(root, "discover");
 
         if (!string.IsNullOrEmpty(config.DiscoverMoviePath) && Directory.Exists(config.DiscoverMoviePath)
-            && !string.IsNullOrEmpty(config.DiscoverShowPath) && Directory.Exists(config.DiscoverShowPath))
+            && !string.IsNullOrEmpty(config.DiscoverShowPath) && Directory.Exists(config.DiscoverShowPath)
+            && config.DiscoverLibraryId != Guid.Empty)
         {
             return;
         }
 
-        var root = GetVirtualRoot();
-        var moviePath = Path.Combine(root, "discover", "movies");
-        var showPath = Path.Combine(root, "discover", "shows");
+        var moviePath = Path.Combine(discoverRoot, "movies");
+        var showPath = Path.Combine(discoverRoot, "shows");
         Directory.CreateDirectory(moviePath);
         Directory.CreateDirectory(showPath);
 
-        const string movieName = "Discover Movies";
-        const string showName = "Discover Shows";
+        const string libraryName = "Discover";
 
-        await EnsureVirtualFolderAsync(movieName, CollectionTypeOptions.movies, moviePath, cancellationToken)
-            .ConfigureAwait(false);
-        await EnsureVirtualFolderAsync(showName, CollectionTypeOptions.tvshows, showPath, cancellationToken)
+        await EnsureVirtualFolderAsync(libraryName, CollectionTypeOptions.mixed, discoverRoot, cancellationToken)
             .ConfigureAwait(false);
 
         config.DiscoverMoviePath = moviePath;
         config.DiscoverShowPath = showPath;
-        config.DiscoverMovieLibraryId = FindLibraryId(movieName, moviePath);
-        config.DiscoverShowLibraryId = FindLibraryId(showName, showPath);
+        config.DiscoverLibraryId = FindLibraryId(libraryName, discoverRoot);
         Plugin.Instance!.SaveConfiguration();
 
-        _logger.LogInformation(
-            "Provisioned shared Discover libraries: movies={MoviePath}, shows={ShowPath}",
-            moviePath, showPath);
+        _logger.LogInformation("Provisioned shared Discover library at {Root}", discoverRoot);
     }
 
     public async Task ProvisionAllUsersAsync(CancellationToken cancellationToken)
