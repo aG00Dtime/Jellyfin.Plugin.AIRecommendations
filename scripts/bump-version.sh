@@ -27,11 +27,34 @@ sed -i.bak -E "s/<AssemblyVersion>[0-9.]+<\/AssemblyVersion>/<AssemblyVersion>${
 sed -i.bak -E "s/<FileVersion>[0-9.]+<\/FileVersion>/<FileVersion>${new_version_four}<\/FileVersion>/" "$CSPROJ"
 rm -f "${CSPROJ}.bak"
 
+target_abi="$(grep -oE 'Jellyfin\.Controller" Version="[0-9]+\.[0-9]+\.[0-9]+' "$CSPROJ" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+').0"
 timestamp="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
-sed -i.bak -E "s/\"version\": \"[^\"]+\"/\"version\": \"${new_version_four}\"/" "$MANIFEST"
-sed -i.bak -E "s|\"sourceUrl\": \"[^\"]+\"|\"sourceUrl\": \"https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v${new_version}/Jellyfin.Plugin.AIRecommendations.zip\"|" "$MANIFEST"
-sed -i.bak -E "s/\"timestamp\": \"[^\"]+\"/\"timestamp\": \"${timestamp}\"/" "$MANIFEST"
-sed -i.bak -E "s/\"changelog\": \"[^\"]+\"/\"changelog\": \"Build ${new_version}\"/" "$MANIFEST"
-rm -f "${MANIFEST}.bak"
+
+# Prepend a new version entry to the "versions" array — every prior entry is
+# release history and must stay untouched. (A field-by-field sed replace here
+# previously clobbered every historical entry with the new version's values;
+# see git history if this needs re-deriving.) CI fills in the real checksum
+# once it builds the zip.
+python3 - "$MANIFEST" "$new_version_four" "$new_version" "$target_abi" "$timestamp" <<'PYEOF'
+import json, sys
+
+manifest_path, version_four, version, target_abi, timestamp = sys.argv[1:6]
+
+with open(manifest_path, "r", encoding="utf-8") as f:
+    data = json.load(f)
+
+data[0]["versions"].insert(0, {
+    "version": version_four,
+    "changelog": f"Build {version}",
+    "targetAbi": target_abi,
+    "sourceUrl": f"https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v{version}/Jellyfin.Plugin.AIRecommendations.zip",
+    "checksum": "",
+    "timestamp": timestamp,
+})
+
+with open(manifest_path, "w", encoding="utf-8") as f:
+    json.dump(data, f, indent=2, ensure_ascii=False)
+    f.write("\n")
+PYEOF
 
 echo "Version bumped to ${new_version} (${new_version_four})"
