@@ -9,6 +9,14 @@
     "imageUrl": "https://raw.githubusercontent.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/main/agent.png",
     "versions": [
       {
+        "version": "1.0.119.0",
+        "changelog": "Build 1.0.119",
+        "targetAbi": "10.11.9.0",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.119/Jellyfin.Plugin.AIRecommendations.zip",
+        "checksum": "",
+        "timestamp": "2026-08-02T13:23:50Z"
+      },
+      {
         "version": "1.0.118.0",
         "changelog": "fix: restore placeholder.mp4 EmbeddedResource entry dropped by manifest revert",
         "targetAbi": "10.11.9.0",
