@@ -102,13 +102,14 @@ public class PluginConfiguration : BasePluginConfiguration
     /// <summary>How many movie stubs and show stubs to maintain in the shared Discover library.</summary>
     public int DiscoverItemsPerType { get; set; } = 30;
 
+    /// <summary>Movie stub folder — a subfolder of the single "Discover" Jellyfin library
+    /// (registered as CollectionTypeOptions.mixed so one library covers both).</summary>
     public string DiscoverMoviePath { get; set; } = string.Empty;
 
+    /// <summary>Show stub folder — a subfolder of the single "Discover" Jellyfin library.</summary>
     public string DiscoverShowPath { get; set; } = string.Empty;
 
-    public Guid DiscoverMovieLibraryId { get; set; }
-
-    public Guid DiscoverShowLibraryId { get; set; }
+    public Guid DiscoverLibraryId { get; set; }
 
     /// <summary>TMDB IDs a user has dismissed ("mark watched") from the shared Discover library.</summary>
     public List<int> DiscoverRejectedTmdbIds { get; set; } = new();
