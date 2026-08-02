@@ -25,6 +25,7 @@ public class RecommendationSyncService
     private readonly IUserDataManager _userDataManager;
     private readonly ILibraryManager _libraryManager;
     private readonly LibraryFilterService _libraryFilter;
+    private readonly DiscoverSyncService _discoverSync;
     private readonly ILogger<RecommendationSyncService> _logger;
 
     public RecommendationSyncService(
@@ -37,6 +38,7 @@ public class RecommendationSyncService
         IUserDataManager userDataManager,
         ILibraryManager libraryManager,
         LibraryFilterService libraryFilter,
+        DiscoverSyncService discoverSync,
         ILogger<RecommendationSyncService> logger)
     {
         _virtualLibraryManager = virtualLibraryManager;
@@ -48,6 +50,7 @@ public class RecommendationSyncService
         _userDataManager = userDataManager;
         _libraryManager = libraryManager;
         _libraryFilter = libraryFilter;
+        _discoverSync = discoverSync;
         _logger = logger;
     }
 
@@ -123,6 +126,15 @@ public class RecommendationSyncService
             {
                 ClearStubShowEpisodePlayedStates(user, reg);
             }
+        }
+
+        try
+        {
+            await _discoverSync.SyncAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to sync the shared Discover library");
         }
     }
 

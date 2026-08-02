@@ -89,6 +89,36 @@ public class PluginConfiguration : BasePluginConfiguration
 
     public string LastSyncMessage { get; set; } = string.Empty;
 
+    // ── Discover library (shared, not per-user) ────────────────────────────────
+
+    /// <summary>
+    /// When true, maintains one shared "Discover" library (not per-user) of
+    /// trending/popular movies and shows, independent of any user's taste profile.
+    /// Sourced from Jellyseerr's Discover feed when configured; falls back to TMDB's
+    /// popular/trending lists directly so the feature works even without Jellyseerr.
+    /// </summary>
+    public bool DiscoverLibraryEnabled { get; set; } = false;
+
+    /// <summary>How many movie stubs and show stubs to maintain in the shared Discover library.</summary>
+    public int DiscoverItemsPerType { get; set; } = 30;
+
+    public string DiscoverMoviePath { get; set; } = string.Empty;
+
+    public string DiscoverShowPath { get; set; } = string.Empty;
+
+    public Guid DiscoverMovieLibraryId { get; set; }
+
+    public Guid DiscoverShowLibraryId { get; set; }
+
+    /// <summary>TMDB IDs a user has dismissed ("mark watched") from the shared Discover library.</summary>
+    public List<int> DiscoverRejectedTmdbIds { get; set; } = new();
+
+    /// <summary>TMDB IDs already submitted to Jellyseerr from the shared Discover library.</summary>
+    public List<int> DiscoverRequestedTmdbIds { get; set; } = new();
+
+    /// <summary>TMDB IDs currently placed as Discover stubs, for change-tracking between syncs.</summary>
+    public List<int> DiscoverPlacedTmdbIds { get; set; } = new();
+
     // ── Discord Bot ──────────────────────────────────────────────────────────
 
     /// <summary>Discord Bot token from the Developer Portal. Leave blank to disable.</summary>
@@ -130,16 +160,31 @@ public class PluginConfiguration : BasePluginConfiguration
 }
 
 /// <summary>
+/// Common shape shared by a per-user AI Picks registration and the shared Discover
+/// library, so <see cref="Services.FavouriteWatcher"/> can handle favourite/watched
+/// events on either without duplicating its request/dismiss logic.
+/// </summary>
+public interface IStubTarget
+{
+    string MoviePath { get; }
+    string ShowPath { get; }
+    List<int> RejectedTmdbIds { get; }
+    List<int> RequestedTmdbIds { get; }
+    List<int> PlacedTmdbIds { get; }
+}
+
+/// <summary>
 /// Tracks auto-provisioned libraries and user feedback for a single user.
 /// </summary>
-public class UserLibraryRegistration
+public class UserLibraryRegistration : IStubTarget
 {
     public string UserId { get; set; } = string.Empty;
 
     /// <summary>When false, this user is skipped entirely during sync — no new
     /// recommendations are generated and existing stubs are left as-is (use the
-    /// "Clear" action separately to remove them).</summary>
-    public bool RecommendationsEnabled { get; set; } = true;
+    /// "Clear" action separately to remove them). Defaults off: a brand-new Jellyfin
+    /// user shouldn't get an LLM-generated library auto-created without opting in.</summary>
+    public bool RecommendationsEnabled { get; set; } = false;
 
     public Guid MovieLibraryId { get; set; }
 
@@ -170,4 +215,24 @@ public class UserLibraryRegistration
 
     /// <summary>When the taste profile was last generated.</summary>
     public DateTime? TasteProfileGeneratedAt { get; set; }
+}
+
+/// <summary>
+/// Adapts the shared Discover library's top-level config fields to <see cref="IStubTarget"/>
+/// so <see cref="Services.FavouriteWatcher"/> can treat it the same as a per-user registration.
+/// </summary>
+public sealed class DiscoverStubTarget : IStubTarget
+{
+    private readonly PluginConfiguration _config;
+
+    public DiscoverStubTarget(PluginConfiguration config)
+    {
+        _config = config;
+    }
+
+    public string MoviePath => _config.DiscoverMoviePath;
+    public string ShowPath => _config.DiscoverShowPath;
+    public List<int> RejectedTmdbIds => _config.DiscoverRejectedTmdbIds;
+    public List<int> RequestedTmdbIds => _config.DiscoverRequestedTmdbIds;
+    public List<int> PlacedTmdbIds => _config.DiscoverPlacedTmdbIds;
 }

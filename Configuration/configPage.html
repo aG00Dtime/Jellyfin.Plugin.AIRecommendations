@@ -398,6 +398,27 @@
                         <div class="test-result" id="taste-profile-result"></div>
                     </details>
 
+                    <!-- Discover Library (shared, not per-user) -->
+                    <details style="margin-top:14px">
+                        <summary style="cursor:pointer;font-size:1.1em;font-weight:bold;padding:6px 0;border-bottom:1px solid #333;margin-bottom:10px">Discover Library</summary>
+                        <p style="font-size:.82em;color:#888;margin:0 0 10px">
+                            One shared library of trending/popular movies and shows, visible to every user — not personalized
+                            like AI Picks. Sourced from Jellyseerr's Discover feed when configured above; falls back to TMDB
+                            directly if Jellyseerr isn't set up.
+                        </p>
+                        <div class="checkboxContainer checkboxContainer-withDescription">
+                            <label>
+                                <input is="emby-checkbox" type="checkbox" id="discoverLibraryEnabled" />
+                                <span>Enable the shared Discover library</span>
+                            </label>
+                        </div>
+                        <div class="inputContainer">
+                            <input is="emby-input" type="number" id="discoverItemsPerType" min="5" max="100" label="Items per type (movies + shows)" />
+                        </div>
+                        <button is="emby-button" type="button" id="btn-sync-discover" class="raised button-alt" style="margin-top:4px">Sync Discover Now</button>
+                        <div class="test-result" id="discover-sync-result"></div>
+                    </details>
+
                     <br />
                     <div>
                         <button is="emby-button" type="submit" class="raised button-submit block"><span>Save</span></button>
@@ -847,6 +868,8 @@
                     document.getElementById('limitShowsToSeasonOne').checked = config.LimitShowsToSeasonOne !== false;
                     document.getElementById('alwaysRefreshRecommendations').checked = !!config.AlwaysRefreshRecommendations;
                     document.getElementById('tasteProfileRegenerationIntervalDays').value = config.TasteProfileRegenerationIntervalDays !== undefined ? config.TasteProfileRegenerationIntervalDays : 7;
+                    document.getElementById('discoverLibraryEnabled').checked = !!config.DiscoverLibraryEnabled;
+                    document.getElementById('discoverItemsPerType').value = config.DiscoverItemsPerType || 30;
                     showProviderSection(config.ActiveProvider || 'OpenAI');
                     // Radarr
                     document.getElementById('radarrBaseUrl').value = config.RadarrBaseUrl || '';
@@ -1063,6 +1086,23 @@
                     });
                 });
 
+                document.getElementById('btn-sync-discover').addEventListener('click', function () {
+                    var btn = document.getElementById('btn-sync-discover');
+                    var result = document.getElementById('discover-sync-result');
+                    btn.disabled = true;
+                    result.className = 'test-result loading';
+                    result.textContent = 'Syncing Discover library…';
+                    apiPost('AIRecommendations/Discover/Sync', {}).then(function () {
+                        result.className = 'test-result ok';
+                        result.textContent = 'Discover library synced.';
+                        btn.disabled = false;
+                    }).catch(function (err) {
+                        result.className = 'test-result err';
+                        result.textContent = 'Failed: ' + (err.message || String(err));
+                        btn.disabled = false;
+                    });
+                });
+
                 // Agent test panel
                 document.getElementById('btn-agent-send').addEventListener('click', sendAgentMessage);
                 document.getElementById('btn-agent-reset').addEventListener('click', resetAgentSession);
@@ -1094,6 +1134,8 @@
                     config.SyncIntervalHours = parseInt(document.getElementById('syncIntervalHours').value, 10);
                     config.LimitShowsToSeasonOne = document.getElementById('limitShowsToSeasonOne').checked;
                     config.AlwaysRefreshRecommendations = document.getElementById('alwaysRefreshRecommendations').checked;
+                    config.DiscoverLibraryEnabled = document.getElementById('discoverLibraryEnabled').checked;
+                    config.DiscoverItemsPerType = parseInt(document.getElementById('discoverItemsPerType').value, 10) || 30;
                     config.RadarrBaseUrl = document.getElementById('radarrBaseUrl').value;
                     config.RadarrApiKey = document.getElementById('radarrApiKey').value;
                     config.RadarrQualityProfileId = parseInt(document.getElementById('radarrQualityProfileId').value, 10) || 0;

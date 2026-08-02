@@ -382,12 +382,19 @@ public class LibraryFilterService
     {
         var ids = new HashSet<int>();
 
-        // Exclude AI recommendation library folders so stubs don't count as "owned"
-        // and block the engine from ever generating new recommendations.
-        var aiPaths = Plugin.Instance?.Configuration.UserLibraries
-            .SelectMany(r => new[] { r.MoviePath, r.ShowPath })
-            .Where(p => !string.IsNullOrEmpty(p))
-            .ToList() ?? [];
+        // Exclude AI recommendation library folders (per-user and shared Discover) so
+        // stubs don't count as "owned" and block the engine from ever generating new
+        // recommendations.
+        var config = Plugin.Instance?.Configuration;
+        var aiPaths = new List<string>();
+        if (config is not null)
+        {
+            aiPaths.AddRange(config.UserLibraries.SelectMany(r => new[] { r.MoviePath, r.ShowPath }));
+            aiPaths.Add(config.DiscoverMoviePath);
+            aiPaths.Add(config.DiscoverShowPath);
+        }
+
+        aiPaths = aiPaths.Where(p => !string.IsNullOrEmpty(p)).ToList();
 
         var items = _libraryManager.GetItemList(new InternalItemsQuery
         {

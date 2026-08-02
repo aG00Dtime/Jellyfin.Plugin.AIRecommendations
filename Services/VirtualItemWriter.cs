@@ -17,6 +17,8 @@ public class VirtualItemWriter
 {
     private const int MaxStubsPerType = 50;
 
+    private const string PlaceholderExtension = ".mp4";
+
     private static readonly Regex TmdbIdPattern = new(@"\[tmdbid-(\d+)\]", RegexOptions.Compiled);
 
     // Minimal episode NFO with lockdata=true and no TMDB ID.
@@ -53,12 +55,14 @@ public class VirtualItemWriter
         RemoveStaleStubs(moviesPath, removeByTmdbId);
         RemoveStaleStubs(showsPath, removeByTmdbId);
 
-        // Repoint any stub written before v1.0.116 at the local placeholder clip.
-        // Those stubs' .strm files held a JustWatch search-page URL, which Jellyfin's
-        // transcoder would try (and fail) to probe as a video whenever a user pressed
-        // Play on what looked like a normal library item.
-        MigrateJustWatchStubs(moviesPath);
-        MigrateJustWatchStubs(showsPath);
+        // Replace any leftover .strm stub (pre-v1.0.119, whether it held a JustWatch
+        // URL or a local path to the placeholder clip) with a real copy of the
+        // placeholder video. Jellyfin treats .strm as a remote-stream pointer, not a
+        // normal local video file, even when its content is just a local path —
+        // that's still enough to make Play fail. A real video file avoids the whole
+        // .strm code path.
+        MigrateStrmStubs(moviesPath);
+        MigrateStrmStubs(showsPath);
 
         // Upgrade any legacy show stubs that lack the protective episode NFO, and
         // ensure stubs written by v1.0.45 (tvshow.nfo only) also get an episode stub
@@ -132,10 +136,10 @@ public class VirtualItemWriter
     }
 
     /// <summary>
-    /// Rewrites any .strm file whose content is a JustWatch search URL (the pre-v1.0.116
-    /// placeholder scheme) to point at the local placeholder clip instead.
+    /// Replaces any leftover .strm stub with a real copy of the placeholder video,
+    /// same base filename so the existing companion .nfo still matches it.
     /// </summary>
-    private static void MigrateJustWatchStubs(string root)
+    private static void MigrateStrmStubs(string root)
     {
         if (!Directory.Exists(root))
         {
@@ -145,11 +149,13 @@ public class VirtualItemWriter
         var placeholderPath = GetPlaceholderPath();
         foreach (var strmPath in Directory.GetFiles(root, "*.strm", SearchOption.AllDirectories))
         {
-            var content = File.ReadAllText(strmPath);
-            if (content.StartsWith("https://www.justwatch.com/", StringComparison.Ordinal))
+            var videoPath = Path.ChangeExtension(strmPath, PlaceholderExtension);
+            if (!File.Exists(videoPath))
             {
-                File.WriteAllText(strmPath, placeholderPath, Encoding.UTF8);
+                File.Copy(placeholderPath, videoPath);
             }
+
+            File.Delete(strmPath);
         }
     }
 
@@ -176,8 +182,11 @@ public class VirtualItemWriter
         var folder = Path.Combine(moviesPath, folderName);
         Directory.CreateDirectory(folder);
 
-        var strmPath = Path.Combine(folder, $"{folderName}.strm");
-        File.WriteAllText(strmPath, GetPlaceholderPath(), Encoding.UTF8);
+        var videoPath = Path.Combine(folder, $"{folderName}{PlaceholderExtension}");
+        if (!File.Exists(videoPath))
+        {
+            File.Copy(GetPlaceholderPath(), videoPath);
+        }
 
         var nfoPath = Path.Combine(folder, $"{folderName}.nfo");
         File.WriteAllText(nfoPath, BuildMovieNfo(movie), Encoding.UTF8);
@@ -203,12 +212,12 @@ public class VirtualItemWriter
     private static void WriteEpisodeStub(string seasonFolder, string showTitle)
     {
         var episodeName = $"{Sanitize(showTitle)} - S01E01";
-        var strmPath = Path.Combine(seasonFolder, $"{episodeName}.strm");
+        var videoPath = Path.Combine(seasonFolder, $"{episodeName}{PlaceholderExtension}");
         var nfoPath = Path.Combine(seasonFolder, $"{episodeName}.nfo");
 
-        if (!File.Exists(strmPath))
+        if (!File.Exists(videoPath))
         {
-            File.WriteAllText(strmPath, GetPlaceholderPath(), Encoding.UTF8);
+            File.Copy(GetPlaceholderPath(), videoPath);
         }
 
         if (!File.Exists(nfoPath))
@@ -278,9 +287,10 @@ public class VirtualItemWriter
     /// Path to a short local clip explaining that this item is an AI recommendation,
     /// not real content — extracted once from the embedded resource into the plugin's
     /// data folder so it survives version upgrades (unlike the versioned plugin install
-    /// path). Every stub's .strm points here instead of at an external URL, so a
-    /// mistaken tap on Play is instant and harmless rather than triggering a failed
-    /// transcode against a non-video page.
+    /// path). Every stub gets its own copy of this file (not a .strm pointer — Jellyfin
+    /// treats .strm as a remote-stream pointer even when its content is a local path,
+    /// which was enough to make Play fail), so a mistaken tap on Play is instant and
+    /// harmless instead of erroring.
     /// </summary>
     private static string GetPlaceholderPath()
     {

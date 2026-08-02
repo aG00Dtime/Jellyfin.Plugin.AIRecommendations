@@ -183,6 +183,46 @@ public class VirtualLibraryManager
         return registration;
     }
 
+    /// <summary>
+    /// Ensures the shared "Discover" movie and show libraries exist, visible to every
+    /// user (no per-user restriction, unlike the personalized AI Picks libraries).
+    /// Persists the resulting paths/library IDs to the top-level plugin config.
+    /// </summary>
+    public async Task EnsureDiscoverLibrariesAsync(CancellationToken cancellationToken)
+    {
+        var config = Plugin.Instance!.Configuration;
+
+        if (!string.IsNullOrEmpty(config.DiscoverMoviePath) && Directory.Exists(config.DiscoverMoviePath)
+            && !string.IsNullOrEmpty(config.DiscoverShowPath) && Directory.Exists(config.DiscoverShowPath))
+        {
+            return;
+        }
+
+        var root = GetVirtualRoot();
+        var moviePath = Path.Combine(root, "discover", "movies");
+        var showPath = Path.Combine(root, "discover", "shows");
+        Directory.CreateDirectory(moviePath);
+        Directory.CreateDirectory(showPath);
+
+        const string movieName = "Discover Movies";
+        const string showName = "Discover Shows";
+
+        await EnsureVirtualFolderAsync(movieName, CollectionTypeOptions.movies, moviePath, cancellationToken)
+            .ConfigureAwait(false);
+        await EnsureVirtualFolderAsync(showName, CollectionTypeOptions.tvshows, showPath, cancellationToken)
+            .ConfigureAwait(false);
+
+        config.DiscoverMoviePath = moviePath;
+        config.DiscoverShowPath = showPath;
+        config.DiscoverMovieLibraryId = FindLibraryId(movieName, moviePath);
+        config.DiscoverShowLibraryId = FindLibraryId(showName, showPath);
+        Plugin.Instance!.SaveConfiguration();
+
+        _logger.LogInformation(
+            "Provisioned shared Discover libraries: movies={MoviePath}, shows={ShowPath}",
+            moviePath, showPath);
+    }
+
     public async Task ProvisionAllUsersAsync(CancellationToken cancellationToken)
     {
         foreach (var user in _userManager.GetUsers())
