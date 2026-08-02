@@ -181,7 +181,46 @@ Example excerpt:
 > "David leans heavily toward tense, plot-driven content — his most-played genres are Crime, Thriller, and Drama, with a strong preference for films from the 2000s onward. Titles like *The Wire*, *Sicario*, and *No Country for Old Men* reflect a taste for morally complex storytelling and understated performances..."
 
 ### How it's generated
-On each sync, if a user has no taste profile stored (or the profile is older than the configured regeneration interval), `TasteProfileService` reads their watch history via `WatchHistoryService`, sends it to the active LLM provider with a generation prompt, and stores the resulting narrative in `PluginConfiguration` (XML-persisted). This only happens once per interval — not on every sync.
+On each sync, if a user has no taste profile stored (or the profile is older than the configured regeneration interval), `TasteProfileService.BuildHistoryData` pulls the user's watch history straight from Jellyfin (`ILibraryManager`/`IUserDataManager` — no separate history log), assembles it into a single text prompt, sends it to the active LLM provider as a one-shot chat completion, and stores the resulting narrative in `PluginConfiguration` (XML-persisted). This only happens once per interval — not on every sync.
+
+`BuildHistoryData` computes, from up to 200 recently-played movies and 200 shows (AI-recommendation stub paths excluded so the plugin never learns from its own placeholders):
+
+| Field | How it's derived |
+|---|---|
+| Total watched / movie / show counts | Count of distinct played items |
+| Era distribution | % of watched items per decade bucket (pre-2000 / 2000s / 2010s / 2020s) |
+| Top genres | Genre tag frequency across all watched items, top 10 |
+| Favourited titles | Items the user marked ♥ in Jellyfin, up to 20 |
+| Watched to completion (≥90%) | "Loved" signal — favourited, rated ≥7, or ≥90% playback position |
+| Started but abandoned (<30%) | Negative signal — resumable items never finished, under 30% in |
+| Recently watched movies/shows | 15 most recent of each, newest first |
+| Broader history sample | Up to 40 titles evenly spread across the *entire* watch history, not just recent ones, so old tastes aren't drowned out by what was watched last week |
+
+That data is formatted into a plain-text prompt (`TasteProfileService.BuildPrompt`) and sent as a single `user`-role chat message — no system prompt, temperature 0.7. Example of the exact payload for an illustrative user:
+
+```
+Analyse this Jellyfin user's viewing history and write a concise taste profile.
+
+Total watched: 187 items (94 movies, 93 shows)
+Era distribution: pre-2000: 8%, 2000s: 14%, 2010s: 31%, 2020s: 47%
+
+Top genres: Drama (61), Thriller (44), Sci-Fi (38), Crime (33), Comedy (21), Mystery (19), Action (17), Horror (9), Animation (6), Documentary (4)
+
+Favourited titles: Severance (2022), The Bear (2022), Oldboy (2003), Parasite (2019)
+Watched to completion (≥90%): Silo (2023), Foundation (2021), Fargo (2014), The Day of the Jackal (2024), Glass Onion (2022), The Lighthouse (2019), Moneyball (2011)
+Started but abandoned (<30%): Emily in Paris (2020), The Wheel of Time (2021)
+Recently watched movies: The Conjuring: Last Rites (2025), Weapons (2025), Sinners (2025), Companion (2025), Nosferatu (2024)
+Recently watched shows: Alien: Earth (2025), Task (2025), Chad Powers (2025), Landman (2024), Daredevil: Born Again (2025)
+Broader history sample: The Wire (2002), No Country for Old Men (2007), Sicario (2015), Mindhunter (2017), Knives Out (2019), Dead Poets Society (1989), The Farewell (2019), Mission: Impossible – Fallout (2018), The Boys (2019), True Detective (2014), ...
+
+Write a taste profile in 2-3 short paragraphs (third person, "This user..."). Cover:
+1. Genre and theme preferences with specific patterns from the titles
+2. Preferred tone/mood/style (e.g. dark vs light, procedural vs serialised, fast-paced vs slow-burn)
+3. What to recommend more of and what to clearly avoid (use the abandoned list as negative signal)
+Be specific and cite titles as evidence. Keep it under 300 words.
+```
+
+The narrative shown in the excerpt above is the model's response to a prompt shaped like this one.
 
 ### Where it's used
 - **Telegram and Discord agent system prompt** — every conversation turn includes the full narrative so the agent understands the user before they say a word

@@ -49,6 +49,7 @@
                                 <th style="padding:4px 8px">Stubs</th>
                                 <th style="padding:4px 8px">Requested</th>
                                 <th style="padding:4px 8px">Rejected</th>
+                                <th style="padding:4px 8px">Enabled</th>
                                 <th style="padding:4px 8px"></th>
                             </tr>
                         </thead>
@@ -697,11 +698,15 @@
                     tbody.innerHTML = '';
                     users.forEach(function (u) {
                         var tr = document.createElement('tr');
+                        var enabled = u.RecommendationsEnabled !== false;
                         tr.innerHTML =
                             '<td style="padding:4px 8px">' + (u.Username || u.UserId) + '</td>' +
                             '<td style="padding:4px 8px;color:#aaa">' + (u.StubCount || 0) + '</td>' +
                             '<td style="padding:4px 8px;color:#7edb7e">' + u.RequestedCount + '</td>' +
                             '<td style="padding:4px 8px;color:#db7e7e">' + u.RejectedCount + '</td>' +
+                            '<td style="padding:4px 8px">' +
+                              '<input type="checkbox" class="chk-user-enabled" data-id="' + u.UserId + '"' + (enabled ? ' checked' : '') + ' />' +
+                            '</td>' +
                             '<td style="padding:4px 8px;white-space:nowrap">' +
                               '<button type="button" class="btn-view-stubs" data-id="' + u.UserId + '" data-name="' + (u.Username || u.UserId) + '" style="background:#1a2a3a;border:1px solid #2a4a6a;color:#7eb4db;border-radius:3px;padding:2px 8px;font-size:.78em;cursor:pointer;margin-right:4px">View stubs</button>' +
                               '<button is="emby-button" type="button" class="raised button-cancel btn-clear-user" data-id="' + u.UserId + '" style="padding:2px 10px;font-size:.8em">Clear</button>' +
@@ -721,6 +726,18 @@
                                 btn.disabled = false;
                                 btn.textContent = 'Clear';
                                 Dashboard.alert('Clear failed — check logs.');
+                            });
+                        });
+                    });
+                    tbody.querySelectorAll('.chk-user-enabled').forEach(function (chk) {
+                        chk.addEventListener('change', function () {
+                            chk.disabled = true;
+                            apiPost('AIRecommendations/Users/' + chk.dataset.id + '/Enabled/' + chk.checked, {}).then(function () {
+                                chk.disabled = false;
+                            }).catch(function () {
+                                chk.checked = !chk.checked;
+                                chk.disabled = false;
+                                Dashboard.alert('Failed to update — check logs.');
                             });
                         });
                     });

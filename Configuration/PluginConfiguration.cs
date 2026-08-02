@@ -136,6 +136,11 @@ public class UserLibraryRegistration
 {
     public string UserId { get; set; } = string.Empty;
 
+    /// <summary>When false, this user is skipped entirely during sync — no new
+    /// recommendations are generated and existing stubs are left as-is (use the
+    /// "Clear" action separately to remove them).</summary>
+    public bool RecommendationsEnabled { get; set; } = true;
+
     public Guid MovieLibraryId { get; set; }
 
     public Guid ShowLibraryId { get; set; }

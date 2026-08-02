@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Reflection;
 using System.Security;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -51,6 +52,13 @@ public class VirtualItemWriter
         // Remove stubs for rejected / requested / owned items
         RemoveStaleStubs(moviesPath, removeByTmdbId);
         RemoveStaleStubs(showsPath, removeByTmdbId);
+
+        // Repoint any stub written before v1.0.116 at the local placeholder clip.
+        // Those stubs' .strm files held a JustWatch search-page URL, which Jellyfin's
+        // transcoder would try (and fail) to probe as a video whenever a user pressed
+        // Play on what looked like a normal library item.
+        MigrateJustWatchStubs(moviesPath);
+        MigrateJustWatchStubs(showsPath);
 
         // Upgrade any legacy show stubs that lack the protective episode NFO, and
         // ensure stubs written by v1.0.45 (tvshow.nfo only) also get an episode stub
@@ -123,6 +131,28 @@ public class VirtualItemWriter
         return m.Success && int.TryParse(m.Groups[1].Value, out var id) ? id : null;
     }
 
+    /// <summary>
+    /// Rewrites any .strm file whose content is a JustWatch search URL (the pre-v1.0.116
+    /// placeholder scheme) to point at the local placeholder clip instead.
+    /// </summary>
+    private static void MigrateJustWatchStubs(string root)
+    {
+        if (!Directory.Exists(root))
+        {
+            return;
+        }
+
+        var placeholderPath = GetPlaceholderPath();
+        foreach (var strmPath in Directory.GetFiles(root, "*.strm", SearchOption.AllDirectories))
+        {
+            var content = File.ReadAllText(strmPath);
+            if (content.StartsWith("https://www.justwatch.com/", StringComparison.Ordinal))
+            {
+                File.WriteAllText(strmPath, placeholderPath, Encoding.UTF8);
+            }
+        }
+    }
+
     private static void RemoveStaleStubs(string root, HashSet<int> removeByTmdbId)
     {
         if (!Directory.Exists(root))
@@ -147,7 +177,7 @@ public class VirtualItemWriter
         Directory.CreateDirectory(folder);
 
         var strmPath = Path.Combine(folder, $"{folderName}.strm");
-        File.WriteAllText(strmPath, JustWatchUrl(movie.Title), Encoding.UTF8);
+        File.WriteAllText(strmPath, GetPlaceholderPath(), Encoding.UTF8);
 
         var nfoPath = Path.Combine(folder, $"{folderName}.nfo");
         File.WriteAllText(nfoPath, BuildMovieNfo(movie), Encoding.UTF8);
@@ -178,7 +208,7 @@ public class VirtualItemWriter
 
         if (!File.Exists(strmPath))
         {
-            File.WriteAllText(strmPath, JustWatchUrl(showTitle), Encoding.UTF8);
+            File.WriteAllText(strmPath, GetPlaceholderPath(), Encoding.UTF8);
         }
 
         if (!File.Exists(nfoPath))
@@ -244,8 +274,30 @@ public class VirtualItemWriter
         }
     }
 
-    private static string JustWatchUrl(string title)
-        => $"https://www.justwatch.com/us/search?q={Uri.EscapeDataString(title)}";
+    /// <summary>
+    /// Path to a short local clip explaining that this item is an AI recommendation,
+    /// not real content — extracted once from the embedded resource into the plugin's
+    /// data folder so it survives version upgrades (unlike the versioned plugin install
+    /// path). Every stub's .strm points here instead of at an external URL, so a
+    /// mistaken tap on Play is instant and harmless rather than triggering a failed
+    /// transcode against a non-video page.
+    /// </summary>
+    private static string GetPlaceholderPath()
+    {
+        var plugin = Plugin.Instance ?? throw new InvalidOperationException("Plugin not initialized");
+        var path = Path.Combine(plugin.DataFolderPath, "placeholder.mp4");
+        if (!File.Exists(path))
+        {
+            Directory.CreateDirectory(plugin.DataFolderPath);
+            using var resourceStream = Assembly.GetExecutingAssembly()
+                .GetManifestResourceStream("Jellyfin.Plugin.AIRecommendations.Assets.placeholder.mp4")
+                ?? throw new InvalidOperationException("Embedded placeholder.mp4 resource not found");
+            using var fileStream = File.Create(path);
+            resourceStream.CopyTo(fileStream);
+        }
+
+        return path;
+    }
 
     private static string BuildMovieNfo(ResolvedRecommendation movie)
     {

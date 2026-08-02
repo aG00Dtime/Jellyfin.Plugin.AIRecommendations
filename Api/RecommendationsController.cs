@@ -201,10 +201,30 @@ public class RecommendationsController : ControllerBase
                 r.ShowLibraryName,
                 StubCount = r.PlacedTmdbIds.Count,
                 RequestedCount = r.RequestedTmdbIds.Count,
-                RejectedCount = r.RejectedTmdbIds.Count
+                RejectedCount = r.RejectedTmdbIds.Count,
+                r.RecommendationsEnabled
             };
         });
         return Ok(result);
+    }
+
+    /// <summary>
+    /// Enables or disables AI recommendation generation for a single user. Disabling
+    /// pauses new stub generation and feedback/taste-profile processing but leaves
+    /// existing stubs on disk — use Clear separately to also remove those.
+    /// </summary>
+    [HttpPost("Users/{userId:guid}/Enabled/{enabled:bool}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public IActionResult SetUserEnabled([FromRoute] Guid userId, [FromRoute] bool enabled)
+    {
+        var config = Plugin.Instance!.Configuration;
+        var reg = config.UserLibraries.FirstOrDefault(r => r.UserId == userId.ToString("N"));
+        if (reg is null) return NotFound();
+
+        reg.RecommendationsEnabled = enabled;
+        Plugin.Instance!.SaveConfiguration();
+        return NoContent();
     }
 
     /// <summary>
@@ -469,8 +489,16 @@ public class RecommendationsController : ControllerBase
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public IActionResult ManualLinkDiscordAccount([FromBody] DiscordManualLinkRequest request)
     {
-        if (!ulong.TryParse(request.DiscordUserId?.Trim(), out var discordId))
+        var trimmedDiscordId = request.DiscordUserId?.Trim() ?? string.Empty;
+        if (!ulong.TryParse(trimmedDiscordId, out var discordId))
             return BadRequest(new { error = "Invalid Discord user ID. It must be a numeric snowflake (e.g. 123456789012345678)." });
+
+        // Real Discord snowflakes have been 17+ digits since the platform's 2015 epoch.
+        // Catches the common mistake of pasting the wrong ID (message/channel/role) or a
+        // test value — such an ID will never match a real message's author.id, so the
+        // account silently never actually links.
+        if (trimmedDiscordId.Length < 17)
+            return BadRequest(new { error = "That doesn't look like a real Discord snowflake (too short — they're 17-19 digits). Right-click the user with Developer Mode on and 'Copy User ID', or use /link in a DM to the bot instead." });
 
         if (string.IsNullOrWhiteSpace(request.JellyfinUserId))
             return BadRequest(new { error = "JellyfinUserId is required." });
