@@ -28,8 +28,6 @@
       <!-- Jellyfin serves /Plugins/{guid}/{version}/Image from this embedded resource -->
       <LogicalName>Jellyfin.Plugin.AIRecommendations.thumb.png</LogicalName>
     </EmbeddedResource>
-    <None Remove="Assets\placeholder.mp4" />
-    <EmbeddedResource Include="Assets\placeholder.mp4" />
   </ItemGroup>
 
 </Project>
