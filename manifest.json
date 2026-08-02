@@ -10,11 +10,11 @@
     "versions": [
       {
         "version": "1.0.120.0",
-        "changelog": "Build 1.0.120",
+        "changelog": "Fix Discover permissions, consolidate to one library, fix show placeholder",
         "targetAbi": "10.11.9.0",
         "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.120/Jellyfin.Plugin.AIRecommendations.zip",
-        "checksum": "",
-        "timestamp": "2026-08-02T14:03:38Z"
+        "checksum": "2046d04da0786f8f42a9b1817b2006ee",
+        "timestamp": "2026-08-02T14:03:58Z"
       },
       {
         "version": "1.0.119.0",
