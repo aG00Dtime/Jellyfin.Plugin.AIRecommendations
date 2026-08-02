@@ -132,6 +132,12 @@ public class RecommendationSyncService
         var registration = await _virtualLibraryManager.EnsureUserLibrariesAsync(user, cancellationToken)
             .ConfigureAwait(false);
 
+        if (!registration.RecommendationsEnabled)
+        {
+            _logger.LogInformation("Skipping recommendations for {User} — disabled by admin", user.Username);
+            return;
+        }
+
         // Clear played states on virtual episodes inside AI show stubs.
         // Jellyfin auto-generates virtual episode entries (keyed by TMDB episode ID) for any
         // show that has a TMDB ID in its tvshow.nfo. Those virtual episodes inherit Played=true
