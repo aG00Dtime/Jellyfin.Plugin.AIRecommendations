@@ -10,11 +10,11 @@
     "versions": [
       {
         "version": "1.0.123.0",
-        "changelog": "Build 1.0.123",
+        "changelog": "Flatten Discover into one shared folder instead of movies/shows subfolders",
         "targetAbi": "10.11.9.0",
         "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.123/Jellyfin.Plugin.AIRecommendations.zip",
-        "checksum": "",
-        "timestamp": "2026-08-02T16:51:09Z"
+        "checksum": "8097fd7fa7ec5e2d4b09eefc94f68482",
+        "timestamp": "2026-08-02T16:51:29Z"
       },
       {
         "version": "1.0.122.0",
