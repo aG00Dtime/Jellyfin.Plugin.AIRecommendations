@@ -90,7 +90,7 @@ Same structure as Radarr. Click **Fetch Profiles** and **Fetch Folders** after s
 
 ## Discover Library
 
-A single shared **Discover** library — movies and shows mixed together (`CollectionTypeOptions.mixed`; movie and show stubs still live in separate subfolders on disk, just registered as one Jellyfin library) — visible to every user, populated with trending/popular content. Unlike AI Picks, this isn't personalized per user and doesn't call the LLM at all; it's a lightweight "what's popular right now" feed, closer to what a plain Jellyseerr/TMDB discover browse looks like.
+A single shared **Discover** library — movies and shows sit as direct siblings in one flat folder (`CollectionTypeOptions.mixed`; distinguished internally by structure — a show folder always has a `tvshow.nfo`, a movie folder never does — rather than separate subfolders, so nothing sits behind an extra folder click) — visible to every user, populated with trending/popular content. Unlike AI Picks, this isn't personalized per user and doesn't call the LLM at all; it's a lightweight "what's popular right now" feed, closer to what a plain Jellyseerr/TMDB discover browse looks like.
 
 Enabled via a single checkbox under **Discover Library** in the plugin settings (off by default) — global, not per-user.
 
