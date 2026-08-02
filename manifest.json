@@ -9,900 +9,900 @@
     "imageUrl": "https://raw.githubusercontent.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/main/agent.png",
     "versions": [
       {
-        "version": "1.0.115.0",
-        "changelog": "feat: Discord manual link, /help command, and find_watch_partner agent tool",
+        "version": "1.0.116.0",
+        "changelog": "Build 1.0.116",
         "targetAbi": "10.11.9.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.115/Jellyfin.Plugin.AIRecommendations.zip",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.116/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "b136487bb75d9d444f5923e2fceb899f",
-        "timestamp": "2026-07-07T21:47:28Z"
+        "timestamp": "2026-08-02T12:42:08Z"
       },
       {
-        "version": "1.0.114.0",
-        "changelog": "fix: pre-seed NotifiedAvailableTmdbIds on link; add CLAUDE.md, AGENT.md, plugin icon",
+        "version": "1.0.116.0",
+        "changelog": "Build 1.0.116",
         "targetAbi": "10.11.9.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.114/Jellyfin.Plugin.AIRecommendations.zip",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.116/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "2e9dde8fde4d236b12c116a18c7eddbe",
-        "timestamp": "2026-07-07T14:27:37Z"
+        "timestamp": "2026-08-02T12:42:08Z"
       },
       {
-        "version": "1.0.113.0",
-        "changelog": "feat: add Discord bot integration",
+        "version": "1.0.116.0",
+        "changelog": "Build 1.0.116",
         "targetAbi": "10.11.9.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.113/Jellyfin.Plugin.AIRecommendations.zip",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.116/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "9dfb1218777a8cce8b97395b96b5994b",
-        "timestamp": "2026-07-07T13:47:47Z"
+        "timestamp": "2026-08-02T12:42:08Z"
       },
       {
-        "version": "1.0.112.0",
-        "changelog": "feat: add Discord bot integration",
+        "version": "1.0.116.0",
+        "changelog": "Build 1.0.116",
         "targetAbi": "10.11.9.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.112/Jellyfin.Plugin.AIRecommendations.zip",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.116/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "be60dbe2970106bccaa0f4d847875a60",
-        "timestamp": "2026-07-07T13:47:15Z"
+        "timestamp": "2026-08-02T12:42:08Z"
       },
       {
-        "version": "1.0.110.0",
-        "changelog": "fix: bot no longer dies permanently when connection drops",
+        "version": "1.0.116.0",
+        "changelog": "Build 1.0.116",
         "targetAbi": "10.11.9.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.110/Jellyfin.Plugin.AIRecommendations.zip",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.116/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "eb425fcafc42d1314cf942b2f1907ceb",
-        "timestamp": "2026-06-22T17:44:08Z"
+        "timestamp": "2026-08-02T12:42:08Z"
       },
       {
-        "version": "1.0.109.0",
-        "changelog": "feat: add browse_tmdb tool and recommendation variety to Telegram agent",
+        "version": "1.0.116.0",
+        "changelog": "Build 1.0.116",
         "targetAbi": "10.11.9.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.109/Jellyfin.Plugin.AIRecommendations.zip",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.116/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "c59ea0dfa9b3b0e450a64690a0c3125a",
-        "timestamp": "2026-06-22T14:02:47Z"
+        "timestamp": "2026-08-02T12:42:08Z"
       },
       {
-        "version": "1.0.108.0",
-        "changelog": "feat: Telegram agent now serves personalised AI picks instead of generic genre lists",
+        "version": "1.0.116.0",
+        "changelog": "Build 1.0.116",
         "targetAbi": "10.11.9.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.108/Jellyfin.Plugin.AIRecommendations.zip",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.116/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "853c78993655f04305b3168809af3c0c",
-        "timestamp": "2026-06-22T11:30:17Z"
+        "timestamp": "2026-08-02T12:42:08Z"
       },
       {
-        "version": "1.0.107.0",
-        "changelog": "fix: bot no longer says 'still waiting' when movie is in Jellyfin",
+        "version": "1.0.116.0",
+        "changelog": "Build 1.0.116",
         "targetAbi": "10.11.9.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.107/Jellyfin.Plugin.AIRecommendations.zip",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.116/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "4c31e7f2ed5b98c1405c9f06019f4488",
-        "timestamp": "2026-06-22T10:50:09Z"
+        "timestamp": "2026-08-02T12:42:08Z"
       },
       {
-        "version": "1.0.106.0",
-        "changelog": "Build 1.0.106",
+        "version": "1.0.116.0",
+        "changelog": "Build 1.0.116",
         "targetAbi": "10.11.9.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.106/Jellyfin.Plugin.AIRecommendations.zip",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.116/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "",
-        "timestamp": "2026-06-22T10:49:49Z"
+        "timestamp": "2026-08-02T12:42:08Z"
       },
       {
-        "version": "1.0.105.0",
-        "changelog": "fix: intercept unknown slash commands before agent dispatch",
+        "version": "1.0.116.0",
+        "changelog": "Build 1.0.116",
         "targetAbi": "10.11.9.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.105/Jellyfin.Plugin.AIRecommendations.zip",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.116/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "f54f5f6701d860a6f8d6b967b9ff7e7a",
-        "timestamp": "2026-06-21T23:50:01Z"
+        "timestamp": "2026-08-02T12:42:08Z"
       },
       {
-        "version": "1.0.104.0",
-        "changelog": "fix: intercept unknown slash commands before agent dispatch",
+        "version": "1.0.116.0",
+        "changelog": "Build 1.0.116",
         "targetAbi": "10.11.9.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.104/Jellyfin.Plugin.AIRecommendations.zip",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.116/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "c735f3952c5f4c314c21779e26656097",
-        "timestamp": "2026-06-21T23:49:53Z"
+        "timestamp": "2026-08-02T12:42:08Z"
       },
       {
-        "version": "1.0.103.0",
-        "changelog": "feat: Netflix-style recommendation improvements — completion signals, TMDB /recommendations seeding, abandonment exclusion",
+        "version": "1.0.116.0",
+        "changelog": "Build 1.0.116",
         "targetAbi": "10.11.9.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.103/Jellyfin.Plugin.AIRecommendations.zip",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.116/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "4e8695463f59284907e30e014f957514",
-        "timestamp": "2026-06-21T23:32:17Z"
+        "timestamp": "2026-08-02T12:42:08Z"
       },
       {
-        "version": "1.0.102.0",
-        "changelog": "feat: Netflix-style recommendation improvements — completion signals, TMDB /recommendations seeding, abandonment exclusion",
+        "version": "1.0.116.0",
+        "changelog": "Build 1.0.116",
         "targetAbi": "10.11.9.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.102/Jellyfin.Plugin.AIRecommendations.zip",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.116/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "6e819902814c71b30aed1366bda63f39",
-        "timestamp": "2026-06-21T23:32:05Z"
+        "timestamp": "2026-08-02T12:42:08Z"
       },
       {
-        "version": "1.0.100.0",
-        "changelog": "feat: add get_recently_added agent tool for date-based library queries",
+        "version": "1.0.116.0",
+        "changelog": "Build 1.0.116",
         "targetAbi": "10.11.9.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.100/Jellyfin.Plugin.AIRecommendations.zip",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.116/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "6a0fdd5f6c6960005809997ee3c678c1",
-        "timestamp": "2026-06-21T23:01:21Z"
+        "timestamp": "2026-08-02T12:42:08Z"
       },
       {
-        "version": "1.0.99.0",
-        "changelog": "docs: replace overview diagram with full agent loop flowchart",
+        "version": "1.0.116.0",
+        "changelog": "Build 1.0.116",
         "targetAbi": "10.11.9.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.99/Jellyfin.Plugin.AIRecommendations.zip",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.116/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "fb527c00ef594338038a303bc432aff3",
-        "timestamp": "2026-06-21T22:58:25Z"
+        "timestamp": "2026-08-02T12:42:08Z"
       },
       {
-        "version": "1.0.98.0",
-        "changelog": "fix: stop swallowing OperationCanceledException in agent loop + improve LLM error logging",
+        "version": "1.0.116.0",
+        "changelog": "Build 1.0.116",
         "targetAbi": "10.11.9.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.98/Jellyfin.Plugin.AIRecommendations.zip",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.116/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "c4dc70a95194207d80f021978b9bdc6c",
-        "timestamp": "2026-06-21T22:53:02Z"
+        "timestamp": "2026-08-02T12:42:08Z"
       },
       {
-        "version": "1.0.97.0",
-        "changelog": "feat: check TMDB release dates before submitting download requests",
+        "version": "1.0.116.0",
+        "changelog": "Build 1.0.116",
         "targetAbi": "10.11.9.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.97/Jellyfin.Plugin.AIRecommendations.zip",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.116/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "7fa6c000f0a53d65d2ab29d18bca3f1c",
-        "timestamp": "2026-06-21T21:53:34Z"
+        "timestamp": "2026-08-02T12:42:08Z"
       },
       {
-        "version": "1.0.96.0",
-        "changelog": "fix: add 90-second per-turn timeout to Telegram agent + reduce LLM client timeout",
+        "version": "1.0.116.0",
+        "changelog": "Build 1.0.116",
         "targetAbi": "10.11.9.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.96/Jellyfin.Plugin.AIRecommendations.zip",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.116/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "549a36ae6cb0cb09a271caecbfbf4f15",
-        "timestamp": "2026-06-21T21:28:27Z"
+        "timestamp": "2026-08-02T12:42:08Z"
       },
       {
-        "version": "1.0.95.0",
-        "changelog": "fix: add scope guardrail to agent system prompt",
+        "version": "1.0.116.0",
+        "changelog": "Build 1.0.116",
         "targetAbi": "10.11.9.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.95/Jellyfin.Plugin.AIRecommendations.zip",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.116/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "48419187b2c49fb2b40a549fd06a6a5b",
-        "timestamp": "2026-06-21T21:20:55Z"
+        "timestamp": "2026-08-02T12:42:08Z"
       },
       {
-        "version": "1.0.94.0",
-        "changelog": "Build 1.0.94",
+        "version": "1.0.116.0",
+        "changelog": "Build 1.0.116",
         "targetAbi": "10.11.9.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.94/Jellyfin.Plugin.AIRecommendations.zip",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.116/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "",
-        "timestamp": "2026-06-21T21:20:20Z"
+        "timestamp": "2026-08-02T12:42:08Z"
       },
       {
-        "version": "1.0.93.0",
-        "changelog": "feat: add refresh_taste_profile agent tool + expand README with agent design docs",
+        "version": "1.0.116.0",
+        "changelog": "Build 1.0.116",
         "targetAbi": "10.11.9.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.93/Jellyfin.Plugin.AIRecommendations.zip",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.116/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "7fcf57fd1589fb4b652f431e781216fc",
-        "timestamp": "2026-06-21T21:12:04Z"
+        "timestamp": "2026-08-02T12:42:08Z"
       },
       {
-        "version": "1.0.92.0",
-        "changelog": "feat: add refresh_taste_profile agent tool + expand README with agent design docs",
+        "version": "1.0.116.0",
+        "changelog": "Build 1.0.116",
         "targetAbi": "10.11.9.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.92/Jellyfin.Plugin.AIRecommendations.zip",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.116/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "e7f451d9e995f027256e7216bfd3fe1c",
-        "timestamp": "2026-06-21T21:11:55Z"
+        "timestamp": "2026-08-02T12:42:08Z"
       },
       {
-        "version": "1.0.91.0",
-        "changelog": "feat: add search_library tool + fix search_content to use TMDB multi-search",
+        "version": "1.0.116.0",
+        "changelog": "Build 1.0.116",
         "targetAbi": "10.11.9.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.91/Jellyfin.Plugin.AIRecommendations.zip",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.116/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "b753e6cfa21dec7fba9fcc025c601685",
-        "timestamp": "2026-06-21T21:05:14Z"
+        "timestamp": "2026-08-02T12:42:08Z"
       },
       {
-        "version": "1.0.90.0",
-        "changelog": "fix: provider section visibility broken due to <head> CSS not loading in Jellyfin",
+        "version": "1.0.116.0",
+        "changelog": "Build 1.0.116",
         "targetAbi": "10.11.9.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.90/Jellyfin.Plugin.AIRecommendations.zip",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.116/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "bf09c75e7d5691a7280726e3b1ae18a8",
-        "timestamp": "2026-06-21T21:00:04Z"
+        "timestamp": "2026-08-02T12:42:08Z"
       },
       {
-        "version": "1.0.89.0",
-        "changelog": "feat: add wildcard recommendations to broaden user taste",
+        "version": "1.0.116.0",
+        "changelog": "Build 1.0.116",
         "targetAbi": "10.11.9.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.89/Jellyfin.Plugin.AIRecommendations.zip",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.116/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "3773dc94422bdad715c7bcf56bff9e3e",
-        "timestamp": "2026-06-21T20:55:42Z"
+        "timestamp": "2026-08-02T12:42:08Z"
       },
       {
-        "version": "1.0.88.0",
-        "changelog": "feat: wire taste profile into sync recs, add /profile command, fix agent filtering",
+        "version": "1.0.116.0",
+        "changelog": "Build 1.0.116",
         "targetAbi": "10.11.9.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.88/Jellyfin.Plugin.AIRecommendations.zip",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.116/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "4f2ca7db8389bfdc8b0da55dfa3fcf8c",
-        "timestamp": "2026-06-21T20:54:02Z"
+        "timestamp": "2026-08-02T12:42:08Z"
       },
       {
-        "version": "1.0.87.0",
-        "changelog": "fix: enforce minimum 5 recommendations per discover_content call",
+        "version": "1.0.116.0",
+        "changelog": "Build 1.0.116",
         "targetAbi": "10.11.9.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.87/Jellyfin.Plugin.AIRecommendations.zip",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.116/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "49f7df068c46f6bab6b8762f4d82c705",
-        "timestamp": "2026-06-21T20:38:02Z"
+        "timestamp": "2026-08-02T12:42:08Z"
       },
       {
-        "version": "1.0.86.0",
-        "changelog": "fix: close dangling HTML tags and strip attributes before sending to Telegram",
+        "version": "1.0.116.0",
+        "changelog": "Build 1.0.116",
         "targetAbi": "10.11.9.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.86/Jellyfin.Plugin.AIRecommendations.zip",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.116/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "cd0148c15ef25e22cfa01ad7857086c9",
-        "timestamp": "2026-06-21T20:30:39Z"
+        "timestamp": "2026-08-02T12:42:08Z"
       },
       {
-        "version": "1.0.85.0",
-        "changelog": "fix: post-filter owned library IDs in discover_content to prevent starvation",
+        "version": "1.0.116.0",
+        "changelog": "Build 1.0.116",
         "targetAbi": "10.11.9.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.85/Jellyfin.Plugin.AIRecommendations.zip",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.116/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "9e4d7fcacbe75e089f5367239b14faa4",
-        "timestamp": "2026-06-21T20:28:17Z"
+        "timestamp": "2026-08-02T12:42:08Z"
       },
       {
-        "version": "1.0.84.0",
-        "changelog": "fix: post-filter owned library IDs in discover_content to prevent starvation",
+        "version": "1.0.116.0",
+        "changelog": "Build 1.0.116",
         "targetAbi": "10.11.9.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.84/Jellyfin.Plugin.AIRecommendations.zip",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.116/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "f165d1f8654f96f210e7dd472862f54e",
-        "timestamp": "2026-06-21T20:28:11Z"
+        "timestamp": "2026-08-02T12:42:08Z"
       },
       {
-        "version": "1.0.83.0",
-        "changelog": "fix: exclude owned library items from agent recommendations",
+        "version": "1.0.116.0",
+        "changelog": "Build 1.0.116",
         "targetAbi": "10.11.9.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.83/Jellyfin.Plugin.AIRecommendations.zip",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.116/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "35f0671138b652f64f326575af5a0157",
-        "timestamp": "2026-06-21T20:17:52Z"
+        "timestamp": "2026-08-02T12:42:08Z"
       },
       {
-        "version": "1.0.82.0",
-        "changelog": "fix: exclude owned library items from agent recommendations",
+        "version": "1.0.116.0",
+        "changelog": "Build 1.0.116",
         "targetAbi": "10.11.9.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.82/Jellyfin.Plugin.AIRecommendations.zip",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.116/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "8ce2b971310ce0c28a9800bba15a1b61",
-        "timestamp": "2026-06-21T20:17:34Z"
+        "timestamp": "2026-08-02T12:42:08Z"
       },
       {
-        "version": "1.0.80.0",
-        "changelog": "fix: sanitize LLM replies before sending to Telegram",
+        "version": "1.0.116.0",
+        "changelog": "Build 1.0.116",
         "targetAbi": "10.11.9.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.80/Jellyfin.Plugin.AIRecommendations.zip",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.116/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "fedb4abf967266f0fa5c87db2b6a5589",
-        "timestamp": "2026-06-21T20:15:28Z"
+        "timestamp": "2026-08-02T12:42:08Z"
       },
       {
-        "version": "1.0.81.0",
-        "changelog": "fix: sanitize LLM replies before sending to Telegram",
+        "version": "1.0.116.0",
+        "changelog": "Build 1.0.116",
         "targetAbi": "10.11.9.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.81/Jellyfin.Plugin.AIRecommendations.zip",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.116/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "1ae18ec1c8de9d2f51ea6d817d139f71",
-        "timestamp": "2026-06-21T20:15:38Z"
+        "timestamp": "2026-08-02T12:42:08Z"
       },
       {
-        "version": "1.0.79.0",
-        "changelog": "feat: live status messages during agent tool execution",
+        "version": "1.0.116.0",
+        "changelog": "Build 1.0.116",
         "targetAbi": "10.11.9.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.79/Jellyfin.Plugin.AIRecommendations.zip",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.116/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "d92c63e8afbbe343e632e2949ee6c59f",
-        "timestamp": "2026-06-21T20:10:14Z"
+        "timestamp": "2026-08-02T12:42:08Z"
       },
       {
-        "version": "1.0.78.0",
-        "changelog": "feat: live status messages during agent tool execution",
+        "version": "1.0.116.0",
+        "changelog": "Build 1.0.116",
         "targetAbi": "10.11.9.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.78/Jellyfin.Plugin.AIRecommendations.zip",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.116/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "9fce1a7d417ebf71dc3dddccf008b1fa",
-        "timestamp": "2026-06-21T20:09:56Z"
+        "timestamp": "2026-08-02T12:42:08Z"
       },
       {
-        "version": "1.0.76.0",
-        "changelog": "feat: LLM taste profile per user + collapsible config UI + routing fixes",
+        "version": "1.0.116.0",
+        "changelog": "Build 1.0.116",
         "targetAbi": "10.11.9.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.76/Jellyfin.Plugin.AIRecommendations.zip",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.116/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "e6b075d253dd6b22a47ca95e7f6edb5f",
-        "timestamp": "2026-06-21T19:45:58Z"
+        "timestamp": "2026-08-02T12:42:08Z"
       },
       {
-        "version": "1.0.77.0",
-        "changelog": "feat: LLM taste profile per user + collapsible config UI + routing fixes",
+        "version": "1.0.116.0",
+        "changelog": "Build 1.0.116",
         "targetAbi": "10.11.9.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.77/Jellyfin.Plugin.AIRecommendations.zip",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.116/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "dbc7824fe7c5ea708e5c5004627335c5",
-        "timestamp": "2026-06-21T19:46:08Z"
+        "timestamp": "2026-08-02T12:42:08Z"
       },
       {
-        "version": "1.0.74.0",
-        "changelog": "fix: promote tool call and request_media logs to INFO for visibility",
+        "version": "1.0.116.0",
+        "changelog": "Build 1.0.116",
         "targetAbi": "10.11.9.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.74/Jellyfin.Plugin.AIRecommendations.zip",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.116/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "5c5c370e52bcad96e939dd91c2b9a8b2",
-        "timestamp": "2026-06-21T18:37:13Z"
+        "timestamp": "2026-08-02T12:42:08Z"
       },
       {
-        "version": "1.0.73.0",
-        "changelog": "fix: promote tool call and request_media logs to INFO for visibility",
+        "version": "1.0.116.0",
+        "changelog": "Build 1.0.116",
         "targetAbi": "10.11.9.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.73/Jellyfin.Plugin.AIRecommendations.zip",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.116/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "767f9e70b8551bf2ffb40bf7e192d2b1",
-        "timestamp": "2026-06-21T18:37:04Z"
+        "timestamp": "2026-08-02T12:42:08Z"
       },
       {
-        "version": "1.0.72.0",
-        "changelog": "fix: check Jellyfin library in check_status tool before querying download services",
+        "version": "1.0.116.0",
+        "changelog": "Build 1.0.116",
         "targetAbi": "10.11.9.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.72/Jellyfin.Plugin.AIRecommendations.zip",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.116/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "5a58ec0f523aa4a619a7c20d24a36859",
-        "timestamp": "2026-06-21T15:50:40Z"
+        "timestamp": "2026-08-02T12:42:08Z"
       },
       {
-        "version": "1.0.71.0",
-        "changelog": "Build 1.0.71",
+        "version": "1.0.116.0",
+        "changelog": "Build 1.0.116",
         "targetAbi": "10.11.9.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.71/Jellyfin.Plugin.AIRecommendations.zip",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.116/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "",
-        "timestamp": "2026-06-21T15:41:57Z"
+        "timestamp": "2026-08-02T12:42:08Z"
       },
       {
-        "version": "1.0.70.0",
-        "changelog": "Build 1.0.70",
+        "version": "1.0.116.0",
+        "changelog": "Build 1.0.116",
         "targetAbi": "10.11.9.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.70/Jellyfin.Plugin.AIRecommendations.zip",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.116/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "",
-        "timestamp": "2026-06-21T15:12:40Z"
+        "timestamp": "2026-08-02T12:42:08Z"
       },
       {
-        "version": "1.0.69.0",
-        "changelog": "Build 1.0.69",
+        "version": "1.0.116.0",
+        "changelog": "Build 1.0.116",
         "targetAbi": "10.11.9.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.69/Jellyfin.Plugin.AIRecommendations.zip",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.116/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "",
-        "timestamp": "2026-06-21T15:12:30Z"
+        "timestamp": "2026-08-02T12:42:08Z"
       },
       {
-        "version": "1.0.68.0",
-        "changelog": "fix: quote all step-output substitutions in release workflow shell scripts",
+        "version": "1.0.116.0",
+        "changelog": "Build 1.0.116",
         "targetAbi": "10.11.9.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.68/Jellyfin.Plugin.AIRecommendations.zip",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.116/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "a40aebbda09075b572e2888b29994ec5",
-        "timestamp": "2026-06-21T14:57:08Z"
+        "timestamp": "2026-08-02T12:42:08Z"
       },
       {
-        "version": "1.0.67.0",
-        "changelog": "Build 1.0.67",
+        "version": "1.0.116.0",
+        "changelog": "Build 1.0.116",
         "targetAbi": "10.11.9.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.67/Jellyfin.Plugin.AIRecommendations.zip",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.116/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "",
-        "timestamp": "2026-06-21T14:47:29Z"
+        "timestamp": "2026-08-02T12:42:08Z"
       },
       {
-        "version": "1.0.66.0",
-        "changelog": "Update README with full feature documentation and prominent WIP/breaking-changes notice",
+        "version": "1.0.116.0",
+        "changelog": "Build 1.0.116",
         "targetAbi": "10.11.9.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.66/Jellyfin.Plugin.AIRecommendations.zip",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.116/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "c53d1bdfb6764e551c23a9eb2b6d70f0",
-        "timestamp": "2026-06-21T14:40:00Z"
+        "timestamp": "2026-08-02T12:42:08Z"
       },
       {
-        "version": "1.0.65.0",
-        "changelog": "Wire agent test panel in config UI; skip LLM generation on restart if stubs exist; fix confusing response when watch history is empty",
+        "version": "1.0.116.0",
+        "changelog": "Build 1.0.116",
         "targetAbi": "10.11.9.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.65/Jellyfin.Plugin.AIRecommendations.zip",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.116/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "d8a6ffacac56d43186ef7d207be63670",
-        "timestamp": "2026-06-21T14:39:53Z"
+        "timestamp": "2026-08-02T12:42:08Z"
       },
       {
-        "version": "1.0.64.0",
-        "changelog": "Version bump (rebase artifact)",
+        "version": "1.0.116.0",
+        "changelog": "Build 1.0.116",
         "targetAbi": "10.11.9.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.64/Jellyfin.Plugin.AIRecommendations.zip",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.116/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "4a53b48a9c6a09dede3d7d9dfa0fc44d",
-        "timestamp": "2026-06-21T14:34:32Z"
+        "timestamp": "2026-08-02T12:42:08Z"
       },
       {
-        "version": "1.0.63.0",
-        "changelog": "Version bump (rebase artifact)",
+        "version": "1.0.116.0",
+        "changelog": "Build 1.0.116",
         "targetAbi": "10.11.9.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.63/Jellyfin.Plugin.AIRecommendations.zip",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.116/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "",
-        "timestamp": "2026-06-21T14:33:10Z"
+        "timestamp": "2026-08-02T12:42:08Z"
       },
       {
-        "version": "1.0.62.0",
-        "changelog": "Version bump (rebase artifact)",
+        "version": "1.0.116.0",
+        "changelog": "Build 1.0.116",
         "targetAbi": "10.11.9.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.62/Jellyfin.Plugin.AIRecommendations.zip",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.116/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "",
-        "timestamp": "2026-06-21T14:32:37Z"
+        "timestamp": "2026-08-02T12:42:08Z"
       },
       {
-        "version": "1.0.61.0",
-        "changelog": "Redesign Telegram agent tools: discover_content uses TMDB Discover (no second LLM call); add sync_to_jellyfin tool; support Ollama as agent provider; add agent test API endpoint",
+        "version": "1.0.116.0",
+        "changelog": "Build 1.0.116",
         "targetAbi": "10.11.9.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.61/Jellyfin.Plugin.AIRecommendations.zip",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.116/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "109e4c70fb8fa6aaedc4be078447a51b",
-        "timestamp": "2026-06-21T14:12:17Z"
+        "timestamp": "2026-08-02T12:42:08Z"
       },
       {
-        "version": "1.0.60.0",
-        "changelog": "Fix Telegram bot not responding when token added after startup; poll loop now starts unconditionally and picks up token without restart",
+        "version": "1.0.116.0",
+        "changelog": "Build 1.0.116",
         "targetAbi": "10.11.9.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.60/Jellyfin.Plugin.AIRecommendations.zip",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.116/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "902b8a256ca789844fead5e44d423861",
-        "timestamp": "2026-06-21T14:07:30Z"
+        "timestamp": "2026-08-02T12:42:08Z"
       },
       {
-        "version": "1.0.59.0",
-        "changelog": "Extend favourite-to-download routing to Radarr (movies) and Sonarr (shows) alongside Jellyseerr; combined toast shows which services received the request",
+        "version": "1.0.116.0",
+        "changelog": "Build 1.0.116",
         "targetAbi": "10.11.9.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.59/Jellyfin.Plugin.AIRecommendations.zip",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.116/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "9339ab9df56ed6c03fae1a783c303793",
-        "timestamp": "2026-06-21T14:00:21Z"
+        "timestamp": "2026-08-02T12:42:08Z"
       },
       {
-        "version": "1.0.58.0",
-        "changelog": "Version bump (rebase artifact)",
+        "version": "1.0.116.0",
+        "changelog": "Build 1.0.116",
         "targetAbi": "10.11.9.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.58/Jellyfin.Plugin.AIRecommendations.zip",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.116/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "78454156aa628bd36506a537a20b04c8",
-        "timestamp": "2026-06-21T13:40:58Z"
+        "timestamp": "2026-08-02T12:42:08Z"
       },
       {
-        "version": "1.0.57.0",
-        "changelog": "Version bump (rebase artifact)",
+        "version": "1.0.116.0",
+        "changelog": "Build 1.0.116",
         "targetAbi": "10.11.9.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.57/Jellyfin.Plugin.AIRecommendations.zip",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.116/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "d23857650af62d3f5bbaa4382b847305",
-        "timestamp": "2026-06-21T13:40:49Z"
+        "timestamp": "2026-08-02T12:42:08Z"
       },
       {
-        "version": "1.0.56.0",
-        "changelog": "Add on-screen Jellyfin toast notifications when a favourite triggers a download request",
+        "version": "1.0.116.0",
+        "changelog": "Build 1.0.116",
         "targetAbi": "10.11.9.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.56/Jellyfin.Plugin.AIRecommendations.zip",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.116/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "2cb0cbf3dac2ca2f82d5e9ad51ac52d2",
-        "timestamp": "2026-06-21T13:22:51Z"
+        "timestamp": "2026-08-02T12:42:08Z"
       },
       {
-        "version": "1.0.55.0",
-        "changelog": "Add Telegram AI agent bot with Radarr, Sonarr, and Jellyseerr download integration; account linking via 6-digit code; DownloadStatusPoller notifies when content becomes available",
+        "version": "1.0.116.0",
+        "changelog": "Build 1.0.116",
         "targetAbi": "10.11.9.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.55/Jellyfin.Plugin.AIRecommendations.zip",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.116/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "8936215a842e8cd78194df0389fd2439",
-        "timestamp": "2026-06-21T13:22:42Z"
+        "timestamp": "2026-08-02T12:42:08Z"
       },
       {
-        "version": "1.0.54.0",
-        "changelog": "Release 1.0.54",
+        "version": "1.0.116.0",
+        "changelog": "Build 1.0.116",
         "targetAbi": "10.11.9.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.54/Jellyfin.Plugin.AIRecommendations.zip",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.116/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "f7ad178969b2c654e61717329fd156dd",
-        "timestamp": "2026-06-19T11:14:58Z"
+        "timestamp": "2026-08-02T12:42:08Z"
       },
       {
-        "version": "1.0.53.0",
-        "changelog": "Release 1.0.53",
+        "version": "1.0.116.0",
+        "changelog": "Build 1.0.116",
         "targetAbi": "10.11.9.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.53/Jellyfin.Plugin.AIRecommendations.zip",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.116/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "fc9899a05da1e2fc6690d59e317eb70d",
-        "timestamp": "2026-06-19T11:14:51Z"
+        "timestamp": "2026-08-02T12:42:08Z"
       },
       {
-        "version": "1.0.52.0",
-        "changelog": "Release 1.0.52",
+        "version": "1.0.116.0",
+        "changelog": "Build 1.0.116",
         "targetAbi": "10.11.9.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.52/Jellyfin.Plugin.AIRecommendations.zip",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.116/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "57af3e9c7e5f21ec2da6dff708ced0cc",
-        "timestamp": "2026-06-19T11:12:12Z"
+        "timestamp": "2026-08-02T12:42:08Z"
       },
       {
-        "version": "1.0.51.0",
-        "changelog": "Release 1.0.51",
+        "version": "1.0.116.0",
+        "changelog": "Build 1.0.116",
         "targetAbi": "10.11.9.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.51/Jellyfin.Plugin.AIRecommendations.zip",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.116/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "36106a07110409c39842eb656e5656b9",
-        "timestamp": "2026-06-19T11:11:58Z"
+        "timestamp": "2026-08-02T12:42:08Z"
       },
       {
-        "version": "1.0.50.0",
-        "changelog": "feat: suppress NtfyNotifier notifications during AI recommendation library scan",
+        "version": "1.0.116.0",
+        "changelog": "Build 1.0.116",
         "targetAbi": "10.11.9.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.50/Jellyfin.Plugin.AIRecommendations.zip",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.116/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "",
-        "timestamp": "2026-06-19T00:00:00Z"
+        "timestamp": "2026-08-02T12:42:08Z"
       },
       {
-        "version": "1.0.49.0",
-        "changelog": "Release 1.0.49",
+        "version": "1.0.116.0",
+        "changelog": "Build 1.0.116",
         "targetAbi": "10.11.9.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.49/Jellyfin.Plugin.AIRecommendations.zip",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.116/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "5c08d8cff733924e89db8eddc617ee7e",
-        "timestamp": "2026-06-19T10:54:06Z"
+        "timestamp": "2026-08-02T12:42:08Z"
       },
       {
-        "version": "1.0.48.0",
-        "changelog": "Release 1.0.48",
+        "version": "1.0.116.0",
+        "changelog": "Build 1.0.116",
         "targetAbi": "10.11.9.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.48/Jellyfin.Plugin.AIRecommendations.zip",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.116/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "a9c769fbd997635bff68b3127d15fb80",
-        "timestamp": "2026-06-19T10:49:47Z"
+        "timestamp": "2026-08-02T12:42:08Z"
       },
       {
-        "version": "1.0.47.0",
-        "changelog": "Release 1.0.47",
+        "version": "1.0.116.0",
+        "changelog": "Build 1.0.116",
         "targetAbi": "10.11.9.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.47/Jellyfin.Plugin.AIRecommendations.zip",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.116/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "eecc0bc6262df6ccf030e6bf8869614d",
-        "timestamp": "2026-06-19T10:33:15Z"
+        "timestamp": "2026-08-02T12:42:08Z"
       },
       {
-        "version": "1.0.46.0",
-        "changelog": "Build 1.0.46",
+        "version": "1.0.116.0",
+        "changelog": "Build 1.0.116",
         "targetAbi": "10.11.9.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.46/Jellyfin.Plugin.AIRecommendations.zip",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.116/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "",
-        "timestamp": "2026-06-19T03:00:00Z"
+        "timestamp": "2026-08-02T12:42:08Z"
       },
       {
-        "version": "1.0.44.0",
-        "changelog": "Release 1.0.44",
+        "version": "1.0.116.0",
+        "changelog": "Build 1.0.116",
         "targetAbi": "10.11.9.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.44/Jellyfin.Plugin.AIRecommendations.zip",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.116/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "048aea1c59ed1a50010009c404ac0fc6",
-        "timestamp": "2026-06-19T02:08:33Z"
+        "timestamp": "2026-08-02T12:42:08Z"
       },
       {
-        "version": "1.0.45.0",
-        "changelog": "Release 1.0.45",
+        "version": "1.0.116.0",
+        "changelog": "Build 1.0.116",
         "targetAbi": "10.11.9.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.45/Jellyfin.Plugin.AIRecommendations.zip",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.116/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "88f5611b49ceec04494e3a65fa483378",
-        "timestamp": "2026-06-19T02:08:39Z"
+        "timestamp": "2026-08-02T12:42:08Z"
       },
       {
-        "version": "1.0.43.0",
-        "changelog": "Release 1.0.43",
+        "version": "1.0.116.0",
+        "changelog": "Build 1.0.116",
         "targetAbi": "10.11.9.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.43/Jellyfin.Plugin.AIRecommendations.zip",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.116/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "a9c3003a87922d3678918e0bf3e4b4b0",
-        "timestamp": "2026-06-19T01:45:26Z"
+        "timestamp": "2026-08-02T12:42:08Z"
       },
       {
-        "version": "1.0.42.0",
-        "changelog": "Release 1.0.42",
+        "version": "1.0.116.0",
+        "changelog": "Build 1.0.116",
         "targetAbi": "10.11.9.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.42/Jellyfin.Plugin.AIRecommendations.zip",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.116/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "bc15ae5401995af713d2007ffb06c4e8",
-        "timestamp": "2026-06-19T01:45:13Z"
+        "timestamp": "2026-08-02T12:42:08Z"
       },
       {
-        "version": "1.0.41.0",
-        "changelog": "Release 1.0.41",
+        "version": "1.0.116.0",
+        "changelog": "Build 1.0.116",
         "targetAbi": "10.11.9.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.41/Jellyfin.Plugin.AIRecommendations.zip",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.116/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "310eb11ec044c01a48564e0c89ceca02",
-        "timestamp": "2026-06-19T01:11:40Z"
+        "timestamp": "2026-08-02T12:42:08Z"
       },
       {
-        "version": "1.0.40.0",
-        "changelog": "Release 1.0.40",
+        "version": "1.0.116.0",
+        "changelog": "Build 1.0.116",
         "targetAbi": "10.11.9.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.40/Jellyfin.Plugin.AIRecommendations.zip",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.116/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "27b978f4db5e10800c9ac0a9d94f2da5",
-        "timestamp": "2026-06-19T01:10:50Z"
+        "timestamp": "2026-08-02T12:42:08Z"
       },
       {
-        "version": "1.0.39.0",
-        "changelog": "Release 1.0.39",
+        "version": "1.0.116.0",
+        "changelog": "Build 1.0.116",
         "targetAbi": "10.11.9.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.39/Jellyfin.Plugin.AIRecommendations.zip",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.116/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "0d9ee3113da60866a52f62fe013444ba",
-        "timestamp": "2026-06-19T01:09:19Z"
+        "timestamp": "2026-08-02T12:42:08Z"
       },
       {
-        "version": "1.0.38.0",
-        "changelog": "Release 1.0.38",
+        "version": "1.0.116.0",
+        "changelog": "Build 1.0.116",
         "targetAbi": "10.11.9.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.38/Jellyfin.Plugin.AIRecommendations.zip",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.116/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "f48f69c72a6f5005b588abd0e83673b6",
-        "timestamp": "2026-06-19T01:05:21Z"
+        "timestamp": "2026-08-02T12:42:08Z"
       },
       {
-        "version": "1.0.37.0",
-        "changelog": "Release 1.0.37",
+        "version": "1.0.116.0",
+        "changelog": "Build 1.0.116",
         "targetAbi": "10.11.9.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.37/Jellyfin.Plugin.AIRecommendations.zip",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.116/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "a2f289ddbe4d9de918e97be06b1a3cc5",
-        "timestamp": "2026-06-19T00:22:35Z"
+        "timestamp": "2026-08-02T12:42:08Z"
       },
       {
-        "version": "1.0.36.0",
-        "changelog": "Release 1.0.36",
+        "version": "1.0.116.0",
+        "changelog": "Build 1.0.116",
         "targetAbi": "10.11.9.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.36/Jellyfin.Plugin.AIRecommendations.zip",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.116/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "6d3fb1629dafa27cec1f67d7236b8fc8",
-        "timestamp": "2026-06-19T00:15:25Z"
+        "timestamp": "2026-08-02T12:42:08Z"
       },
       {
-        "version": "1.0.35.0",
-        "changelog": "Release 1.0.35",
+        "version": "1.0.116.0",
+        "changelog": "Build 1.0.116",
         "targetAbi": "10.11.9.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.35/Jellyfin.Plugin.AIRecommendations.zip",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.116/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "24821406163e4be9fa3ae334e2d5bed9",
-        "timestamp": "2026-06-19T00:07:17Z"
+        "timestamp": "2026-08-02T12:42:08Z"
       },
       {
-        "version": "1.0.34.0",
-        "changelog": "Release 1.0.34",
+        "version": "1.0.116.0",
+        "changelog": "Build 1.0.116",
         "targetAbi": "10.11.9.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.34/Jellyfin.Plugin.AIRecommendations.zip",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.116/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "02b8ff7de9a1e4ddffa202f727b95855",
-        "timestamp": "2026-06-18T23:41:30Z"
+        "timestamp": "2026-08-02T12:42:08Z"
       },
       {
-        "version": "1.0.33.0",
-        "changelog": "Release 1.0.33",
+        "version": "1.0.116.0",
+        "changelog": "Build 1.0.116",
         "targetAbi": "10.11.9.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.33/Jellyfin.Plugin.AIRecommendations.zip",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.116/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "f946dbb70daf882bbd1937103ee5e0d1",
-        "timestamp": "2026-06-18T21:47:10Z"
+        "timestamp": "2026-08-02T12:42:08Z"
       },
       {
-        "version": "1.0.32.0",
-        "changelog": "Release 1.0.32",
+        "version": "1.0.116.0",
+        "changelog": "Build 1.0.116",
         "targetAbi": "10.11.9.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.32/Jellyfin.Plugin.AIRecommendations.zip",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.116/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "888fbb78cd5a46b596c5d6a3addc7763",
-        "timestamp": "2026-06-18T21:33:29Z"
+        "timestamp": "2026-08-02T12:42:08Z"
       },
       {
-        "version": "1.0.31.0",
-        "changelog": "Release 1.0.31",
+        "version": "1.0.116.0",
+        "changelog": "Build 1.0.116",
         "targetAbi": "10.11.9.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.31/Jellyfin.Plugin.AIRecommendations.zip",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.116/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "b6dbd8100b490b88a3b17601250ad029",
-        "timestamp": "2026-06-18T21:32:06Z"
+        "timestamp": "2026-08-02T12:42:08Z"
       },
       {
-        "version": "1.0.30.0",
-        "changelog": "Release 1.0.30",
+        "version": "1.0.116.0",
+        "changelog": "Build 1.0.116",
         "targetAbi": "10.11.9.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.30/Jellyfin.Plugin.AIRecommendations.zip",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.116/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "f4d41b0e5ad40568a97c2fc6f1352885",
-        "timestamp": "2026-06-18T21:27:56Z"
+        "timestamp": "2026-08-02T12:42:08Z"
       },
       {
-        "version": "1.0.29.0",
-        "changelog": "Release 1.0.29",
+        "version": "1.0.116.0",
+        "changelog": "Build 1.0.116",
         "targetAbi": "10.11.9.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.29/Jellyfin.Plugin.AIRecommendations.zip",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.116/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "36c11f3021e29b33ba18171f901c92be",
-        "timestamp": "2026-06-18T21:25:37Z"
+        "timestamp": "2026-08-02T12:42:08Z"
       },
       {
-        "version": "1.0.28.0",
-        "changelog": "Release 1.0.28",
+        "version": "1.0.116.0",
+        "changelog": "Build 1.0.116",
         "targetAbi": "10.11.9.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.28/Jellyfin.Plugin.AIRecommendations.zip",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.116/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "f5b0d6f6926f84543002d1ca7bc0b70d",
-        "timestamp": "2026-06-18T21:21:20Z"
+        "timestamp": "2026-08-02T12:42:08Z"
       },
       {
-        "version": "1.0.27.0",
-        "changelog": "Release 1.0.27",
+        "version": "1.0.116.0",
+        "changelog": "Build 1.0.116",
         "targetAbi": "10.11.9.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.27/Jellyfin.Plugin.AIRecommendations.zip",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.116/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "c79e0876c288581d1fc750a5e02e7fb0",
-        "timestamp": "2026-06-18T21:15:29Z"
+        "timestamp": "2026-08-02T12:42:08Z"
       },
       {
-        "version": "1.0.26.0",
-        "changelog": "Release 1.0.26",
+        "version": "1.0.116.0",
+        "changelog": "Build 1.0.116",
         "targetAbi": "10.11.9.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.26/Jellyfin.Plugin.AIRecommendations.zip",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.116/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "de215e97613fb191246c453e80ac2498",
-        "timestamp": "2026-06-18T20:36:33Z"
+        "timestamp": "2026-08-02T12:42:08Z"
       },
       {
-        "version": "1.0.25.0",
-        "changelog": "Release 1.0.25",
+        "version": "1.0.116.0",
+        "changelog": "Build 1.0.116",
         "targetAbi": "10.11.9.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.25/Jellyfin.Plugin.AIRecommendations.zip",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.116/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "5bd9c737053c16d3fa0a5787b27bae0c",
-        "timestamp": "2026-06-18T20:12:20Z"
+        "timestamp": "2026-08-02T12:42:08Z"
       },
       {
-        "version": "1.0.24.0",
-        "changelog": "Release 1.0.24",
+        "version": "1.0.116.0",
+        "changelog": "Build 1.0.116",
         "targetAbi": "10.11.9.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.24/Jellyfin.Plugin.AIRecommendations.zip",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.116/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "c6896de412107edbaabb80181bdef4b9",
-        "timestamp": "2026-06-18T20:09:26Z"
+        "timestamp": "2026-08-02T12:42:08Z"
       },
       {
-        "version": "1.0.23.0",
-        "changelog": "Release 1.0.23",
+        "version": "1.0.116.0",
+        "changelog": "Build 1.0.116",
         "targetAbi": "10.11.9.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.23/Jellyfin.Plugin.AIRecommendations.zip",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.116/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "b0c95a256933cfd6ce75be85efcb1083",
-        "timestamp": "2026-06-18T20:06:11Z"
+        "timestamp": "2026-08-02T12:42:08Z"
       },
       {
-        "version": "1.0.22.0",
-        "changelog": "Release 1.0.22",
+        "version": "1.0.116.0",
+        "changelog": "Build 1.0.116",
         "targetAbi": "10.11.9.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.22/Jellyfin.Plugin.AIRecommendations.zip",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.116/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "b839b2f111f1b24ada822cd980405723",
-        "timestamp": "2026-06-18T20:03:54Z"
+        "timestamp": "2026-08-02T12:42:08Z"
       },
       {
-        "version": "1.0.21.0",
-        "changelog": "Release 1.0.21",
+        "version": "1.0.116.0",
+        "changelog": "Build 1.0.116",
         "targetAbi": "10.11.9.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.21/Jellyfin.Plugin.AIRecommendations.zip",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.116/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "ee90b103a7e1ca07cac892f8ec754f00",
-        "timestamp": "2026-06-18T19:21:24Z"
+        "timestamp": "2026-08-02T12:42:08Z"
       },
       {
-        "version": "1.0.20.0",
-        "changelog": "Release 1.0.20",
+        "version": "1.0.116.0",
+        "changelog": "Build 1.0.116",
         "targetAbi": "10.11.9.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.20/Jellyfin.Plugin.AIRecommendations.zip",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.116/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "038ebce6e1843c565011fb94d9a3fd41",
-        "timestamp": "2026-06-18T19:14:49Z"
+        "timestamp": "2026-08-02T12:42:08Z"
       },
       {
-        "version": "1.0.19.0",
-        "changelog": "Release 1.0.19",
+        "version": "1.0.116.0",
+        "changelog": "Build 1.0.116",
         "targetAbi": "10.11.9.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.19/Jellyfin.Plugin.AIRecommendations.zip",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.116/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "53d4038707e2978f351d634a44b62e26",
-        "timestamp": "2026-06-18T18:59:10Z"
+        "timestamp": "2026-08-02T12:42:08Z"
       },
       {
-        "version": "1.0.18.0",
-        "changelog": "Release 1.0.18",
+        "version": "1.0.116.0",
+        "changelog": "Build 1.0.116",
         "targetAbi": "10.11.9.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.18/Jellyfin.Plugin.AIRecommendations.zip",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.116/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "9fd2648921009d81c24c8a60f52cc82d",
-        "timestamp": "2026-06-18T18:51:21Z"
+        "timestamp": "2026-08-02T12:42:08Z"
       },
       {
-        "version": "1.0.17.0",
-        "changelog": "Release 1.0.17",
+        "version": "1.0.116.0",
+        "changelog": "Build 1.0.116",
         "targetAbi": "10.11.9.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.17/Jellyfin.Plugin.AIRecommendations.zip",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.116/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "78449aab1db52614b47dba4f517857d9",
-        "timestamp": "2026-06-18T18:35:05Z"
+        "timestamp": "2026-08-02T12:42:08Z"
       },
       {
-        "version": "1.0.16.0",
-        "changelog": "Release 1.0.16",
+        "version": "1.0.116.0",
+        "changelog": "Build 1.0.116",
         "targetAbi": "10.11.9.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.16/Jellyfin.Plugin.AIRecommendations.zip",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.116/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "e652ee03047417dba797da609f674e19",
-        "timestamp": "2026-06-18T16:01:50Z"
+        "timestamp": "2026-08-02T12:42:08Z"
       },
       {
-        "version": "1.0.15.0",
-        "changelog": "Build 1.0.15",
+        "version": "1.0.116.0",
+        "changelog": "Build 1.0.116",
         "targetAbi": "10.11.9.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.15/Jellyfin.Plugin.AIRecommendations.zip",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.116/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "93c4fd467bc6a0bd0d9b1f8a470b8fd0",
-        "timestamp": "2026-06-18T16:00:20Z"
+        "timestamp": "2026-08-02T12:42:08Z"
       },
       {
-        "version": "1.0.14.0",
-        "changelog": "Release 1.0.14",
+        "version": "1.0.116.0",
+        "changelog": "Build 1.0.116",
         "targetAbi": "10.11.9.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.14/Jellyfin.Plugin.AIRecommendations.zip",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.116/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "985136a4da014245441ba84da22f453d",
-        "timestamp": "2026-06-18T15:49:30Z"
+        "timestamp": "2026-08-02T12:42:08Z"
       },
       {
-        "version": "1.0.13.0",
-        "changelog": "Release 1.0.13",
+        "version": "1.0.116.0",
+        "changelog": "Build 1.0.116",
         "targetAbi": "10.11.9.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.13/Jellyfin.Plugin.AIRecommendations.zip",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.116/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "f5bbdd5540fb374957b898ad38322200",
-        "timestamp": "2026-06-18T15:48:13Z"
+        "timestamp": "2026-08-02T12:42:08Z"
       },
       {
-        "version": "1.0.12.0",
-        "changelog": "Release 1.0.12",
+        "version": "1.0.116.0",
+        "changelog": "Build 1.0.116",
         "targetAbi": "10.11.9.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.12/Jellyfin.Plugin.AIRecommendations.zip",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.116/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "379fcbfe43e000989b78060d64c12068",
-        "timestamp": "2026-06-18T15:46:06Z"
+        "timestamp": "2026-08-02T12:42:08Z"
       },
       {
-        "version": "1.0.11.0",
-        "changelog": "Release 1.0.11",
+        "version": "1.0.116.0",
+        "changelog": "Build 1.0.116",
         "targetAbi": "10.11.9.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.11/Jellyfin.Plugin.AIRecommendations.zip",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.116/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "f523e138d438b8376816549d5b6f83f7",
-        "timestamp": "2026-06-18T15:42:44Z"
+        "timestamp": "2026-08-02T12:42:08Z"
       },
       {
-        "version": "1.0.10.0",
-        "changelog": "Release 1.0.10",
+        "version": "1.0.116.0",
+        "changelog": "Build 1.0.116",
         "targetAbi": "10.11.9.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.10/Jellyfin.Plugin.AIRecommendations.zip",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.116/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "a63d6f0da15ff586c3f2d0e161950b09",
-        "timestamp": "2026-06-18T15:38:30Z"
+        "timestamp": "2026-08-02T12:42:08Z"
       },
       {
-        "version": "1.0.9.0",
-        "changelog": "Release 1.0.9",
+        "version": "1.0.116.0",
+        "changelog": "Build 1.0.116",
         "targetAbi": "10.11.9.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.9/Jellyfin.Plugin.AIRecommendations.zip",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.116/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "d62194ab8dcf3ce1afc39c7e78c06daf",
-        "timestamp": "2026-06-18T15:31:14Z"
+        "timestamp": "2026-08-02T12:42:08Z"
       },
       {
-        "version": "1.0.8.0",
-        "changelog": "Build 1.0.8",
+        "version": "1.0.116.0",
+        "changelog": "Build 1.0.116",
         "targetAbi": "10.11.9.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.8/Jellyfin.Plugin.AIRecommendations.zip",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.116/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "93c4fd467bc6a0bd0d9b1f8a470b8fd0",
-        "timestamp": "2026-06-18T15:23:13Z"
+        "timestamp": "2026-08-02T12:42:08Z"
       },
       {
-        "version": "1.0.7.0",
-        "changelog": "Fix Ollama Cloud: use /api/generate endpoint and default to gemma4 cloud model",
+        "version": "1.0.116.0",
+        "changelog": "Build 1.0.116",
         "targetAbi": "10.11.9.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.7/Jellyfin.Plugin.AIRecommendations.zip",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.116/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "f05aac2c103347b07609f637a60e8c5b",
-        "timestamp": "2026-06-18T15:10:08Z"
+        "timestamp": "2026-08-02T12:42:08Z"
       },
       {
-        "version": "1.0.6.0",
-        "changelog": "Release 1.0.6",
+        "version": "1.0.116.0",
+        "changelog": "Build 1.0.116",
         "targetAbi": "10.11.9.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.6/Jellyfin.Plugin.AIRecommendations.zip",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.116/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "219a2f7d0410d05ec4019c571b7bc6cf",
-        "timestamp": "2026-06-18T15:07:42Z"
+        "timestamp": "2026-08-02T12:42:08Z"
       },
       {
-        "version": "1.0.5.0",
-        "changelog": "Release 1.0.5",
+        "version": "1.0.116.0",
+        "changelog": "Build 1.0.116",
         "targetAbi": "10.11.9.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.5/Jellyfin.Plugin.AIRecommendations.zip",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.116/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "6278aebdb6a7b17b12cbda10a99932ec",
-        "timestamp": "2026-06-18T15:00:13Z"
+        "timestamp": "2026-08-02T12:42:08Z"
       },
       {
-        "version": "1.0.4.0",
-        "changelog": "Release 1.0.4",
+        "version": "1.0.116.0",
+        "changelog": "Build 1.0.116",
         "targetAbi": "10.11.0.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.4/Jellyfin.Plugin.AIRecommendations.zip",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.116/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "5e757dc27d6c256818acae39e0892888",
-        "timestamp": "2026-06-18T14:31:12Z"
+        "timestamp": "2026-08-02T12:42:08Z"
       },
       {
-        "version": "1.0.3.0",
-        "changelog": "Release 1.0.3",
+        "version": "1.0.116.0",
+        "changelog": "Build 1.0.116",
         "targetAbi": "10.11.0.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.3/Jellyfin.Plugin.AIRecommendations.zip",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.116/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "c6ca7e52a59b2e05cb6ee3abdf32d041",
-        "timestamp": "2026-06-18T14:10:17Z"
+        "timestamp": "2026-08-02T12:42:08Z"
       },
       {
-        "version": "1.0.2.0",
-        "changelog": "Jellyfin 10.11 support (fixes NotSupported on 10.11 servers)",
+        "version": "1.0.116.0",
+        "changelog": "Build 1.0.116",
         "targetAbi": "10.11.0.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.2/Jellyfin.Plugin.AIRecommendations.zip",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.116/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "3235a42df4036032673c2ca7220be50f",
-        "timestamp": "2026-06-18T13:30:00Z"
+        "timestamp": "2026-08-02T12:42:08Z"
       },
       {
-        "version": "1.0.1.0",
-        "changelog": "Jellyfin 10.10 support",
+        "version": "1.0.116.0",
+        "changelog": "Build 1.0.116",
         "targetAbi": "10.10.0.0",
-        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.1/Jellyfin.Plugin.AIRecommendations.zip",
+        "sourceUrl": "https://github.com/aG00Dtime/Jellyfin.Plugin.AIRecommendations/releases/download/v1.0.116/Jellyfin.Plugin.AIRecommendations.zip",
         "checksum": "53094da75a22bb1aa11bfa801561a7b2",
-        "timestamp": "2026-06-18T13:03:09Z"
+        "timestamp": "2026-08-02T12:42:08Z"
       }
     ]
   }
